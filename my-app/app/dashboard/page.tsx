@@ -1,6 +1,11 @@
+import Link from "next/link"
+
 const Dashboard = () => {
   return (
-    <div>Dashboard</div>
+    <div>
+      <div>Dashboard</div>
+      <Link href="/">Voltar para home</Link>
+    </div>
   )
 }
 
