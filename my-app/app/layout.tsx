@@ -1,14 +1,19 @@
-
+import Footer from "./components/Footer";
+import Header from "./components/Header";
 import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
+export default function RootLayout({ children, }: { children: React.ReactNode; }) {
   return (
-    <div>
-      
-    </div>
-  );
+    <html lang="pt-BR" className={cn("font-sans", geist.variable)}>
+      <body>
+        <Header/>
+          {children}
+        <Footer/>
+      </body>
+    </html> 
+  ); 
 }
