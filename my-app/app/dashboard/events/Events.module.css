@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
+
+:root {
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --bg-page: #f3f4f6;
+  --bg-card: #ffffff;
+  --border: #e5e7eb;
+  --badge-bg: #ede9fe;
+  --badge-text: #5b21b6;
+  --star-filled: #f59e0b;
+  --star-empty: #d1d5db;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 12px 32px rgba(124, 58, 237, 0.15);
+}
+
+.page {
+  background: var(--bg-page);
+  min-height: 100vh;
+  padding: 3rem 2rem;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.grid {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  align-items: stretch;
+  gap: 1.5rem;
+  max-width: 1100px;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-hover);
+}
+
+.imageWrapper {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.card:hover .image {
+  transform: scale(1.05);
+}
+
+.body {
+  padding: 1.25rem 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.badge {
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+}
+
+.stars {
+  display: flex;
+  gap: 2px;
+}
+
+.starFilled {
+  color: var(--star-filled);
+  font-size: 1rem;
+}
+
+.starEmpty {
+  color: var(--star-empty);
+  font-size: 1rem;
+}
+
+.button {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.75rem 0;
+  background-color: var(--accent);
+  color: #ffffff;
+  border: 2px solid var(--accent);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.button:hover {
+  background-color: #ffffff;
+  color: var(--accent);
+  transform: scale(1.02);
+}
+
+.button:active {
+  transform: scale(0.98);
+}
