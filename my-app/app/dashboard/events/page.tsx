@@ -1,7 +1,13 @@
 
 const Events = () => {
   return (
-    <div>Eventos</div>
+    <div>
+        <ul>
+            <li>Evento 1</li>
+            <li>Evento 2</li>
+            <li>Evento 3</li>
+        </ul>
+    </div>
   )
 }
 
