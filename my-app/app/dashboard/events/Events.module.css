@@ -76,10 +76,11 @@
 }
 
 .title {
-  font-family: 'DM Serif Display', serif;
+  font-family: Impact, fantasy;
+  letter-spacing: 1px;
   font-size: 1.05rem;
   font-weight: 400;
-  color: var(--text-primary);
+  color: #3d3f44;
   margin: 0;
   line-height: 1.4;
 }
