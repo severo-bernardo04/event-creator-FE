@@ -1,7 +1,6 @@
-export default function Home() {
-  return (
-    <div>
-      
-    </div>
-  );
+import { Home } from "./home/home";
+
+export default function Page() {
+  return <Home />;
 }
+
