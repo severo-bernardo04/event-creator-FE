@@ -13,8 +13,7 @@ const Header = () => {
     <header className="w-full border-b">
       <div className="flex items-center justify-between max-w-5xl mx-auto px-4 py-4">
 
-        <Image src="/home.png" alt="Home" width={24} height={24} className="cursor-pointer" onClick={() => router.push("/dashboard")}/>
-
+        <Image src="/home.png" alt="Home" width={24} height={24} className="cursor-pointer invert brightness-0" onClick={() => router.push("/dashboard")}/>
         <ul className="flex gap-4 justify-center">
           <li
             className={`${styles.HeaderElement} ${
