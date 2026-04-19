@@ -45,11 +45,6 @@
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-hover);
-}
-
 .imageWrapper {
   width: 100%;
   height: 200px;
@@ -63,9 +58,6 @@
   transition: transform 0.4s ease;
 }
 
-.card:hover .image {
-  transform: scale(1.05);
-}
 
 .body {
   padding: 1.25rem 1.25rem 1.5rem;
