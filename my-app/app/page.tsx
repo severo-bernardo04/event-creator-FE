@@ -1,9 +1,5 @@
-import Link from "next/link";
+import { Home } from "./home/home";
 
-export default function Home() {
-  return (
-    <div>
-      <Link href="/dashboard">Ir para Dashboard</Link>
-    </div>
-  );
+export default function Page() {
+  return <Home />;
 }
