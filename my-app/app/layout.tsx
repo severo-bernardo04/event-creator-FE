@@ -1,6 +1,3 @@
-"use client";
-
-import { usePathname } from "next/navigation";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
 import "./globals.css";
@@ -14,27 +11,17 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isAuthPage = pathname === "/login" || pathname === "/register";
-
   return (
     <html lang="pt-BR" className={cn("font-sans", geist.variable)}>
-      <body className="bg-slate-950 antialiased">
+      <body>
         <div className="flex min-h-screen flex-col">
-          
-          {!isAuthPage && <Header />}
-
+          <Header />
           <main className="flex-1">
-            <div className={cn(
-              "w-full",
-              !isAuthPage && "max-w-5xl mx-auto px-4"
-            )}>
+            <div className="max-w-5xl mx-auto px-4 w-full">
               {children}
             </div>
           </main>
-
-          {!isAuthPage && <Footer />}
-
+          <Footer />
         </div>
       </body>
     </html>

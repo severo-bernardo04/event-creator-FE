@@ -65,7 +65,6 @@ export default function LoginPage() {
               className="space-y-5"
               onSubmit={(e) => {
                 e.preventDefault();
-                // Por enquanto é só front: ao enviar, vamos para a home.
                 router.push("/");
               }}
             >

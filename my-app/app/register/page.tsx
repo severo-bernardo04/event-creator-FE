@@ -66,7 +66,6 @@ export default function RegisterPage() {
               className="grid gap-5 md:grid-cols-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                // Por enquanto é só front: ao enviar, vamos para a home.
                 router.push("/");
               }}
             >
