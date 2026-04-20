@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import Header from "../Header";
-import Footer from "../Footer";
 
 export default function LayoutShell({
   children,
@@ -18,7 +17,6 @@ export default function LayoutShell({
       <main className={isAuth ? "" : "flex-1"}>
         {children}
       </main>
-      {!isAuth && <Footer />}
     </>
   );
 }
