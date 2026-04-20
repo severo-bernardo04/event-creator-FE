@@ -5,16 +5,23 @@ import styles from "./Header.module.css";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useBackToTop } from "../hooks/backToTop";
 
 const Header = () => {
   const [active, setActive] = useState("eventos");
   const router = useRouter();
+
+  const scrollToTop = useBackToTop();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
           <Link
             href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollToTop();
+            }}
             className="flex shrink-0 items-center gap-3 font-extrabold tracking-tight text-white"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-lg font-black text-white shadow-lg shadow-primary/30">
