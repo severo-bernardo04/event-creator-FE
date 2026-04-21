@@ -103,3 +103,19 @@ a:focus {
     transform: translate3d(0, -14px, 0) scale(1.04);
   }
 }
+
+/* Admin shell — largura da barra de progresso via variável (evita centenas de classes arbitrárias) */
+.admin-progress-track {
+  margin-top: 0.625rem;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #1e293b;
+}
+
+.admin-progress-fill {
+  height: 100%;
+  width: var(--admin-progress-pct, 0%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
