@@ -95,8 +95,8 @@ export function Home() {
               Categorias
             </a>
             <Link
-              href="/register?perfil=organizador"
-              className="rounded-lg px-3 py-2 text-secondary hover:bg-slate-800"
+              href="/organizer"
+              className="rounded-lg px-3 py-2 hover:bg-slate-800 hover:text-white"
             >
               Sou organizador
             </Link>
@@ -147,7 +147,7 @@ export function Home() {
                 Ver eventos
               </a>
               <Link
-                href="/register?perfil=organizador"
+                href="/organizer"
                 className="inline-flex items-center justify-center rounded-xl border-2 border-secondary bg-secondary/10 px-8 py-4 text-base font-bold text-secondary hover:bg-secondary/20"
               >
                 Sou organizador
