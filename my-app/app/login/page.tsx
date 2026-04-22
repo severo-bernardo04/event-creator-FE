@@ -8,6 +8,12 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10 text-white">
+      <Link
+        href="/"
+          className="absolute top-3 left-3 rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:border-slate-500 hover:bg-slate-800"
+        >
+          Voltar
+      </Link>
       <div className="floating-orb top-20 left-10 h-36 w-36 bg-primary/55" />
       <div
         className="floating-orb right-8 bottom-12 h-44 w-44 bg-secondary/45"
@@ -44,12 +50,6 @@ export default function LoginPage() {
         <div className="relative p-8 sm:p-10 md:p-12">
           <div className="mx-auto flex w-full max-w-md flex-col gap-8">
             <div className="space-y-3">
-              <Link
-                href="/"
-                className="inline-flex text-sm font-medium text-slate-300 hover:text-secondary"
-              >
-                Voltar para a home
-              </Link>
               <div>
                 <p className="text-sm uppercase tracking-[0.28em] text-primary/90">
                   Login
@@ -65,7 +65,6 @@ export default function LoginPage() {
               className="space-y-5"
               onSubmit={(e) => {
                 e.preventDefault();
-                // Por enquanto é só front: ao enviar, vamos para a home.
                 router.push("/");
               }}
             >

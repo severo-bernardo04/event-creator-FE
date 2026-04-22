@@ -1,4 +1,7 @@
+"use client";
 import Link from "next/link";
+import Header from "../components/Header";
+import { useState } from "react";
 
 const SAMPLE_EVENTS = [
   {
@@ -63,67 +66,18 @@ const CATEGORIES = [
 ] as const;
 
 export function Home() {
+  const [activeCategory, setActiveCategory] = useState("Todos");
+
+  const filteredEvents =
+    activeCategory === "Todos"
+      ? SAMPLE_EVENTS
+      : SAMPLE_EVENTS.filter((ev) =>
+          ev.category.toLowerCase().includes(activeCategory.toLowerCase())
+        );
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-950 text-slate-100">
       {/* Header — largura total */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
-          <Link
-            href="/"
-            className="flex shrink-0 items-center gap-3 font-extrabold tracking-tight text-white"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-lg font-black text-white shadow-lg shadow-primary/30">
-              E
-            </span>
-            <span className="text-lg sm:text-xl">Event Creator</span>
-          </Link>
-
-          <nav
-            className="order-3 flex w-full flex-wrap items-center justify-center gap-1 text-sm font-semibold text-slate-300 md:order-none md:w-auto md:justify-end lg:gap-2"
-            aria-label="Principal"
-          >
-            <a
-              href="#eventos"
-              className="rounded-lg px-3 py-2 hover:bg-slate-800 hover:text-white"
-            >
-              Eventos
-            </a>
-            <a
-              href="#categorias"
-              className="rounded-lg px-3 py-2 hover:bg-slate-800 hover:text-white"
-            >
-              Categorias
-            </a>
-            <Link
-              href="/register?perfil=organizador"
-              className="rounded-lg px-3 py-2 text-secondary hover:bg-slate-800"
-            >
-              Sou organizador
-            </Link>
-            <a
-              href="#ajuda"
-              className="rounded-lg px-3 py-2 hover:bg-slate-800 hover:text-white"
-            >
-              Ajuda
-            </a>
-          </nav>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <Link
-              href="/login"
-              className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:border-slate-500 hover:bg-slate-800"
-            >
-              Entrar
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-900 shadow-md hover:brightness-105"
-            >
-              Criar conta
-            </Link>
-          </div>
-        </div>
-      </header>
 
       <main className="flex w-full flex-1 flex-col">
         {/* Hero — ocupa a altura da tela (menos header aprox.) */}
@@ -173,23 +127,28 @@ export function Home() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-primary/20 px-4 py-2 text-xs font-bold text-primary">
-                  Todos
-                </span>
-                <span className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400">
-                  Shows
-                </span>
-                <span className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400">
-                  Palestras
-                </span>
-                <span className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400">
-                  Online
-                </span>
+                {["Todos", "Show", "Palestra", "Online"].map((cat) => {
+                  const isActive = activeCategory === cat;
+
+                  return (
+                    <span
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={
+                        isActive
+                          ? "rounded-full bg-primary/20 px-4 py-2 text-xs font-bold text-primary cursor-pointer"
+                          : "rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+                      }
+                    >
+                      {cat}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 
             <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {SAMPLE_EVENTS.map((ev) => (
+              {filteredEvents.map((ev) => (
                 <article
                   key={ev.id}
                   className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
@@ -337,3 +296,4 @@ export function Home() {
     </div>
   );
 }
+
