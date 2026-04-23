@@ -1,12 +1,5 @@
-import Link from "next/link"
+import { redirect } from "next/navigation";
 
-const Dashboard = () => {
-  return (
-    <div>
-      <div>Dashboard</div>
-      <Link href="/">Voltar para home</Link>
-    </div>
-  )
+export default function Dashboard() {
+  redirect("/admin");
 }
-
-export default Dashboard

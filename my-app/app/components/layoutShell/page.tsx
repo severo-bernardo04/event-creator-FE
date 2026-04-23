@@ -9,7 +9,8 @@ export default function LayoutShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isAuth = pathname === "/login" || pathname === "/register";
+  const hideHeaderRoutes = ["/login", "/register", "/organizer", "/admin"];
+  const isAuth = hideHeaderRoutes.includes(pathname);
 
   return (
     <>

@@ -101,7 +101,7 @@ export function Home() {
                 Ver eventos
               </a>
               <Link
-                href="/register?perfil=organizador"
+                href="/organizer"
                 className="inline-flex items-center justify-center rounded-xl border-2 border-secondary bg-secondary/10 px-8 py-4 text-base font-bold text-secondary hover:bg-secondary/20"
               >
                 Sou organizador
@@ -250,7 +250,7 @@ export function Home() {
             <ul className="mt-3 space-y-2 text-sm text-slate-400">
               <li>
                 <Link
-                  href="/register?perfil=organizador"
+                  href="/organizer"
                   className="hover:text-secondary"
                 >
                   Criar evento
@@ -290,6 +290,26 @@ export function Home() {
             <a href="#" className="hover:text-slate-300">
               Termos
             </a>
+          </div>
+        </div>
+
+        <div className="mx-auto mt-6 flex w-full max-w-[1600px] flex-col items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/30 px-5 py-4 text-xs text-slate-400 sm:flex-row">
+          <span className="font-semibold text-slate-300">
+            Acesso rápido (teste)
+          </span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href="/organizer"
+              className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 font-bold text-slate-200 hover:border-secondary/50 hover:text-secondary"
+            >
+              Página do organizador
+            </Link>
+            <Link
+              href="/admin"
+              className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 font-bold text-primary hover:bg-primary/15"
+            >
+              Página de admin
+            </Link>
           </div>
         </div>
       </footer>

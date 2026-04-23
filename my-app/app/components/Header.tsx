@@ -47,7 +47,7 @@ const Header = () => {
               Categorias
             </a>
             <Link
-              href="/register?perfil=organizador"
+              href="/organizer"
               className="rounded-lg px-3 py-2 text-secondary hover:bg-slate-800"
             >
               Sou organizador

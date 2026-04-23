@@ -103,3 +103,19 @@ a:focus {
     transform: translate3d(0, -14px, 0) scale(1.04);
   }
 }
+
+.admin-progress-track {
+  margin-top: 0.5rem;
+  height: 0.5rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(51, 65, 85, 0.8);
+}
+
+.admin-progress-fill {
+  height: 100%;
+  width: var(--admin-progress-pct, 0%);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
