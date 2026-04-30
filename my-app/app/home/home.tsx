@@ -1,58 +1,9 @@
 "use client";
 import Link from "next/link";
-import Header from "../components/Header";
-import { useState } from "react";
-
-const SAMPLE_EVENTS = [
-  {
-    id: "1",
-    title: "Noite Eletrônica — São Paulo",
-    category: "Show",
-    date: "24 mai 2026 · 22h",
-    city: "São Paulo, SP",
-    price: "A partir de R$ 80",
-  },
-  {
-    id: "2",
-    title: "Summit de Inovação 2026",
-    category: "Palestra",
-    date: "08 jun 2026 · 14h",
-    city: "Belo Horizonte, MG",
-    price: "A partir de R$ 120",
-  },
-  {
-    id: "3",
-    title: "Festival Gastronômico do Porto",
-    category: "Festival",
-    date: "15 jun 2026 · 11h",
-    city: "Porto Alegre, RS",
-    price: "Grátis",
-  },
-  {
-    id: "4",
-    title: "Workshop de UX para Produto",
-    category: "Workshop",
-    date: "02 jul 2026 · 9h",
-    city: "Online",
-    price: "A partir de R$ 199",
-  },
-  {
-    id: "5",
-    title: "Open Air Sunset",
-    category: "Festas",
-    date: "12 jul 2026 · 16h",
-    city: "Rio de Janeiro, RJ",
-    price: "A partir de R$ 65",
-  },
-  {
-    id: "6",
-    title: "Congresso de Saúde e Bem-estar",
-    category: "Congresso",
-    date: "20 ago 2026 · 8h",
-    city: "Curitiba, PR",
-    price: "A partir de R$ 350",
-  },
-] as const;
+import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
+import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 
 const CATEGORIES = [
   "Shows",
@@ -67,13 +18,37 @@ const CATEGORIES = [
 
 export function Home() {
   const [activeCategory, setActiveCategory] = useState("Todos");
+  const [events, setEvents] = useState<ApiEventNorm[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredEvents =
-    activeCategory === "Todos"
-      ? SAMPLE_EVENTS
-      : SAMPLE_EVENTS.filter((ev) =>
-          ev.category.toLowerCase().includes(activeCategory.toLowerCase())
-        );
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await apiFetch<unknown>("/events", { method: "GET" });
+        setEvents(normalizeEventList(data).slice(0, 6));
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const categories = useMemo(() => {
+    const catSet = new Set<string>();
+    events.forEach((ev) => {
+      if (ev.category && ev.category.trim()) {
+        catSet.add(ev.category.trim());
+      }
+    });
+    return ["Todos", ...Array.from(catSet)];
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    if (activeCategory === "Todos") return events;
+    return events.filter((ev) => (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase());
+  }, [activeCategory, events]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-950 text-slate-100">
@@ -94,17 +69,17 @@ export function Home() {
               direta, em tela cheia, com o visual azul e amarelo da marca.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <a
-                href="#eventos"
+              <Link
+                href="/eventos"
                 className="inline-flex items-center justify-center rounded-xl bg-primary px-8 py-4 text-base font-bold text-white shadow-lg shadow-primary/35 hover:brightness-110"
               >
                 Ver eventos
-              </a>
+              </Link>
               <Link
-                href="/organizer"
+                href="/admin"
                 className="inline-flex items-center justify-center rounded-xl border-2 border-secondary bg-secondary/10 px-8 py-4 text-base font-bold text-secondary hover:bg-secondary/20"
               >
-                Sou organizador
+                Meu painel
               </Link>
             </div>
           </div>
@@ -122,12 +97,12 @@ export function Home() {
                   Eventos em destaque
                 </h2>
                 <p className="mt-2 max-w-2xl text-slate-400">
-                  Exemplos de cards — depois você liga na API com os dados
-                  reais.
+                  Uma prévia do que você encontra na plataforma — explore todos
+                  em Eventos.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {["Todos", "Show", "Palestra", "Online"].map((cat) => {
+                {categories.map((cat) => {
                   const isActive = activeCategory === cat;
 
                   return (
@@ -148,26 +123,31 @@ export function Home() {
             </div>
 
             <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredEvents.map((ev) => (
+              {loading
+                ? Array.from({ length: 6 }).map((_, idx) => (
+                    <article key={idx} className="animate-pulse overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                      <div className="aspect-[16/10] rounded-xl bg-slate-800" />
+                      <div className="mt-4 h-5 w-3/4 rounded bg-slate-800" />
+                      <div className="mt-2 h-4 w-full rounded bg-slate-800" />
+                      <div className="mt-4 h-10 w-full rounded-xl bg-slate-800" />
+                    </article>
+                  ))
+                : filteredEvents.map((ev) => (
                 <article
                   key={ev.id}
                   className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
                 >
                   <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20">
                     <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
-                      {ev.category}
+                      {ev.category ?? "Evento"}
                     </span>
                   </div>
                   <div className="flex flex-1 flex-col p-6">
                     <h3 className="text-lg font-bold text-white">{ev.title}</h3>
-                    <p className="mt-2 text-sm text-slate-400">
-                      {ev.date} · {ev.city}
-                    </p>
-                    <p className="mt-4 text-base font-black text-secondary">
-                      {ev.price}
-                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">{ev.description || "Sem descrição."}</p>
+                    <p className="mt-4 text-sm text-slate-400">{ev.date} · {ev.location || "Local a definir"}</p>
                     <Link
-                      href="/register"
+                      href="/eventos"
                       className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary/15 py-3 text-sm font-bold text-primary ring-1 ring-primary/40 hover:bg-primary/25"
                     >
                       Quero participar
@@ -175,6 +155,17 @@ export function Home() {
                   </div>
                 </article>
               ))}
+              {!loading && (error || filteredEvents.length === 0) ? (
+                <div className="col-span-full rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-10 text-center">
+                  <div className="mx-auto mb-4 h-14 w-14 text-secondary">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8 2v3m8-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
+                    </svg>
+                  </div>
+                  <p className="text-xl font-bold text-white">Nenhum evento por aqui ainda</p>
+                  <p className="mt-2 text-sm text-slate-400">Volte em breve para conferir os próximos eventos</p>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -189,13 +180,13 @@ export function Home() {
               Categorias
             </h2>
             <p className="mt-2 max-w-2xl text-slate-400">
-              Atalhos para explorar — cada um leva ao cadastro por enquanto.
+              Atalhos para explorar as categorias.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {CATEGORIES.map((name) => (
                 <Link
                   key={name}
-                  href="/register"
+                  href="/eventos"
                   className="rounded-full border border-slate-700 bg-slate-900 px-5 py-2.5 text-sm font-bold text-slate-200 hover:border-secondary/50 hover:text-secondary"
                 >
                   {name}
@@ -218,7 +209,7 @@ export function Home() {
             </p>
             <p className="mt-3 text-sm leading-relaxed text-slate-400">
               Plataforma para descobrir eventos e publicar os seus, com foco em
-              participantes e organizadores.
+              participantes e gestão de inscrições.
             </p>
           </div>
           <div>
@@ -227,9 +218,9 @@ export function Home() {
             </p>
             <ul className="mt-3 space-y-2 text-sm text-slate-400">
               <li>
-                <a href="#eventos" className="hover:text-secondary">
+                <Link href="/eventos" className="hover:text-secondary">
                   Eventos
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#categorias" className="hover:text-secondary">
@@ -244,23 +235,9 @@ export function Home() {
             </ul>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              Organizadores
-            </p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Gestão</p>
             <ul className="mt-3 space-y-2 text-sm text-slate-400">
-              <li>
-                <Link
-                  href="/organizer"
-                  className="hover:text-secondary"
-                >
-                  Criar evento
-                </Link>
-              </li>
-              <li>
-                <Link href="/register" className="hover:text-secondary">
-                  Cadastro
-                </Link>
-              </li>
+              <li><Link href="/admin" className="hover:text-secondary">Meu painel</Link></li>
             </ul>
           </div>
           <div>
@@ -293,25 +270,6 @@ export function Home() {
           </div>
         </div>
 
-        <div className="mx-auto mt-6 flex w-full max-w-[1600px] flex-col items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/30 px-5 py-4 text-xs text-slate-400 sm:flex-row">
-          <span className="font-semibold text-slate-300">
-            Acesso rápido (teste)
-          </span>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Link
-              href="/organizer"
-              className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 font-bold text-slate-200 hover:border-secondary/50 hover:text-secondary"
-            >
-              Página do organizador
-            </Link>
-            <Link
-              href="/admin"
-              className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 font-bold text-primary hover:bg-primary/15"
-            >
-              Página de admin
-            </Link>
-          </div>
-        </div>
       </footer>
     </div>
   );

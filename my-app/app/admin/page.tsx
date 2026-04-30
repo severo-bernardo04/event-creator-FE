@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import type { CSSProperties, SVGProps } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
+import { setAuthUser } from "@/lib/auth";
+import { getErrorMessage } from "@/lib/errors";
+import {
+  coerceTime,
+  normalizeEventList,
+  normalizeEventRecord,
+  type ApiEventNorm,
+} from "@/lib/eventsFromApi";
 
 type Participante = {
   id: number;
@@ -22,14 +32,6 @@ type Evento = {
   participantes: Participante[];
 };
 
-type Usuario = {
-  id: number;
-  nome: string;
-  email: string;
-  papel: "admin" | "usuario";
-  ativo: boolean;
-};
-
 type PageId =
   | "dashboard"
   | "eventos"
@@ -37,116 +39,23 @@ type PageId =
   | "participantes"
   | "usuarios";
 
-const MOCK_EVENTOS: Evento[] = [
-  {
-    id: 1,
-    titulo: "Workshop de APIs REST",
-    desc: "Evento voltado para desenvolvimento de APIs com Spring Boot e Express.",
-    data: "2026-05-20",
-    hora: "19:00",
-    local: "Laboratório 2",
-    max: 40,
-    participantes: [
-      {
-        id: 1,
-        nome: "João Silva",
-        email: "joao@email.com",
-        telefone: "(51) 99999-1111",
-      },
-      {
-        id: 2,
-        nome: "Maria Souza",
-        email: "maria@email.com",
-        telefone: "(51) 99999-2222",
-      },
-      {
-        id: 3,
-        nome: "Carlos Lima",
-        email: "carlos@email.com",
-        telefone: "(51) 99999-3333",
-      },
-    ],
-  },
-  {
-    id: 2,
-    titulo: "Hackathon de Inovação",
-    desc: "Maratona de programação com foco em soluções sustentáveis.",
-    data: "2026-06-10",
-    hora: "08:00",
-    local: "Auditório Principal",
-    max: 80,
-    participantes: [
-      {
-        id: 4,
-        nome: "Ana Pereira",
-        email: "ana@email.com",
-        telefone: "(51) 99999-4444",
-      },
-      {
-        id: 5,
-        nome: "Bruno Costa",
-        email: "bruno@email.com",
-        telefone: "(51) 99999-5555",
-      },
-    ],
-  },
-  {
-    id: 3,
-    titulo: "Palestra: Carreira em TI",
-    desc: "Papo sobre mercado, carreira e habilidades técnicas.",
-    data: "2026-04-28",
-    hora: "19:30",
-    local: "Sala 301",
-    max: 30,
-    participantes: Array.from({ length: 30 }, (_, i) => ({
-      id: i + 10,
-      nome: `Participante ${i + 1}`,
-      email: `part${i + 1}@email.com`,
-      telefone: `(51) 9${String(i).padStart(4, "0")}-0000`,
+function mapNormToEvento(ev: ApiEventNorm): Evento {
+  return {
+    id: ev.id,
+    titulo: ev.title,
+    desc: ev.description ?? "",
+    data: ev.date,
+    hora: (ev.time ?? "").slice(0, 5),
+    local: ev.location ?? "",
+    max: ev.maxParticipants,
+    participantes: ev.participants.map((p) => ({
+      id: p.id,
+      nome: p.name,
+      email: p.email,
+      telefone: p.phone,
     })),
-  },
-  {
-    id: 4,
-    titulo: "Minicurso: Docker e DevOps",
-    desc: "Introdução prática a containers e pipelines de CI/CD.",
-    data: "2026-07-15",
-    hora: "14:00",
-    local: "Laboratório 1",
-    max: 25,
-    participantes: [],
-  },
-];
-
-const MOCK_USUARIOS: Usuario[] = [
-  {
-    id: 1,
-    nome: "Admin Sistema",
-    email: "admin@eventos.com",
-    papel: "admin",
-    ativo: true,
-  },
-  {
-    id: 2,
-    nome: "João Silva",
-    email: "joao@email.com",
-    papel: "usuario",
-    ativo: true,
-  },
-  {
-    id: 3,
-    nome: "Maria Souza",
-    email: "maria@email.com",
-    papel: "usuario",
-    ativo: true,
-  },
-  {
-    id: 4,
-    nome: "Carlos Lima",
-    email: "carlos@email.com",
-    papel: "usuario",
-    ativo: false,
-  },
-];
+  };
+}
 
 function fmtDate(d: string) {
   const [y, m, dy] = d.split("-");
@@ -154,7 +63,8 @@ function fmtDate(d: string) {
 }
 
 function getStatus(ev: Evento) {
-  const p = ev.participantes.length / ev.max;
+  const cap = ev.max > 0 ? ev.max : 1;
+  const p = ev.participantes.length / cap;
   if (p >= 1) return "full" as const;
   if (p >= 0.8) return "almost" as const;
   return "ok" as const;
@@ -283,11 +193,19 @@ const tdClass =
   "border-b border-slate-800 px-5 py-3.5 text-[13.5px] text-slate-300 group-last:border-b-0";
 
 export default function AdminPage() {
-  const [eventos, setEventos] = useState<Evento[]>(() =>
-    JSON.parse(JSON.stringify(MOCK_EVENTOS)) as Evento[],
-  );
+  const { user } = useAuth();
+  const [eventos, setEventos] = useState<Evento[]>([]);
   const [currentPage, setCurrentPage] = useState<PageId>("dashboard");
   const [eventoAtualId, setEventoAtualId] = useState<number | null>(null);
+  const [sessionRole, setSessionRole] = useState<string | null>(null);
+  const [sessionHint, setSessionHint] = useState<string | null>(null);
+  const [eventsApiError, setEventsApiError] = useState<string | null>(null);
+  /** CRUD de eventos exige sessão HTTP com role ADMIN (igual ao EventsController). */
+  const canManage = sessionRole === "ADMIN";
+  const canManageHint =
+    !canManage && user?.role === "ADMIN"
+      ? "Seu navegador tem perfil ADMIN salvo, mas a sessão do servidor não está ativa. Faça login de novo em /login e volte ao painel."
+      : null;
 
   const [modalEventoOpen, setModalEventoOpen] = useState(false);
   const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
@@ -302,6 +220,8 @@ export default function AdminPage() {
     local: "",
     max: "",
   });
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [modalEventoTitulo, setModalEventoTitulo] = useState("Novo evento");
 
@@ -316,6 +236,47 @@ export default function AdminPage() {
     [eventos, eventoAtualId],
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await apiFetch<{ userId?: unknown; role?: unknown }>(
+          "/users/me",
+          { method: "GET" },
+        );
+        if (cancelled) return;
+        const role = typeof me.role === "string" ? me.role : "";
+        setSessionRole(role || null);
+        setSessionHint(null);
+        const u = user;
+        if (u && role) {
+          setAuthUser({ ...u, role });
+        }
+      } catch {
+        if (cancelled) return;
+        setSessionRole(null);
+        setSessionHint(
+          "Sessão não encontrada. Faça login (de preferência com usuário ADMIN) em /login para criar ou editar eventos.",
+        );
+      }
+
+      try {
+        const data = await apiFetch<unknown>("/events", { method: "GET" });
+        if (cancelled) return;
+        const list = normalizeEventList(data);
+        setEventsApiError(null);
+        setEventos(list.map(mapNormToEvento));
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setEventos([]);
+        setEventsApiError(getErrorMessage(err));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const dashboardStats = useMemo(() => {
     const totalP = eventos.reduce((a, e) => a + e.participantes.length, 0);
     const ativos = eventos.filter((e) => e.participantes.length < e.max).length;
@@ -323,7 +284,6 @@ export default function AdminPage() {
       total: eventos.length,
       ativos,
       inscricoes: totalP,
-      usuarios: MOCK_USUARIOS.length,
     };
   }, [eventos]);
 
@@ -387,6 +347,8 @@ export default function AdminPage() {
 
   function closeModalEvento() {
     setModalEventoOpen(false);
+    setImageError(null);
+    setImagePreview(null);
   }
 
   function closeModalConfirm() {
@@ -401,39 +363,90 @@ export default function AdminPage() {
     const hora = form.hora;
     const local = form.local.trim();
     const max = parseInt(form.max, 10);
-    if (!titulo || !data || !hora || !local || !max) {
+    if (titulo.length < 3) {
+      setFormError("Título deve ter no mínimo 3 caracteres.");
+      return;
+    }
+    if (!data || !hora || !local) {
       setFormError("Preencha todos os campos obrigatórios.");
+      return;
+    }
+    if (desc.length > 500) {
+      setFormError("A descrição deve ter no máximo 500 caracteres.");
+      return;
+    }
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    if (data < todayIso) {
+      setFormError("A data do evento não pode estar no passado.");
+      return;
+    }
+    if (!Number.isFinite(max) || max < 1) {
+      setFormError("Informe um número máximo de participantes válido (mínimo 1).");
+      return;
+    }
+    if (!canManage) {
+      setFormError(
+        "Para criar ou editar eventos é preciso sessão ativa como ADMIN. Use /login com uma conta administrador.",
+      );
+      return;
+    }
+    const timeForApi = coerceTime(hora);
+    if (!timeForApi) {
+      setFormError("Informe um horário válido.");
       return;
     }
     setFormError(null);
     const idStr = form.id;
-    if (idStr) {
-      const idNum = parseInt(idStr, 10);
-      setEventos((prev) =>
-        prev.map((e) =>
-          e.id === idNum ? { ...e, titulo, desc, data, hora, local, max } : e,
-        ),
-      );
-      if (currentPage === "evento-detalhe" && eventoAtualId === idNum) {
-        /* estado já reflete em eventoAtual */
+
+    (async () => {
+      try {
+        if (idStr) {
+          const idNum = parseInt(idStr, 10);
+          const updatedRaw = await apiFetch<unknown>(`/events/${idNum}`, {
+            method: "PUT",
+            json: {
+              title: titulo,
+              description: desc || null,
+              date: data,
+              time: timeForApi,
+              location: local,
+              maxParticipants: max,
+              majority18: false,
+            },
+          });
+          const n = normalizeEventRecord(updatedRaw as Record<string, unknown>);
+          if (!n) {
+            setFormError("Resposta inválida do servidor ao atualizar o evento.");
+            return;
+          }
+          const mapped = mapNormToEvento(n);
+          setEventos((prev) => prev.map((e) => (e.id === idNum ? mapped : e)));
+        } else {
+          const createdRaw = await apiFetch<unknown>("/events", {
+            method: "POST",
+            json: {
+              title: titulo,
+              description: desc || null,
+              date: data,
+              time: timeForApi,
+              location: local,
+              maxParticipants: max,
+              majority18: false,
+            },
+          });
+          const n = normalizeEventRecord(createdRaw as Record<string, unknown>);
+          if (!n) {
+            setFormError("Resposta inválida do servidor ao criar o evento.");
+            return;
+          }
+          setEventos((prev) => [...prev, mapNormToEvento(n)]);
+        }
+        closeModalEvento();
+      } catch (err: unknown) {
+        setFormError(getErrorMessage(err));
       }
-    } else {
-      const nextId = Math.max(...eventos.map((e) => e.id), 0) + 1;
-      setEventos((prev) => [
-        ...prev,
-        {
-          id: nextId,
-          titulo,
-          desc,
-          data,
-          hora,
-          local,
-          max,
-          participantes: [],
-        },
-      ]);
-    }
-    closeModalEvento();
+    })();
   }
 
   function pedirExclusaoEvento(id: number) {
@@ -443,10 +456,23 @@ export default function AdminPage() {
       text: `Tem certeza que deseja excluir "${ev?.titulo ?? ""}"? Esta ação não pode ser desfeita.`,
     });
     pendingActionRef.current = () => {
-      setEventos((prev) => prev.filter((e) => e.id !== id));
-      if (currentPage === "evento-detalhe") {
-        navigate("eventos");
+      if (!canManage) {
+        setFormError("Para excluir eventos, faça login com um usuário ADMIN.");
+        return;
       }
+      (async () => {
+        try {
+          await apiFetch<void>(`/events/${id}`, {
+            method: "DELETE",
+          });
+          setEventos((prev) => prev.filter((e) => e.id !== id));
+          if (currentPage === "evento-detalhe") {
+            navigate("eventos");
+          }
+        } catch (err: unknown) {
+          setFormError(getErrorMessage(err));
+        }
+      })();
     };
     setModalConfirmOpen(true);
   }
@@ -457,16 +483,25 @@ export default function AdminPage() {
       text: `Remover "${nome}" deste evento?`,
     });
     pendingActionRef.current = () => {
-      setEventos((prev) =>
-        prev.map((e) =>
-          e.id === eventoId
-            ? {
-                ...e,
-                participantes: e.participantes.filter((p) => p.id !== partId),
-              }
-            : e,
-        ),
-      );
+      (async () => {
+        try {
+          await apiFetch<void>(`/events/${eventoId}/participants/${partId}`, {
+            method: "DELETE",
+          });
+          setEventos((prev) =>
+            prev.map((e) =>
+              e.id === eventoId
+                ? {
+                    ...e,
+                    participantes: e.participantes.filter((p) => p.id !== partId),
+                  }
+                : e,
+            ),
+          );
+        } catch (err: unknown) {
+          setFormError(getErrorMessage(err));
+        }
+      })();
     };
     setModalConfirmOpen(true);
   }
@@ -503,7 +538,9 @@ export default function AdminPage() {
   const activeNav = navActiveIndex();
 
   const detalhePct = eventoAtual
-    ? Math.round((eventoAtual.participantes.length / eventoAtual.max) * 100)
+    ? Math.round(
+        (eventoAtual.participantes.length / (eventoAtual.max > 0 ? eventoAtual.max : 1)) * 100,
+      )
     : 0;
 
   return (
@@ -579,6 +616,24 @@ export default function AdminPage() {
       </aside>
 
       <div className="ml-[220px] min-h-screen bg-slate-950 px-10 py-8">
+        {eventsApiError ? (
+          <div
+            className="mb-6 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+            role="alert"
+          >
+            <span className="font-bold">Eventos:</span> {eventsApiError}
+          </div>
+        ) : null}
+        {sessionHint ? (
+          <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {sessionHint}
+          </div>
+        ) : null}
+        {canManageHint ? (
+          <div className="mb-6 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">
+            {canManageHint}
+          </div>
+        ) : null}
         {/* DASHBOARD */}
         <div
           id="page-dashboard"
@@ -616,10 +671,12 @@ export default function AdminPage() {
             </div>
             <div className="rounded-xl bg-slate-900 px-5 py-4">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                Usuários cadastrados
+                Usuários (painel)
               </p>
-              <p className="text-[28px] font-black text-white">{dashboardStats.usuarios}</p>
-              <p className="mt-1 text-[11.5px] text-slate-500">na plataforma</p>
+              <p className="text-[28px] font-black text-slate-400">—</p>
+              <p className="mt-1 text-[11.5px] text-slate-500">
+                A API não expõe listagem de usuários; use o banco ou Postman para auditoria.
+              </p>
             </div>
           </div>
           <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
@@ -674,7 +731,13 @@ export default function AdminPage() {
             <button
               type="button"
               onClick={() => openModalEvento()}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-primary bg-primary px-4 py-2 text-[13.5px] font-medium text-white shadow-[0_4px_14px_rgba(31,111,255,0.3)] hover:border-blue-600 hover:bg-blue-600"
+              disabled={!canManage}
+              title={
+                canManage
+                  ? undefined
+                  : "É necessário estar logado como ADMIN (sessão ativa) para criar eventos."
+              }
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-[10px] border border-primary bg-primary px-4 py-2 text-[13.5px] font-medium text-white shadow-[0_4px_14px_rgba(31,111,255,0.3)] hover:border-blue-600 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               + Novo evento
             </button>
@@ -985,34 +1048,12 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {MOCK_USUARIOS.map((u) => (
-                  <tr key={u.id} className="group hover:[&>td]:bg-slate-900/60">
-                    <td className={`${tdClass} font-semibold text-white`}>{u.nome}</td>
-                    <td className={`${tdClass} text-slate-500`}>{u.email}</td>
-                    <td className={tdClass}>
-                      {u.papel === "admin" ? (
-                        <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[11.5px] font-bold text-amber-300 ring-1 ring-inset ring-amber-500/25">
-                          Admin
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-slate-500/15 px-2 py-0.5 text-[11.5px] font-bold text-slate-400 ring-1 ring-inset ring-slate-500/20">
-                          Usuário
-                        </span>
-                      )}
-                    </td>
-                    <td className={tdClass}>
-                      {u.ativo ? (
-                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11.5px] font-bold text-emerald-400 ring-1 ring-inset ring-emerald-500/25">
-                          Ativo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-[11.5px] font-bold text-red-400 ring-1 ring-inset ring-red-500/25">
-                          Inativo
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                <tr>
+                  <td colSpan={4} className="px-5 py-12 text-center text-sm text-slate-500">
+                    Não há endpoint público para listar usuários. O painel usa apenas dados de
+                    eventos e inscrições vindos de <span className="font-mono text-slate-400">GET /events</span>.
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1064,6 +1105,38 @@ export default function AdminPage() {
                 rows={4}
                 className={`${inputClass} min-h-[80px] resize-y`}
               />
+              <p className="mt-1 text-right text-xs text-slate-500">{form.desc.length}/500</p>
+            </div>
+            <div className="mb-4">
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                Imagem de capa (preview local)
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  setImageError(null);
+                  if (!file) return;
+                  const allowed = ["image/jpeg", "image/png", "image/webp"];
+                  if (!allowed.includes(file.type)) {
+                    setImageError("Formato inválido. Use JPEG, PNG ou WEBP.");
+                    return;
+                  }
+                  if (file.size > 5 * 1024 * 1024) {
+                    setImageError("A imagem deve ter no máximo 5MB.");
+                    return;
+                  }
+                  const preview = URL.createObjectURL(file);
+                  setImagePreview(preview);
+                }}
+                className={inputClass}
+              />
+              {imagePreview ? (
+                // TODO: enviar imagem para POST /events/{id}/image após criação
+                <img src={imagePreview} alt="Preview da capa" className="mt-3 h-36 w-full rounded-xl object-cover" />
+              ) : null}
+              {imageError ? <p className="mt-2 text-xs font-semibold text-red-300">{imageError}</p> : null}
             </div>
             <div className="mb-4 grid grid-cols-2 gap-3">
               <div>

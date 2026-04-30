@@ -40,6 +40,9 @@ coverage/
 Thumbs.db
 Desktop.ini
 
+# Backend (não versionar no repo do FE)
+EventHubAPI-main/
+
 # IDEs / editores
 .idea/
 .vscode/

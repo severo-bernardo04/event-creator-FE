@@ -1,7 +1,7 @@
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
-import LayoutShell from "./components/layoutShell/page";
+import { AuthProvider } from "@/context/AuthContext";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -13,7 +13,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={cn("font-sans", geist.variable)}>
       <body className="flex min-h-screen flex-col">
-        <LayoutShell>{children}</LayoutShell>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

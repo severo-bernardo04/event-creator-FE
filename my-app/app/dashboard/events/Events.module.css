@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
 
-:root {
+.page {
   --accent: #7c3aed;
   --accent-hover: #6d28d9;
   --text-primary: #111827;
@@ -14,9 +14,6 @@
   --star-empty: #d1d5db;
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   --shadow-hover: 0 12px 32px rgba(124, 58, 237, 0.15);
-}
-
-.page {
   background: var(--bg-page);
   min-height: 100vh;
   padding: 3rem 2rem;
