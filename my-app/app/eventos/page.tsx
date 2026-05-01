@@ -25,9 +25,6 @@ export default function EventosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [cpf, setCpf] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -54,9 +51,6 @@ export default function EventosPage() {
   function openEnroll(ev: ApiEventNorm) {
     setFormError(null);
     setOpenId(ev.id);
-    setName(user?.name ?? "");
-    setEmail(user?.email ?? "");
-    setPhone("");
     setCpf("");
   }
 
@@ -65,38 +59,25 @@ export default function EventosPage() {
       router.push(`/login?next=/eventos`);
       return;
     }
-    const n = name.trim();
-    const em = email.trim();
-    const ph = phone.trim();
-    const cpfValue = cpf;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
-    if (!n) {
-      setFormError("Nome é obrigatório.");
-      return;
-    }
-    if (!emailRegex.test(em)) {
-      setFormError("Informe um e-mail válido.");
-      return;
-    }
-    if (!cpfRegex.test(cpfValue)) {
-      setFormError("CPF inválido. Use o formato 000.000.000-00.");
-      return;
-    }
     setFormError(null);
     setSubmitting(true);
     try {
-      const alreadyRegistered = await apiFetch<boolean>(
-        `/events/${eventId}/participants/check-email?email=${encodeURIComponent(em)}`,
-        { method: "GET" },
+      const alreadyRegistered = await apiFetch<{ emailInscrito: boolean }>(
+          `/events/${eventId}/participants/check-email?email=${encodeURIComponent(user.email)}`,
+          { method: "GET" },
       );
-      if (alreadyRegistered) {
-        setFormError("Este e-mail já está inscrito neste evento.");
+      if (alreadyRegistered.emailInscrito) {
+        setFormError("Você já está inscrito neste evento.");
         return;
       }
       await apiFetch(`/events/${eventId}/participants?userId=${user.userId}`, {
         method: "POST",
-        json: { name: n, email: em, phone: ph || undefined, cpf: cpfValue },
+        json: {
+          name: user.name,
+          email: user.email,
+          phone: "",
+          cpf: "",
+        },
       });
       setOpenId(null);
       setSuccessBanner(true);
@@ -252,92 +233,52 @@ export default function EventosPage() {
       </div>
 
       {openId !== null ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4"
-          role="presentation"
-          onClick={() => !submitting && setOpenId(null)}
-        >
           <div
-            className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal
-            aria-labelledby="inscricao-titulo"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4"
+              role="presentation"
+              onClick={() => !submitting && setOpenId(null)}
           >
-            <h3 id="inscricao-titulo" className="text-lg font-extrabold text-white">
-              Inscrição no evento
-            </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Os dados são enviados ao backend como participante do evento.
-            </p>
-            <div className="mt-5 space-y-4">
-              <label className="block space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Nome
-                </span>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-                />
-              </label>
-              <label className="block space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  E-mail
-                </span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-                />
-              </label>
-              <label className="block space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Telefone (opcional)
-                </span>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(maskPhone(e.target.value))}
-                  placeholder="(11) 99999-9999"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-                />
-              </label>
-              <label className="block space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">CPF</span>
-                <input
-                  value={cpf}
-                  onChange={(e) => setCpf(maskCpf(e.target.value))}
-                  placeholder="000.000.000-00"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-                />
-              </label>
+            <div
+                className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal
+                aria-labelledby="inscricao-titulo"
+            >
+              <h3 id="inscricao-titulo" className="text-lg font-extrabold text-white">
+                Confirmar inscrição
+              </h3>
+              <p className="mt-3 text-sm text-slate-400">
+                Você será inscrito como{" "}
+                <span className="font-bold text-white">{user?.name}</span>
+                <br />
+                <span className="text-slate-500">{user?.email}</span>
+              </p>
               {formError ? (
-                <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
-                  {formError}
-                </p>
+                  <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
+                    {formError}
+                  </p>
               ) : null}
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => setOpenId(null)}
-                className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => void submitEnroll(openId)}
-                className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-950 hover:brightness-105"
-              >
-                {submitting ? "Enviando…" : "Confirmar inscrição"}
-              </button>
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => setOpenId(null)}
+                    className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void submitEnroll(openId)}
+                    className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-950 hover:brightness-105 disabled:opacity-50"
+                >
+                  {submitting ? "Enviando…" : "Confirmar"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
       ) : null}
     </div>
   );

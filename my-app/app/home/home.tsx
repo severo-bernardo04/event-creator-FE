@@ -198,10 +198,7 @@ export function Home() {
       </main>
 
       {/* Footer — largura total */}
-      <footer
-        id="ajuda"
-        className="w-full border-t border-slate-800 bg-slate-950 px-4 py-12 sm:px-6 lg:px-10"
-      >
+      <footer>
         <div className="mx-auto grid w-full max-w-[1600px] gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
