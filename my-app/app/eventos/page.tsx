@@ -25,7 +25,6 @@ export default function EventosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
-  const [cpf, setCpf] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successBanner, setSuccessBanner] = useState(false);
@@ -88,23 +87,6 @@ export default function EventosPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function maskCpf(value: string) {
-    return value
-      .replace(/\D/g, "")
-      .slice(0, 11)
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
-
-  function maskPhone(value: string) {
-    return value
-      .replace(/\D/g, "")
-      .slice(0, 11)
-      .replace(/(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
   }
 
   const eventList = Array.isArray(events) ? events : [];
@@ -249,16 +231,19 @@ export default function EventosPage() {
                 Confirmar inscrição
               </h3>
               <p className="mt-3 text-sm text-slate-400">
-                Você será inscrito como{" "}
-                <span className="font-bold text-white">{user?.name}</span>
-                <br />
-                <span className="text-slate-500">{user?.email}</span>
+                Deseja se inscrever neste evento como:
               </p>
+              <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
+                <p className="text-sm font-bold text-white">{user?.name}</p>
+                <p className="text-xs text-slate-500">{user?.email}</p>
+              </div>
+
               {formError ? (
                   <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
                     {formError}
                   </p>
               ) : null}
+
               <div className="mt-6 flex justify-end gap-2">
                 <button
                     type="button"
@@ -274,7 +259,7 @@ export default function EventosPage() {
                     onClick={() => void submitEnroll(openId)}
                     className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-950 hover:brightness-105 disabled:opacity-50"
                 >
-                  {submitting ? "Enviando…" : "Confirmar"}
+                  {submitting ? "Inscrevendo…" : "Sim, quero participar"}
                 </button>
               </div>
             </div>
