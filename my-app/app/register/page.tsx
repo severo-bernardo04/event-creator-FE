@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
+import {maskCpf, maskPhone} from "@/lib/masks";
 
 function RegisterForm() {
   const router = useRouter();
@@ -14,20 +15,13 @@ function RegisterForm() {
   const [sobrenome, setSobrenome] = useState("");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-  function maskCpf(value: string) {
-    return value
-      .replace(/\D/g, "")
-      .slice(0, 11)
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10 text-white">
@@ -146,6 +140,8 @@ function RegisterForm() {
                       password,
                       cpf,
                       dataNascimento,
+                      phone,
+                      address,
                     },
                   });
                   const next = searchParams.get("next");
@@ -209,6 +205,28 @@ function RegisterForm() {
                   className="w-full rounded-2xl border border-white/12 bg-white/8 px-4 py-3.5 text-white placeholder:text-slate-400 focus:border-primary focus:bg-white/10 focus:shadow-[0_0_0_4px_rgba(31,111,255,0.14)]"
                 />
                 {fieldErrors.cpf ? <p className="text-xs font-semibold text-red-300">{fieldErrors.cpf}</p> : null}
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-200">Telefone</span>
+                <input
+                    type="text"
+                    placeholder="(11) 99999-9999"
+                    value={phone}
+                    onChange={(e) => setPhone(maskPhone(e.target.value))}
+                    className="w-full rounded-2xl border border-white/12 bg-white/8 px-4 py-3.5 text-white placeholder:text-slate-400 focus:border-primary focus:bg-white/10 focus:shadow-[0_0_0_4px_rgba(31,111,255,0.14)]"
+                />
+              </label>
+
+              <label className="block space-y-2 md:col-span-2">
+                <span className="text-sm font-medium text-slate-200">Endereço</span>
+                <input
+                    type="text"
+                    placeholder="Rua, número, cidade"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/8 px-4 py-3.5 text-white placeholder:text-slate-400 focus:border-primary focus:bg-white/10 focus:shadow-[0_0_0_4px_rgba(31,111,255,0.14)]"
+                />
               </label>
 
               <label className="block space-y-2">

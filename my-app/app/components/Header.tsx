@@ -62,9 +62,6 @@ const Header = () => {
           <Link href="/#categorias" className="rounded-lg px-3 py-2 hover:bg-slate-800 hover:text-white">
             Categorias
           </Link>
-          <Link href="/#ajuda" className="rounded-lg px-3 py-2 hover:bg-slate-800 hover:text-white">
-            Ajuda
-          </Link>
           {isAdmin ? (
             <Link href="/admin" className="rounded-lg px-3 py-2 text-secondary hover:bg-slate-800">
               Meu painel
