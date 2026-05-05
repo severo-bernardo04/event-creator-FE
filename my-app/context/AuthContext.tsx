@@ -1,8 +1,19 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
 import { apiFetch } from "@/lib/api";
-import { clearAuthUser, getAuthUser, isAdmin as isUserAdmin, setAuthUser } from "@/lib/auth";
+import {
+  clearAuthUser,
+  getAuthUser,
+  isAdmin as isUserAdmin,
+  setAuthUser,
+} from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
 import type { AuthUser } from "@/types";
 
@@ -26,8 +37,18 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => (typeof window === "undefined" ? null : getAuthUser()));
+export function AuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setUser(getAuthUser());
+    setMounted(true);
+  }, []);
 
   function login(data: LoginResponse) {
     const authUser: AuthUser = {
@@ -37,39 +58,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role: data.role,
       token: data.token,
     };
+
     setAuthUser(authUser);
     setUser(authUser);
   }
 
   async function logout() {
     try {
-      await apiFetch("/users/logout", { method: "POST" });
+      await apiFetch("/users/logout", {
+        method: "POST",
+      });
     } catch {
-      // Sessão do servidor pode já estar expirada.
     }
+
     clearAuthUser();
     setUser(null);
   }
 
   async function refreshUser() {
-    const local = getAuthUser();
-    if (!local) {
+    const localUser = getAuthUser();
+
+    if (!localUser) {
       setUser(null);
       return;
     }
+
     try {
-      const me = await apiFetch<{ userId?: number; name: string; email: string; role: string }>("/users/me", {
+      const me = await apiFetch<{
+        userId?: number;
+        name: string;
+        email: string;
+        role: string;
+      }>("/users/me", {
         method: "GET",
       });
-      const refreshed: AuthUser = {
-        userId: typeof me.userId === "number" ? me.userId : local.userId,
+
+      const refreshedUser: AuthUser = {
+        userId:
+          typeof me.userId === "number"
+            ? me.userId
+            : localUser.userId,
         name: me.name,
         email: me.email,
         role: me.role,
-        token: local.token,
+        token: localUser.token,
       };
-      setAuthUser(refreshed);
-      setUser(refreshed);
+
+      setAuthUser(refreshedUser);
+      setUser(refreshedUser);
     } catch (err: unknown) {
       clearAuthUser();
       setUser(null);
@@ -86,16 +122,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshUser,
     }),
-    [user],
+    [user]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  if (!mounted) return null;
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
+
   if (!context) {
-    throw new Error("useAuth deve ser usado dentro de AuthProvider.");
+    throw new Error(
+      "useAuth deve ser usado dentro de AuthProvider."
+    );
   }
+
   return context;
 }
