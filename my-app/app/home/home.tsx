@@ -1,274 +1,195 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 
-const CATEGORIES = [
-  "Shows",
-  "Festas e festivais",
-  "Palestras",
-  "Workshops",
-  "Cursos",
-  "Congresso",
-  "Feiras",
-  "Esportes",
-] as const;
-
 export function Home() {
-  const [activeCategory, setActiveCategory] = useState("Todos");
+  const router = useRouter();
+  const { user } = useAuth();
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successBanner, setSuccessBanner] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await apiFetch<unknown>("/events", { method: "GET" });
-        setEvents(normalizeEventList(data).slice(0, 6));
-      } catch (err: unknown) {
-        setError(getErrorMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const isOrganizer = user?.role === "ORGANIZER" || user?.role === "ORGANIZADOR" || user?.role === "ADMIN";
+
+  const loadEvents = useCallback(async () => {
+    try {
+      const data = await apiFetch<unknown>("/events", { method: "GET" });
+      setEvents(normalizeEventList(data).slice(0, 6));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const categories = useMemo(() => {
-    const catSet = new Set<string>();
-    events.forEach((ev) => {
-      if (ev.category && ev.category.trim()) {
-        catSet.add(ev.category.trim());
-      }
-    });
-    return ["Todos", ...Array.from(catSet)];
-  }, [events]);
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
 
-  const filteredEvents = useMemo(() => {
-    if (activeCategory === "Todos") return events;
-    return events.filter((ev) => (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase());
-  }, [activeCategory, events]);
+  function openEnroll(eventId: number) {
+    if (!user) {
+      router.push(`/login?next=/`);
+      return;
+    }
+    setFormError(null);
+    setOpenId(eventId);
+  }
+
+  async function submitEnroll(eventId: number) {
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      await apiFetch(`/events/${eventId}/participants?userId=${user?.userId}`, {
+        method: "POST",
+        json: {
+          name: user?.name,
+          email: user?.email,
+          phone: "",
+          cpf: user?.cpf,
+        },
+      });
+      setOpenId(null);
+      setSuccessBanner(true);
+      setTimeout(() => setSuccessBanner(false), 4000);
+      await loadEvents();
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUnenroll(eventId: number) {
+    if (!confirm("Tem certeza que deseja cancelar sua inscrição?")) return;
+    setSubmitting(true);
+    try {
+      const ev = events.find(e => e.id === eventId);
+      const participant = ev?.participants.find(p => p.email === user?.email);
+      
+      if (!participant?.id) throw new Error("Inscrição não encontrada.");
+
+      await apiFetch(`/events/${eventId}/participants/${participant.id}`, {
+        method: "DELETE",
+      });
+      await loadEvents();
+    } catch (err: unknown) {
+      alert(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-950 text-slate-100">
-      {/* Header — largura total */}
-
       <main className="flex w-full flex-1 flex-col">
-        {/* Hero — ocupa a altura da tela (menos header aprox.) */}
         <section className="flex w-full flex-1 flex-col justify-center border-b border-slate-800 px-4 py-16 sm:px-6 sm:py-20 lg:min-h-[calc(100dvh-73px)] lg:px-10">
           <div className="mx-auto w-full max-w-[1600px]">
             <p className="text-sm font-bold uppercase tracking-widest text-secondary">
               Eventos ao vivo · ingressos · organização
             </p>
-            <h1 className="mt-4 max-w-4xl text-4xl font-black leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl">
-              Descubra eventos. Publique o seu. Tudo em um só lugar.
+            <h1 className="mt-4 max-w-4xl text-4xl font-black text-white sm:text-5xl lg:text-6xl xl:text-7xl">
+              Descubra eventos. Publique o seu.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-400 sm:text-xl">
-              Para quem compra ingresso ou para quem produz: uma experiência
-              direta, em tela cheia, com o visual azul e amarelo da marca.
-            </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <Link
-                href="/eventos"
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-8 py-4 text-base font-bold text-white shadow-lg shadow-primary/35 hover:brightness-110"
-              >
-                Ver eventos
-              </Link>
-              <Link
-                href="/admin"
-                className="inline-flex items-center justify-center rounded-xl border-2 border-secondary bg-secondary/10 px-8 py-4 text-base font-bold text-secondary hover:bg-secondary/20"
-              >
-                Meu painel
+              <Link href="/eventos" className="rounded-xl bg-primary px-8 py-4 font-bold text-white hover:brightness-110 transition">
+                Ver todos os eventos
               </Link>
             </div>
           </div>
         </section>
 
-        {/* Lista de eventos — largura total, fundo levemente diferente */}
-        <section
-          id="eventos"
-          className="w-full border-b border-slate-800 bg-slate-900/50 px-4 py-16 sm:px-6 sm:py-20 lg:px-10"
-        >
+        <section className="w-full border-b border-slate-800 bg-slate-900/50 px-4 py-16 sm:px-6 lg:px-10">
           <div className="mx-auto w-full max-w-[1600px]">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-                  Eventos em destaque
-                </h2>
-                <p className="mt-2 max-w-2xl text-slate-400">
-                  Uma prévia do que você encontra na plataforma — explore todos
-                  em Eventos.
-                </p>
+            {successBanner && (
+              <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100">
+                Inscrição realizada com sucesso!
               </div>
-              <div className="flex flex-wrap gap-2">
-                {categories.map((cat) => {
-                  const isActive = activeCategory === cat;
+            )}
 
-                  return (
-                    <span
-                      key={cat}
-                      onClick={() => setActiveCategory(cat)}
-                      className={
-                        isActive
-                          ? "rounded-full bg-primary/20 px-4 py-2 text-xs font-bold text-primary cursor-pointer"
-                          : "rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
-                      }
-                    >
-                      {cat}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {loading
-                ? Array.from({ length: 6 }).map((_, idx) => (
-                    <article key={idx} className="animate-pulse overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                      <div className="aspect-[16/10] rounded-xl bg-slate-800" />
-                      <div className="mt-4 h-5 w-3/4 rounded bg-slate-800" />
-                      <div className="mt-2 h-4 w-full rounded bg-slate-800" />
-                      <div className="mt-4 h-10 w-full rounded-xl bg-slate-800" />
-                    </article>
+                ? Array.from({ length: 3 }).map((_, idx) => (
+                    <div key={idx} className="animate-pulse rounded-2xl border border-slate-800 bg-slate-950 p-4 h-64" />
                   ))
-                : filteredEvents.map((ev) => (
-                <article
-                  key={ev.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
-                >
-                  <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20">
-                    <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
-                      {ev.category ?? "Evento"}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col p-6">
-                    <h3 className="text-lg font-bold text-white">{ev.title}</h3>
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">{ev.description || "Sem descrição."}</p>
-                    <p className="mt-4 text-sm text-slate-400">{ev.date} · {ev.location || "Local a definir"}</p>
-                    <Link
-                      href="/eventos"
-                      className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary/15 py-3 text-sm font-bold text-primary ring-1 ring-primary/40 hover:bg-primary/25"
-                    >
-                      Quero participar
-                    </Link>
-                  </div>
-                </article>
-              ))}
-              {!loading && (error || filteredEvents.length === 0) ? (
-                <div className="col-span-full rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-10 text-center">
-                  <div className="mx-auto mb-4 h-14 w-14 text-secondary">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8 2v3m8-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
-                    </svg>
-                  </div>
-                  <p className="text-xl font-bold text-white">Nenhum evento por aqui ainda</p>
-                  <p className="mt-2 text-sm text-slate-400">Volte em breve para conferir os próximos eventos</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
+                : events.map((ev) => {
+                    const isRegistered = ev.participants.some((p) => p.email === user?.email);
+                    const isFull = ev.participants.length >= ev.maxParticipants;
 
-        {/* Categorias */}
-        <section
-          id="categorias"
-          className="w-full px-4 py-16 sm:px-6 sm:py-20 lg:px-10"
-        >
-          <div className="mx-auto w-full max-w-[1600px]">
-            <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-              Categorias
-            </h2>
-            <p className="mt-2 max-w-2xl text-slate-400">
-              Atalhos para explorar as categorias.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              {CATEGORIES.map((name) => (
-                <Link
-                  key={name}
-                  href="/eventos"
-                  className="rounded-full border border-slate-700 bg-slate-900 px-5 py-2.5 text-sm font-bold text-slate-200 hover:border-secondary/50 hover:text-secondary"
-                >
-                  {name}
-                </Link>
-              ))}
+                    return (
+                      <article key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl">
+                        <div className="aspect-[16/10] bg-gradient-to-br from-primary/40 to-secondary/20" />
+                        <div className="flex flex-col p-6">
+                          <h3 className="text-lg font-bold text-white">{ev.title}</h3>
+                          <p className="mt-2 text-sm text-slate-400 line-clamp-2">{ev.description || "Sem descrição."}</p>
+                          
+                          <div className="mt-6">
+                            {!isOrganizer && (
+                              isRegistered ? (
+                                <button
+                                  onClick={() => handleUnenroll(ev.id)}
+                                  disabled={submitting}
+                                  className="w-full rounded-xl bg-emerald-600/10 border border-emerald-500/50 py-3 text-sm font-bold text-emerald-400 transition hover:bg-red-500/20 hover:text-red-200 hover:border-red-500"
+                                >
+                                  {submitting ? "..." : "Inscrito (Sair)"}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openEnroll(ev.id)}
+                                  disabled={isFull || submitting}
+                                  className={`w-full rounded-xl py-3 text-sm font-bold transition ${
+                                    isFull 
+                                    ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
+                                    : "bg-primary text-white hover:brightness-110"
+                                  }`}
+                                >
+                                  {isFull ? "Lotado" : "Quero participar"}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer — largura total */}
-      <footer>
-        <div className="mx-auto grid w-full max-w-[1600px] gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              Event Creator
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              Plataforma para descobrir eventos e publicar os seus, com foco em
-              participantes e gestão de inscrições.
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              Plataforma
-            </p>
-            <ul className="mt-3 space-y-2 text-sm text-slate-400">
-              <li>
-                <Link href="/eventos" className="hover:text-secondary">
-                  Eventos
-                </Link>
-              </li>
-              <li>
-                <a href="#categorias" className="hover:text-secondary">
-                  Categorias
-                </a>
-              </li>
-              <li>
-                <Link href="/login" className="hover:text-secondary">
-                  Minha conta
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Gestão</p>
-            <ul className="mt-3 space-y-2 text-sm text-slate-400">
-              <li><Link href="/admin" className="hover:text-secondary">Meu painel</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              Contato
-            </p>
-            <p className="mt-3 text-sm text-slate-400">
-              <a
-                href="mailto:contato@eventcreator.com"
-                className="hover:text-secondary"
+      {openId !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-extrabold text-white">Confirmar inscrição</h3>
+            <p className="mt-3 text-sm text-slate-400">Deseja se inscrever como:</p>
+            <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
+              <p className="text-sm font-bold text-white">{user?.name}</p>
+              <p className="text-xs text-slate-500">{user?.email}</p>
+            </div>
+            {formError && <p className="mt-4 text-sm font-semibold text-red-300">{formError}</p>}
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setOpenId(null)} className="px-4 py-2 text-sm font-bold text-slate-300">Cancelar</button>
+              <button 
+                onClick={() => submitEnroll(openId)} 
+                disabled={submitting}
+                className="rounded-xl bg-secondary px-4 py-2 text-sm font-bold text-slate-950 hover:brightness-105"
               >
-                contato@eventcreator.com
-              </a>
-            </p>
-            <p className="mt-2 text-sm text-slate-500">Seg–Sex, 9h–18h</p>
+                {submitting ? "Enviando..." : "Sim, participar"}
+              </button>
+            </div>
           </div>
         </div>
-        <div className="mx-auto mt-10 flex w-full max-w-[1600px] flex-col items-center justify-between gap-4 border-t border-slate-800 pt-8 text-xs text-slate-500 sm:flex-row">
-          <span>
-            © {new Date().getFullYear()} Event Creator. Todos os direitos
-            reservados.
-          </span>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-slate-300">
-              Privacidade
-            </a>
-            <a href="#" className="hover:text-slate-300">
-              Termos
-            </a>
-          </div>
-        </div>
-
-      </footer>
+      )}
     </div>
   );
 }
-
