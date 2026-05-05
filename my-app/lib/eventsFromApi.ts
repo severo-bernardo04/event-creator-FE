@@ -17,6 +17,7 @@ export type ApiEventNorm = {
   maxParticipants: number;
   majority18: boolean;
   participants: ApiParticipantNorm[];
+  category?: string;
 };
 
 function num(v: unknown, fallback = 0): number {
