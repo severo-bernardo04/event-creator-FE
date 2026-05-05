@@ -21,6 +21,8 @@ function timeShort(t: string | null) {
 export default function EventosPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,7 @@ export default function EventosPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successBanner, setSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -50,7 +53,6 @@ export default function EventosPage() {
   function openEnroll(ev: ApiEventNorm) {
     setFormError(null);
     setOpenId(ev.id);
-    setCpf("");
   }
 
   async function submitEnroll(eventId: number) {
@@ -62,23 +64,26 @@ export default function EventosPage() {
     setSubmitting(true);
     try {
       const alreadyRegistered = await apiFetch<{ emailInscrito: boolean }>(
-          `/events/${eventId}/participants/check-email?email=${encodeURIComponent(user.email)}`,
-          { method: "GET" },
+        `/events/${eventId}/participants/check-email?email=${encodeURIComponent(user.email)}`,
+        { method: "GET" },
       );
       if (alreadyRegistered.emailInscrito) {
         setFormError("Você já está inscrito neste evento.");
         return;
       }
+
       await apiFetch(`/events/${eventId}/participants?userId=${user.userId}`, {
         method: "POST",
         json: {
           name: user.name,
           email: user.email,
           phone: "",
-          cpf: "",
+          cpf: user.cpf,
         },
       });
+
       setOpenId(null);
+      setSuccessMessage("Inscrição realizada com sucesso!");
       setSuccessBanner(true);
       window.setTimeout(() => setSuccessBanner(false), 4000);
       await loadEvents();
@@ -88,6 +93,33 @@ export default function EventosPage() {
       setSubmitting(false);
     }
   }
+
+async function handleUnenroll(eventId: number) {
+  if (!user || !confirm("Tem certeza que deseja cancelar sua inscrição?")) return;
+
+  setSubmitting(true);
+  try {
+    const currentEvent = eventList.find(e => e.id === eventId);
+    const participant = currentEvent?.participants.find(p => p.email === user.email);
+
+    if (!participant || !participant.id) {
+      throw new Error("Não foi possível encontrar o ID da sua inscrição.");
+    }
+
+    await apiFetch(`/events/${eventId}/participants/${participant.id}`, {
+      method: "DELETE",
+    });
+    
+    setSuccessMessage("Sua inscrição foi cancelada.");
+    setSuccessBanner(true);
+    window.setTimeout(() => setSuccessBanner(false), 4000);
+    await loadEvents();
+  } catch (err: unknown) {
+    alert(getErrorMessage(err));
+  } finally {
+    setSubmitting(false);
+  }
+}
 
   const eventList = Array.isArray(events) ? events : [];
 
@@ -125,24 +157,19 @@ export default function EventosPage() {
       </div>
 
       <div className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 lg:px-10">
-        {successBanner ? (
-          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100">
-            Inscrição realizada com sucesso!
+        {successBanner && (
+          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100 animate-in fade-in slide-in-from-top-2">
+            {successMessage}
           </div>
-        ) : null}
-        {!user ? (
+        )}
+
+        {!user && (
           <div className="mb-8 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
             <span className="font-bold">Faça login</span> para se inscrever nos eventos.{" "}
-            <Link href="/login?next=/eventos" className="font-bold text-secondary underline">
-              Entrar
-            </Link>{" "}
-            ou{" "}
-            <Link href="/register" className="font-bold text-secondary underline">
-              criar conta
-            </Link>
-            .
+            <Link href="/login?next=/eventos" className="font-bold text-secondary underline">Entrar</Link> ou{" "}
+            <Link href="/register" className="font-bold text-secondary underline">criar conta</Link>.
           </div>
-        ) : null}
+        )}
 
         {loading ? (
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -150,7 +177,6 @@ export default function EventosPage() {
               <div key={idx} className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
                 <div className="aspect-[16/10] rounded-xl bg-slate-800" />
                 <div className="mt-4 h-5 w-2/3 rounded bg-slate-800" />
-                <div className="mt-2 h-4 w-full rounded bg-slate-800" />
                 <div className="mt-4 h-10 rounded-xl bg-slate-800" />
               </div>
             ))}
@@ -164,47 +190,56 @@ export default function EventosPage() {
           </div>
         ) : eventList.length === 0 ? (
           <div className="rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-10 text-center">
-            <div className="mx-auto mb-4 h-14 w-14 text-secondary">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8 2v3m8-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
-              </svg>
-            </div>
             <p className="text-xl font-bold text-white">Nenhum evento por aqui ainda</p>
-            <p className="mt-2 text-sm text-slate-400">Volte em breve para conferir os próximos eventos</p>
           </div>
         ) : (
           <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {eventList.map((ev) => {
               const count = ev.participants.length;
               const full = count >= ev.maxParticipants;
+              const isRegistered = ev.participants.some((p) => p.email === user?.email);
+
               return (
-                <li
-                  key={ev.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg"
-                >
+                <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg">
                   <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15" />
                   <div className="flex flex-1 flex-col p-6">
                     <h2 className="text-lg font-bold text-white">{ev.title}</h2>
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">
-                      {ev.description?.trim() || "Sem descrição."}
-                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">{ev.description?.trim() || "Sem descrição."}</p>
                     <p className="mt-3 text-sm text-slate-500">
-                      {fmtDate(ev.date)} · {timeShort(ev.time)}
-                      {ev.location ? ` · ${ev.location}` : ""}
+                      {fmtDate(ev.date)} · {timeShort(ev.time)} {ev.location ? ` · ${ev.location}` : ""}
                     </p>
                     <p className="mt-2 text-sm font-semibold text-secondary">
-                      {count}/{ev.maxParticipants} inscritos
-                      {ev.majority18 ? " · +18" : ""}
+                      {count}/{ev.maxParticipants} inscritos {ev.majority18 ? " · +18" : ""}
                     </p>
+
                     <div className="mt-6 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={full || !user}
-                        onClick={() => openEnroll(ev)}
-                        className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {full ? "Lotado" : user ? "Inscrever-se" : "Login para inscrever"}
-                      </button>
+                      {!isAdmin && (
+                        <>
+                          {isRegistered ? (
+                            <button
+                              type="button"
+                              disabled={submitting}
+                              onClick={() => handleUnenroll(ev.id)}
+                              className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-emerald-600/10 border border-emerald-500/50 px-4 py-3 text-sm font-bold text-emerald-400 transition hover:bg-red-500/20 hover:border-red-500 hover:text-red-200 disabled:opacity-50"
+                            >
+                              {submitting ? "..." : "Inscrito (Sair)"}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={full || !user || submitting}
+                              onClick={() => openEnroll(ev)}
+                              className={`inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl px-4 py-3 text-sm font-bold shadow-lg transition
+                                ${full 
+                                  ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
+                                  : "bg-primary text-white shadow-primary/25 hover:brightness-110 disabled:opacity-40"}
+                              `}
+                            >
+                              {full ? "Lotado" : user ? "Inscrever-se" : "Login para inscrever"}
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -214,57 +249,49 @@ export default function EventosPage() {
         )}
       </div>
 
-      {openId !== null ? (
+      {openId !== null && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4"
+          onClick={() => !submitting && setOpenId(null)}
+        >
           <div
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4"
-              role="presentation"
-              onClick={() => !submitting && setOpenId(null)}
+            className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-                className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-                role="dialog"
-                aria-modal
-                aria-labelledby="inscricao-titulo"
-            >
-              <h3 id="inscricao-titulo" className="text-lg font-extrabold text-white">
-                Confirmar inscrição
-              </h3>
-              <p className="mt-3 text-sm text-slate-400">
-                Deseja se inscrever neste evento como:
+            <h3 className="text-lg font-extrabold text-white">Confirmar inscrição</h3>
+            <p className="mt-3 text-sm text-slate-400">Deseja se inscrever neste evento como:</p>
+            <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
+              <p className="text-sm font-bold text-white">{user?.name}</p>
+              <p className="text-xs text-slate-500">{user?.email}</p>
+            </div>
+
+            {formError && (
+              <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
+                {formError}
               </p>
-              <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
-                <p className="text-sm font-bold text-white">{user?.name}</p>
-                <p className="text-xs text-slate-500">{user?.email}</p>
-              </div>
+            )}
 
-              {formError ? (
-                  <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
-                    {formError}
-                  </p>
-              ) : null}
-
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => setOpenId(null)}
-                    className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
-                >
-                  Cancelar
-                </button>
-                <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => void submitEnroll(openId)}
-                    className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-950 hover:brightness-105 disabled:opacity-50"
-                >
-                  {submitting ? "Inscrevendo…" : "Sim, quero participar"}
-                </button>
-              </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setOpenId(null)}
+                className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void submitEnroll(openId)}
+                className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-950 hover:brightness-105 disabled:opacity-50"
+              >
+                {submitting ? "Inscrevendo…" : "Sim, participar"}
+              </button>
             </div>
           </div>
-      ) : null}
+        </div>
+      )}
     </div>
   );
 }
