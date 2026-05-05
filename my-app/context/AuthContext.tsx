@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { clearAuthUser, getAuthUser, isAdmin as isUserAdmin, setAuthUser } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
@@ -13,6 +13,7 @@ type LoginResponse = {
   email: string;
   role: string;
   token: string;
+  cpf?: string;
 };
 
 type AuthContextValue = {
@@ -27,7 +28,13 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => (typeof window === "undefined" ? null : getAuthUser()));
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setUser(getAuthUser());
+    setMounted(true);
+  }, []);
 
   function login(data: LoginResponse) {
     const authUser: AuthUser = {
@@ -36,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: data.email,
       role: data.role,
       token: data.token,
+      cpf: data.cpf,
     };
     setAuthUser(authUser);
     setUser(authUser);
@@ -45,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiFetch("/users/logout", { method: "POST" });
     } catch {
-      // Sessão do servidor pode já estar expirada.
+      // sessão pode já estar expirada
     }
     clearAuthUser();
     setUser(null);
@@ -58,15 +66,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const me = await apiFetch<{ userId?: number; name: string; email: string; role: string }>("/users/me", {
-        method: "GET",
-      });
+      const me = await apiFetch<{
+        userId?: number;
+        name: string;
+        email: string;
+        role: string;
+      }>("/users/me", { method: "GET" });
       const refreshed: AuthUser = {
         userId: typeof me.userId === "number" ? me.userId : local.userId,
         name: me.name,
         email: me.email,
         role: me.role,
         token: local.token,
+        cpf: local.cpf,
       };
       setAuthUser(refreshed);
       setUser(refreshed);
@@ -78,16 +90,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      isLogged: Boolean(user),
-      isAdmin: isUserAdmin(user),
-      login,
-      logout,
-      refreshUser,
-    }),
-    [user],
+      () => ({
+        user,
+        isLogged: Boolean(user),
+        isAdmin: isUserAdmin(user),
+        login,
+        logout,
+        refreshUser,
+      }),
+      [user],
   );
+
+  if (!mounted) return null;
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -11,18 +11,18 @@ export function getAuthUser(): AuthUser | null {
   try {
     const parsed = JSON.parse(raw) as Partial<AuthUser>;
     if (
-      typeof parsed.userId !== "number" ||
-      typeof parsed.name !== "string" ||
-      typeof parsed.email !== "string" ||
-      typeof parsed.role !== "string"
+        typeof parsed.userId !== "number" ||
+        typeof parsed.name !== "string" ||
+        typeof parsed.email !== "string" ||
+        typeof parsed.role !== "string"
     ) {
       return null;
     }
     const tokenFromStorage = window.localStorage.getItem(TOKEN_KEY) ?? "";
     const token =
-      typeof parsed.token === "string" && parsed.token.trim()
-        ? parsed.token
-        : tokenFromStorage;
+        typeof parsed.token === "string" && parsed.token.trim()
+            ? parsed.token
+            : tokenFromStorage;
     if (!token) return null;
     return {
       userId: parsed.userId,
@@ -40,7 +40,8 @@ export function setAuthUser(user: AuthUser) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(USER_KEY, JSON.stringify(user));
   window.localStorage.setItem(TOKEN_KEY, user.token);
-  document.cookie = `${COOKIE_KEY}=1; path=/; SameSite=Lax`;
+  // Salva o role no cookie para o middleware verificar
+  document.cookie = `${COOKIE_KEY}=${user.role}; path=/; SameSite=Lax`;
 }
 
 export function clearAuthUser() {

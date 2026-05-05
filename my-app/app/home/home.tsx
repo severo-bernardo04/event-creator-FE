@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
+import { useAuth } from "@/context/AuthContext";
 
 const CATEGORIES = [
   "Shows",
@@ -17,6 +18,7 @@ const CATEGORIES = [
 ] as const;
 
 export function Home() {
+  const { isAdmin } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,12 +77,15 @@ export function Home() {
               >
                 Ver eventos
               </Link>
-              <Link
-                href="/admin"
-                className="inline-flex items-center justify-center rounded-xl border-2 border-secondary bg-secondary/10 px-8 py-4 text-base font-bold text-secondary hover:bg-secondary/20"
-              >
-                Meu painel
-              </Link>
+              {/* Botão só aparece para ADMIN */}
+              {isAdmin && (
+                  <Link
+                      href="/admin"
+                      className="inline-flex items-center justify-center rounded-xl border-2 border-secondary bg-secondary/10 px-8 py-4 text-base font-bold text-secondary hover:bg-secondary/20"
+                  >
+                    Meu painel
+                  </Link>
+              )}
             </div>
           </div>
         </section>
@@ -231,12 +236,21 @@ export function Home() {
               </li>
             </ul>
           </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Gestão</p>
-            <ul className="mt-3 space-y-2 text-sm text-slate-400">
-              <li><Link href="/admin" className="hover:text-secondary">Meu painel</Link></li>
-            </ul>
-          </div>
+          {/* Gestão só aparece para ADMIN */}
+          {isAdmin && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Gestão
+                </p>
+                <ul className="mt-3 space-y-2 text-sm text-slate-400">
+                  <li>
+                    <Link href="/admin" className="hover:text-secondary">
+                      Meu painel
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+          )}
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
               Contato

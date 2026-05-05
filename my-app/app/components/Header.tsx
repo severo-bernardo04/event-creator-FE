@@ -140,6 +140,14 @@ const Header = () => {
                   >
                     Ver eventos
                   </Link>
+                  <Link
+                      href="/perfil"
+                      role="menuitem"
+                      className="block px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                      onClick={() => setMenuOpen(false)}
+                  >
+                    Meu perfil
+                  </Link>
                   {isAdmin ? (
                     <Link
                       href="/admin"
