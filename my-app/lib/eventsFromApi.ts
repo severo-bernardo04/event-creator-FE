@@ -1,5 +1,3 @@
-/** Normaliza lista e campos de Event vindos do Spring/Jackson (string, array ou objeto). */
-
 export type ApiParticipantNorm = {
   id: number;
   name: string;
@@ -17,6 +15,7 @@ export type ApiEventNorm = {
   maxParticipants: number;
   majority18: boolean;
   participants: ApiParticipantNorm[];
+  category?: string;
 };
 
 function num(v: unknown, fallback = 0): number {
@@ -28,7 +27,6 @@ function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-/** Aceita "2026-05-01", [2026,5,1] (Jackson) ou objeto { year, month, day } / Java time fields. */
 export function coerceIsoDate(val: unknown): string {
   if (typeof val === "string") {
     const s = val.trim();
@@ -53,7 +51,6 @@ export function coerceIsoDate(val: unknown): string {
   return "";
 }
 
-/** Aceita "19:00:00", "19:00" ou [19,0] / [19,0,0]. */
 export function coerceTime(val: unknown): string | null {
   if (val == null || val === "") return null;
   if (typeof val === "string") {
@@ -84,38 +81,21 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
 }
 
 function pickMaxParticipants(raw: Record<string, unknown>): number {
-  const v =
-    raw.maxParticipants ??
-    raw.max_participants ??
-    raw.maxParticipantsLimit;
+  const v = raw.maxParticipants ?? raw.max_participants ?? raw.maxParticipantsLimit;
   const n = num(v, NaN);
   if (Number.isFinite(n) && n >= 1) return Math.floor(n);
   return 100;
 }
 
 function pickParticipantsArray(raw: Record<string, unknown>): unknown {
-  return (
-    raw.participants ??
-    raw.participantList ??
-    raw.inscriptions ??
-    raw.registrations
-  );
+  return raw.participants ?? raw.participantList ?? raw.inscriptions ?? raw.registrations;
 }
 
-/** Extrai array de eventos de resposta direta, página Spring (`content`) ou wrappers comuns. */
 function unwrapEventPayload(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (!data || typeof data !== "object") return [];
   const o = data as Record<string, unknown>;
-  const candidates = [
-    o.events,
-    o.data,
-    o.content,
-    o.items,
-    o.results,
-    o.records,
-  ];
-  for (const c of candidates) {
+  for (const c of [o.events, o.data, o.content, o.items, o.results, o.records]) {
     if (Array.isArray(c)) return c;
   }
   const embedded = o._embedded;
@@ -152,6 +132,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
 
   const descRaw = raw.description ?? raw.descricao ?? raw.details;
   const locRaw = raw.location ?? raw.local ?? raw.address;
+  const categoryRaw = raw.category;
 
   return {
     id,
@@ -163,6 +144,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     maxParticipants: maxP,
     majority18: Boolean(raw.majority18 ?? raw.majority_18),
     participants,
+    category: categoryRaw != null ? str(categoryRaw) : undefined,
   };
 }
 
