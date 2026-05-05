@@ -4,6 +4,7 @@ export type AuthUser = {
   email: string;
   role: "ADMIN" | "USER" | string;
   token: string;
+  cpf: string;
 };
 
 export type Participant = {

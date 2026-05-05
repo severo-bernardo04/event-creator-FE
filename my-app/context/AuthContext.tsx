@@ -24,6 +24,7 @@ type LoginResponse = {
   email: string;
   role: string;
   token: string;
+  cpf: string;
 };
 
 type AuthContextValue = {
@@ -57,6 +58,7 @@ export function AuthProvider({
       email: data.email,
       role: data.role,
       token: data.token,
+      cpf: data.cpf,
     };
 
     setAuthUser(authUser);
@@ -102,6 +104,7 @@ export function AuthProvider({
         email: me.email,
         role: me.role,
         token: localUser.token,
+        cpf: localUser.cpf,
       };
 
       setAuthUser(refreshedUser);

@@ -118,6 +118,7 @@ function LoginForm() {
                     email: string;
                     role: string;
                     token: string;
+                    cpf: string;
                   }>("/users/login", {
                     method: "POST",
                     json: { email, password },
