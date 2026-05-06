@@ -784,13 +784,18 @@ export default function AdminPage() {
                           >
                             Ver
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => openModalEvento(ev.id)}
-                            className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                          <Link
+                              href={`/admin/eventos/${ev.id}/editar`}
+                              className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
                           >
                             Editar
-                          </button>
+                          </Link>
+                          <Link
+                              href={`/admin/eventos/${ev.id}/historico`}
+                              className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                          >
+                            Histórico
+                          </Link>
                           <button
                             type="button"
                             onClick={() => pedirExclusaoEvento(ev.id)}
@@ -842,13 +847,18 @@ export default function AdminPage() {
                   <p className="mt-1 text-[13px] text-slate-500">{eventoAtual.local}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={editarEventoAtual}
-                    className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                  <Link
+                      href={`/admin/eventos/${eventoAtualId}/editar`}
+                      className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
                   >
                     Editar
-                  </button>
+                  </Link>
+                  <Link
+                      href={`/admin/eventos/${eventoAtualId}/historico`}
+                      className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                  >
+                    Histórico
+                  </Link>
                   <button
                     type="button"
                     onClick={excluirEventoAtual}

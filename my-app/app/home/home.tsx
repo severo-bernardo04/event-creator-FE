@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
@@ -10,17 +10,17 @@ import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 
 export function Home() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
   const [openId, setOpenId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successBanner, setSuccessBanner] = useState(false);
 
-  const isOrganizer = user?.role === "ORGANIZER" || user?.role === "ORGANIZADOR" || user?.role === "ADMIN";
+  const isOrganizer =
+    user?.role === "ORGANIZER" || user?.role === "ORGANIZADOR" || user?.role === "ADMIN";
 
   const loadEvents = useCallback(async () => {
     try {
@@ -56,7 +56,7 @@ export function Home() {
           name: user?.name,
           email: user?.email,
           phone: "",
-          cpf: user?.cpf,
+          cpf: user?.cpf ?? "",
         },
       });
       setOpenId(null);
@@ -74,11 +74,9 @@ export function Home() {
     if (!confirm("Tem certeza que deseja cancelar sua inscrição?")) return;
     setSubmitting(true);
     try {
-      const ev = events.find(e => e.id === eventId);
-      const participant = ev?.participants.find(p => p.email === user?.email);
-      
+      const ev = events.find((e) => e.id === eventId);
+      const participant = ev?.participants.find((p) => p.email === user?.email);
       if (!participant?.id) throw new Error("Inscrição não encontrada.");
-
       await apiFetch(`/events/${eventId}/participants/${participant.id}`, {
         method: "DELETE",
       });
@@ -102,9 +100,20 @@ export function Home() {
               Descubra eventos. Publique o seu.
             </h1>
             <div className="mt-10 flex flex-wrap gap-4">
-              <Link href="/eventos" className="rounded-xl bg-primary px-8 py-4 font-bold text-white hover:brightness-110 transition">
-                Ver todos os eventos
+              <Link
+                href="/eventos"
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-8 py-4 text-base font-bold text-white shadow-lg shadow-primary/35 hover:brightness-110"
+              >
+                Ver eventos
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="inline-flex items-center justify-center rounded-xl border-2 border-secondary bg-secondary/10 px-8 py-4 text-base font-bold text-secondary hover:bg-secondary/20"
+                >
+                  Meu painel
+                </Link>
+              )}
             </div>
           </div>
         </section>
@@ -131,8 +140,9 @@ export function Home() {
                         <div className="aspect-[16/10] bg-gradient-to-br from-primary/40 to-secondary/20" />
                         <div className="flex flex-col p-6">
                           <h3 className="text-lg font-bold text-white">{ev.title}</h3>
-                          <p className="mt-2 text-sm text-slate-400 line-clamp-2">{ev.description || "Sem descrição."}</p>
-                          
+                          <p className="mt-2 text-sm text-slate-400 line-clamp-2">
+                            {ev.description || "Sem descrição."}
+                          </p>
                           <div className="mt-6">
                             {!isOrganizer && (
                               isRegistered ? (
@@ -148,9 +158,9 @@ export function Home() {
                                   onClick={() => openEnroll(ev.id)}
                                   disabled={isFull || submitting}
                                   className={`w-full rounded-xl py-3 text-sm font-bold transition ${
-                                    isFull 
-                                    ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
-                                    : "bg-primary text-white hover:brightness-110"
+                                    isFull
+                                      ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                                      : "bg-primary text-white hover:brightness-110"
                                   }`}
                                 >
                                   {isFull ? "Lotado" : "Quero participar"}
@@ -167,20 +177,79 @@ export function Home() {
         </section>
       </main>
 
+      <footer>
+        <div className="mx-auto grid w-full max-w-[1600px] gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Event Creator
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Plataforma para descobrir eventos e publicar os seus, com foco em participantes e
+              gestão de inscrições.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Plataforma
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-slate-400">
+              <li>
+                <Link href="/eventos" className="hover:text-secondary">Eventos</Link>
+              </li>
+              <li>
+                <a href="#categorias" className="hover:text-secondary">Categorias</a>
+              </li>
+              <li>
+                <Link href="/login" className="hover:text-secondary">Minha conta</Link>
+              </li>
+            </ul>
+          </div>
+          {isAdmin && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Gestão
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-400">
+                <li>
+                  <Link href="/admin" className="hover:text-secondary">Meu painel</Link>
+                </li>
+              </ul>
+            </div>
+          )}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Contato
+            </p>
+            <p className="mt-3 text-sm text-slate-400">
+              <a href="mailto:contato@eventcreator.com" className="hover:text-secondary">
+                contato@eventcreator.com
+              </a>
+            </p>
+          </div>
+        </div>
+      </footer>
+
       {openId !== null && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-lg font-extrabold text-white">Confirmar inscrição</h3>
             <p className="mt-3 text-sm text-slate-400">Deseja se inscrever como:</p>
             <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
               <p className="text-sm font-bold text-white">{user?.name}</p>
               <p className="text-xs text-slate-500">{user?.email}</p>
             </div>
-            {formError && <p className="mt-4 text-sm font-semibold text-red-300">{formError}</p>}
+            {formError && (
+              <p className="mt-4 text-sm font-semibold text-red-300">{formError}</p>
+            )}
             <div className="mt-6 flex justify-end gap-2">
-              <button onClick={() => setOpenId(null)} className="px-4 py-2 text-sm font-bold text-slate-300">Cancelar</button>
-              <button 
-                onClick={() => submitEnroll(openId)} 
+              <button onClick={() => setOpenId(null)} className="px-4 py-2 text-sm font-bold text-slate-300">
+                Cancelar
+              </button>
+              <button
+                onClick={() => void submitEnroll(openId)}
                 disabled={submitting}
                 className="rounded-xl bg-secondary px-4 py-2 text-sm font-bold text-slate-950 hover:brightness-105"
               >
