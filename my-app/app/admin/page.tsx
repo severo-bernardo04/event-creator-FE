@@ -22,20 +22,11 @@ type Evento = {
   participantes: Participante[];
 };
 
-type Usuario = {
-  id: number;
-  nome: string;
-  email: string;
-  papel: "admin" | "usuario";
-  ativo: boolean;
-};
-
 type PageId =
   | "dashboard"
   | "eventos"
   | "evento-detalhe"
-  | "participantes"
-  | "usuarios";
+  | "participantes";
 
 const MOCK_EVENTOS: Evento[] = [
   {
@@ -114,37 +105,6 @@ const MOCK_EVENTOS: Evento[] = [
     local: "Laboratório 1",
     max: 25,
     participantes: [],
-  },
-];
-
-const MOCK_USUARIOS: Usuario[] = [
-  {
-    id: 1,
-    nome: "Admin Sistema",
-    email: "admin@eventos.com",
-    papel: "admin",
-    ativo: true,
-  },
-  {
-    id: 2,
-    nome: "João Silva",
-    email: "joao@email.com",
-    papel: "usuario",
-    ativo: true,
-  },
-  {
-    id: 3,
-    nome: "Maria Souza",
-    email: "maria@email.com",
-    papel: "usuario",
-    ativo: true,
-  },
-  {
-    id: 4,
-    nome: "Carlos Lima",
-    email: "carlos@email.com",
-    papel: "usuario",
-    ativo: false,
   },
 ];
 
@@ -240,23 +200,6 @@ function NavIconPeople(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function NavIconUser(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      viewBox="0 0 16 16"
-      aria-hidden
-      {...props}
-    >
-      <circle cx="8" cy="5" r="3.5" />
-      <path d="M1 15c0-3.5 3-6 7-6s7 2.5 7 6" />
-    </svg>
-  );
-}
-
 function NavIconBack(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -323,7 +266,6 @@ export default function AdminPage() {
       total: eventos.length,
       ativos,
       inscricoes: totalP,
-      usuarios: MOCK_USUARIOS.length,
     };
   }, [eventos]);
 
@@ -337,12 +279,7 @@ export default function AdminPage() {
 
   function navigate(page: PageId) {
     setCurrentPage(page);
-    const navPages: PageId[] = [
-      "dashboard",
-      "eventos",
-      "participantes",
-      "usuarios",
-    ];
+    const navPages: PageId[] = ["dashboard", "eventos", "participantes"];
     if (navPages.includes(page)) {
       setEventoAtualId(null);
     }
@@ -487,7 +424,6 @@ export default function AdminPage() {
     dashboard: 0,
     eventos: 1,
     participantes: 2,
-    usuarios: 3,
   };
 
   function navActiveIndex() {
@@ -550,18 +486,6 @@ export default function AdminPage() {
           <NavIconPeople />
           Participantes
         </button>
-        <button
-          type="button"
-          onClick={() => navigate("usuarios")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
-            activeNav === 3
-              ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
-              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          }`}
-        >
-          <NavIconUser />
-          Usuários
-        </button>
 
         <div className="mt-auto border-t border-slate-800 pt-3">
           <Link
@@ -588,7 +512,7 @@ export default function AdminPage() {
               <p className="mt-1 text-[13px] text-slate-500">Visão geral do sistema</p>
             </div>
           </div>
-          <div className="mb-8 grid grid-cols-4 gap-3">
+          <div className="mb-8 grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-slate-900 px-5 py-4">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Total de eventos
@@ -609,13 +533,6 @@ export default function AdminPage() {
               </p>
               <p className="text-[28px] font-black text-white">{dashboardStats.inscricoes}</p>
               <p className="mt-1 text-[11.5px] text-slate-500">em todos os eventos</p>
-            </div>
-            <div className="rounded-xl bg-slate-900 px-5 py-4">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                Usuários cadastrados
-              </p>
-              <p className="text-[28px] font-black text-white">{dashboardStats.usuarios}</p>
-              <p className="mt-1 text-[11.5px] text-slate-500">na plataforma</p>
             </div>
           </div>
           <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
@@ -965,60 +882,6 @@ export default function AdminPage() {
                     </tr>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* USUÁRIOS */}
-        <div id="page-usuarios" className={currentPage === "usuarios" ? "block" : "hidden"}>
-          <div className="mb-8 flex items-start justify-between">
-            <div>
-              <h1 className="text-[26px] font-black tracking-tight text-white">Usuários</h1>
-              <p className="mt-1 text-[13px] text-slate-500">
-                Usuários cadastrados na plataforma
-              </p>
-            </div>
-          </div>
-          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className={thClass}>Nome</th>
-                  <th className={thClass}>E-mail</th>
-                  <th className={thClass}>Papel</th>
-                  <th className={thClass}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_USUARIOS.map((u) => (
-                  <tr key={u.id} className="group hover:[&>td]:bg-slate-900/60">
-                    <td className={`${tdClass} font-semibold text-white`}>{u.nome}</td>
-                    <td className={`${tdClass} text-slate-500`}>{u.email}</td>
-                    <td className={tdClass}>
-                      {u.papel === "admin" ? (
-                        <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[11.5px] font-bold text-amber-300 ring-1 ring-inset ring-amber-500/25">
-                          Admin
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-slate-500/15 px-2 py-0.5 text-[11.5px] font-bold text-slate-400 ring-1 ring-inset ring-slate-500/20">
-                          Usuário
-                        </span>
-                      )}
-                    </td>
-                    <td className={tdClass}>
-                      {u.ativo ? (
-                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11.5px] font-bold text-emerald-400 ring-1 ring-inset ring-emerald-500/25">
-                          Ativo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-[11.5px] font-bold text-red-400 ring-1 ring-inset ring-red-500/25">
-                          Inativo
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
               </tbody>
             </table>
           </div>
