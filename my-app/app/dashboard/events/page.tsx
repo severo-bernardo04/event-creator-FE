@@ -17,17 +17,25 @@ const Events = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await apiFetch<unknown>("/events", { method: "GET" });
-        setEvents(normalizeEventList(data));
-      } catch (err: unknown) {
-        setError(getErrorMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const data = await apiFetch<unknown>("/events", {
+        method: "GET",
+        signal: controller.signal,
+      });
+      setEvents(normalizeEventList(data));
+    } catch (err: unknown) {
+      if ((err as { name?: string }).name === "AbortError") return;
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  })();
+
+  return () => controller.abort();
+}, []);
 
   return (
     <div className={styles.page}>
@@ -57,7 +65,15 @@ const Events = () => {
               <div className={styles.footer}>
                 <span className={styles.badge}>Evento</span>
               </div>
-              <button className={styles.button}>Inscrever-se</button>
+              <button className={styles.button} disabled={event.participants.length >= event.maxParticipants}
+                style={
+                  event.participants.length >= event.maxParticipants
+                    ? { opacity: 0.5, cursor: "not-allowed" }
+                    : undefined
+                }
+              >
+              {event.participants.length >= event.maxParticipants ? "Vagas esgotadas" : "Inscrever-se"}
+              </button>
             </div>
           </li>
         ))}
