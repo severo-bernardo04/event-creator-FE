@@ -545,7 +545,13 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <aside className="fixed left-0 top-0 z-10 flex h-screen w-[220px] flex-col gap-1 border-r border-slate-800 bg-slate-900 px-4 py-6">
+      <aside className="
+        fixed bottom-0 left-0 top-auto z-20
+        flex w-full flex-row items-center justify-around
+        border-t border-slate-800 bg-slate-900 px-2 py-3
+        md:top-0 md:h-screen md:w-[220px] md:flex-col md:justify-start
+        md:gap-1 md:border-r md:border-t-0 md:px-4 md:py-6
+      ">
         <div className="mb-5 flex items-center gap-2.5 px-2 text-[15px] font-extrabold text-white">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-black text-white">
             E
@@ -615,7 +621,7 @@ export default function AdminPage() {
         </div>
       </aside>
 
-      <div className="ml-[220px] min-h-screen bg-slate-950 px-10 py-8">
+      <div className="min-h-screen bg-slate-950 px-4 py-6 pb-24 md:ml-[220px] md:px-10 md:py-8 md:pb-8">
         {eventsApiError ? (
           <div
             className="mb-6 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200"
@@ -647,7 +653,7 @@ export default function AdminPage() {
               <p className="mt-1 text-[13px] text-slate-500">Visão geral do sistema</p>
             </div>
           </div>
-          <div className="mb-8 grid grid-cols-4 gap-3">
+          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl bg-slate-900 px-5 py-4">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Total de eventos
@@ -868,7 +874,7 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
-              <div className="mb-8 grid grid-cols-2 gap-5">
+              <div className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
                   <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                     Informações
@@ -1005,8 +1011,8 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-            <table className="w-full border-collapse">
+          <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+            <table className="min-w-[700px] w-full border-collapse">
               <thead>
                 <tr>
                   <th className={thClass}>Nome</th>
@@ -1039,9 +1045,9 @@ export default function AdminPage() {
 
         {/* USUÁRIOS */}
         <div id="page-usuarios" className={currentPage === "usuarios" ? "block" : "hidden"}>
-          <div className="mb-8 flex items-start justify-between">
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-[26px] font-black tracking-tight text-white">Usuários</h1>
+              <h1 className="text-2xl md:text-[26px] font-black tracking-tight text-white">Usuários</h1>
               <p className="mt-1 text-[13px] text-slate-500">
                 Usuários cadastrados na plataforma
               </p>
@@ -1078,7 +1084,7 @@ export default function AdminPage() {
         }`}
         role="presentation"
       >
-        <div className="max-h-[90vh] w-full max-w-[520px] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900">
+        <div className="max-h-[90vh] w-[95%] max-w-[520px] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900">
           <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
             <span className="text-base font-extrabold text-white">{modalEventoTitulo}</span>
             <button
@@ -1148,7 +1154,7 @@ export default function AdminPage() {
               ) : null}
               {imageError ? <p className="mt-2 text-xs font-semibold text-red-300">{imageError}</p> : null}
             </div>
-            <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                   Data *
@@ -1172,7 +1178,7 @@ export default function AdminPage() {
                 />
               </div>
             </div>
-            <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                   Local *
