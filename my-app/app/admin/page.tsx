@@ -200,6 +200,7 @@ export default function AdminPage() {
   const [sessionRole, setSessionRole] = useState<string | null>(null);
   const [sessionHint, setSessionHint] = useState<string | null>(null);
   const [eventsApiError, setEventsApiError] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   /** CRUD de eventos exige sessão HTTP com role ADMIN (igual ao EventsController). */
   const canManage = sessionRole === "ADMIN";
   const canManageHint =
@@ -286,6 +287,12 @@ export default function AdminPage() {
       inscricoes: totalP,
     };
   }, [eventos]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   const participantesRows = useMemo(() => {
     const rows: { p: Participante; titulo: string }[] = [];
@@ -545,81 +552,139 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <aside className="
-        fixed bottom-0 left-0 top-auto z-20
-        flex w-full flex-row items-center justify-around
-        border-t border-slate-800 bg-slate-900 px-2 py-3
-        md:top-0 md:h-screen md:w-[220px] md:flex-col md:justify-start
-        md:gap-1 md:border-r md:border-t-0 md:px-4 md:py-6
-      ">
-        <div className="mb-5 flex items-center gap-2.5 px-2 text-[15px] font-extrabold text-white">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-black text-white">
-            E
-          </span>
-          <span>
-            Event <span className="text-secondary">Admin</span>
-          </span>
-        </div>
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(true)}
+        className="fixed left-4 top-4 z-[60] rounded-lg border border-slate-700 bg-slate-900 p-2 text-white md:hidden"
+      >
+    <svg
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      viewBox="0 0 24 24"
+    >
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  </button>
 
-        <button
-          type="button"
-          onClick={() => navigate("dashboard")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
-            activeNav === 0
-              ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
-              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          }`}
-        >
-          <NavIconDashboard />
-          Dashboard
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("eventos")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
-            activeNav === 1
-              ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
-              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          }`}
-        >
-          <NavIconCalendar />
-          Eventos
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("participantes")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
-            activeNav === 2
-              ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
-              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          }`}
-        >
-          <NavIconPeople />
-          Participantes
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("usuarios")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
-            activeNav === 3
-              ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
-              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          }`}
-        >
-          <NavIconUser />
-          Usuários
-        </button>
+  {mobileMenuOpen && (
+    <div
+      onClick={() => setMobileMenuOpen(false)}
+      className={`fixed inset-0 z-40 bg-black/60 transition-opacity md:hidden ${
+        mobileMenuOpen
+          ? "pointer-events-auto opacity-100"
+          : "pointer-events-none opacity-0"
+      }`}
+    />
+  )}
 
-        <div className="mt-auto border-t border-slate-800 pt-3">
-          <Link
-            href="/"
-            className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-          >
-            <NavIconBack />
-            Voltar ao site
-          </Link>
-        </div>
-      </aside>
+  <aside
+  className={`
+    fixed left-0 top-0 z-50 flex h-screen w-[220px] flex-col gap-1
+    border-r border-slate-800 bg-slate-900/80 backdrop-blur-md px-4 py-6
+    transition-all duration-300
+    ${
+      mobileMenuOpen
+        ? "translate-x-0 opacity-100"
+        : "-translate-x-full opacity-0 md:opacity-100"
+    }
+    md:translate-x-0
+  `}
+>
+    <div className="mb-5 flex items-center justify-between">
+      <div className="flex items-center gap-2.5 text-[15px] font-extrabold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-black text-white">
+          E
+        </span>
+        <span>
+          Event <span className="text-secondary">Admin</span>
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(false)}
+        className="text-slate-400 hover:text-white md:hidden"
+      >
+        ✕
+      </button>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => {
+        navigate("dashboard");
+        setMobileMenuOpen(false);
+      }}
+      className={`flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+        activeNav === 0
+          ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
+          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+      }`}
+    >
+      <NavIconDashboard />
+      Dashboard
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        navigate("eventos");
+        setMobileMenuOpen(false);
+      }}
+      className={`flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+        activeNav === 1
+          ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
+          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+      }`}
+    >
+      <NavIconCalendar />
+      Eventos
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        navigate("participantes");
+        setMobileMenuOpen(false);
+      }}
+      className={`flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+        activeNav === 2
+          ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
+          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+      }`}
+    >
+      <NavIconPeople />
+      Participantes
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        navigate("usuarios");
+        setMobileMenuOpen(false);
+      }}
+      className={`flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+        activeNav === 3
+          ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
+          : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+      }`}
+    >
+      <NavIconUser />
+      Usuários
+    </button>
+
+    <div className="mt-auto border-t border-slate-800 pt-3">
+      <Link
+        href="/"
+        className="flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+      >
+        <NavIconBack />
+        Voltar ao site
+      </Link>
+    </div>
+  </aside>
 
       <div className="min-h-screen bg-slate-950 px-4 py-6 pb-24 md:ml-[220px] md:px-10 md:py-8 md:pb-8">
         {eventsApiError ? (
@@ -1143,13 +1208,11 @@ export default function AdminPage() {
                     setImageError("A imagem deve ter no máximo 5MB.");
                     return;
                   }
-                  const preview = URL.createObjectURL(file);
-                  setImagePreview(preview);
                 }}
                 className={inputClass}
               />
+              {/* TODO: enviar imagem para POST /events/{id}/image após criação*/}
               {imagePreview ? (
-                // TODO: enviar imagem para POST /events/{id}/image após criação
                 <img src={imagePreview} alt="Preview da capa" className="mt-3 h-36 w-full rounded-xl object-cover" />
               ) : null}
               {imageError ? <p className="mt-2 text-xs font-semibold text-red-300">{imageError}</p> : null}
