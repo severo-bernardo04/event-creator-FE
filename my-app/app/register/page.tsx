@@ -22,6 +22,9 @@ function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  function Required() {
+    return <span className="text-red-400 ml-0.5">*</span>;
+  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10 text-white">
@@ -158,7 +161,7 @@ function RegisterForm() {
             >
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-200">
-                  Primeiro nome
+                  Primeiro nome<Required />
                 </span>
                 <input
                   type="text"
@@ -171,7 +174,7 @@ function RegisterForm() {
 
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-200">
-                  Sobrenome
+                  Sobrenome <Required/>
                 </span>
                 <input
                   type="text"
@@ -184,7 +187,7 @@ function RegisterForm() {
 
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-200">
-                  E-mail
+                  E-mail <Required/>
                 </span>
                 <input
                   type="email"
@@ -196,7 +199,9 @@ function RegisterForm() {
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-200">CPF</span>
+                <span className="text-sm font-medium text-slate-200">
+                  CPF <Required />
+                </span>
                 <input
                   type="text"
                   placeholder="000.000.000-00"
@@ -208,7 +213,9 @@ function RegisterForm() {
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-200">Telefone</span>
+                <span className="text-sm font-medium text-slate-200">
+                  Telefone <Required />
+                </span>
                 <input
                     type="text"
                     placeholder="(11) 99999-9999"
@@ -231,7 +238,7 @@ function RegisterForm() {
 
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-200">
-                  Data de nascimento
+                  Data de nascimento <Required />
                 </span>
                 <input
                   type="date"
@@ -244,7 +251,7 @@ function RegisterForm() {
 
               <label className="block space-y-2 md:col-span-2">
                 <span className="text-sm font-medium text-slate-200">
-                  Senha
+                  Senha <Required />
                 </span>
                 <input
                   type="password"
@@ -272,6 +279,10 @@ function RegisterForm() {
                 </button>
               </div>
             </form>
+
+            <p className="text-xs text-slate-500">
+              Campos marcados com <span className="text-red-400">*</span> são obrigatórios.
+            </p>
 
             <p className="text-center text-sm text-slate-300/80">
               Já possui conta?{" "}
