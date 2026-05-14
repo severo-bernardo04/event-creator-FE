@@ -125,6 +125,19 @@ export default function EventosPage() {
         (filterStatus === "Lotado" && full);
     return categoryOk && statusOk;
   });
+  const EVENTS_PER_PAGE = 9;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(filtered.length / EVENTS_PER_PAGE);
+  const paginated = filtered.slice(
+      (currentPage - 1) * EVENTS_PER_PAGE,
+      currentPage * EVENTS_PER_PAGE
+  );
+
+// Reset para página 1 quando filtro mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCategory, filterStatus]);
 
   return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -263,7 +276,7 @@ export default function EventosPage() {
               </div>
           ) : (
               <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {filtered.map((ev) => {
+                {paginated.map((ev) => {
                   const count = ev.participants.length;
                   const full = count >= ev.maxParticipants;
                   const isRegistered = ev.participants.some((p) => p.email === user?.email);
@@ -317,7 +330,41 @@ export default function EventosPage() {
                 })}
               </ul>
           )}
-        </div>
+          {totalPages > 1 && (
+            <div className="mt-10 flex items-center justify-center gap-2">
+            <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+        >
+          ← Anterior
+        </button>
+        {Array.from({ length: totalPages }).map((_, idx) => (
+            <button
+                key={idx}
+                type="button"
+                onClick={() => setCurrentPage(idx + 1)}
+                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+                    currentPage === idx + 1
+                        ? "bg-primary text-white"
+                        : "border border-slate-700 text-slate-400 hover:bg-slate-800"
+                }`}
+            >
+              {idx + 1}
+            </button>
+        ))}
+        <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+        >
+          Próxima →
+        </button>
+      </div>
+  )}
+
 
         {openId !== null ? (
             <div
@@ -368,6 +415,7 @@ export default function EventosPage() {
               </div>
             </div>
         ) : null}
+      </div>
       </div>
   );
 }
