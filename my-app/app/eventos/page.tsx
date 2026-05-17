@@ -282,7 +282,13 @@ export default function EventosPage() {
                   const isRegistered = ev.participants.some((p) => p.email === user?.email);
 
                   return (
-                      <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg">
+                      <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
+                        <Link
+                          href={`/eventos/${ev.id}`}
+                          className="block"
+                          aria-label={`Ver detalhes do evento ${ev.title}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                         <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15">
                     <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
                       {getCategoryForEvent(ev.id)}
@@ -325,6 +331,7 @@ export default function EventosPage() {
                             )}
                           </div>
                         </div>
+                        </Link>
                       </li>
                   );
                 })}

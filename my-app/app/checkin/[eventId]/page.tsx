@@ -14,7 +14,12 @@ type TicketResponse = {
     qrCodeBase64: string;
 };
 
+type ValidateTicketResponse = {
+    message?: string;
+};
+
 export default function CheckinPage() {
+
     const { user } = useAuth();
     const params = useParams();
     const eventId = params.eventId as string;
@@ -23,12 +28,17 @@ export default function CheckinPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [validating, setValidating] = useState(false);
+    const [checkedInMessage, setCheckedInMessage] = useState<string | null>(null);
+
+
     useEffect(() => {
         if (!user) return;
 
         async function fetchTicket() {
             setLoading(true);
             setError(null);
+            setCheckedInMessage(null);
             try {
                 const data = await apiFetch<TicketResponse>("/tickets", {
                     method: "POST",
@@ -47,6 +57,31 @@ export default function CheckinPage() {
 
         void fetchTicket();
     }, [user, eventId]);
+
+    async function validateTicket() {
+        if (!ticket) return;
+        setValidating(true);
+        setError(null);
+        setCheckedInMessage(null);
+
+        try {
+            const res = await apiFetch<ValidateTicketResponse>(
+                "/tickets/validar",
+                {
+                    method: "POST",
+                    json: {
+                        token: ticket.token,
+                    },
+                },
+            );
+            setCheckedInMessage(res?.message ?? "Presença confirmada com sucesso!");
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setValidating(false);
+        }
+    }
+
 
     if (!user) {
         return (
@@ -93,15 +128,36 @@ export default function CheckinPage() {
                     ) : null}
                 </div>
 
-                {ticket ? (
+                {checkedInMessage ? (
+                    <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-left">
+                        <p className="text-sm font-bold text-emerald-100">{checkedInMessage}</p>
+                        <p className="mt-1 text-xs text-emerald-200">
+                            Obrigado! Sua presença foi registrada.
+                        </p>
+                    </div>
+                ) : null}
+
+                {ticket && !checkedInMessage ? (
                     <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-left">
                         <p className="text-sm font-bold text-white">{user.name}</p>
                         <p className="text-xs text-slate-500">{user.email}</p>
                         <p className="mt-1 text-xs text-slate-600">
                             Evento #{eventId} · válido por 60 min
                         </p>
+
+                        <div className="mt-4">
+                            <button
+                                type="button"
+                                disabled={validating}
+                                onClick={() => void validateTicket()}
+                                className="w-full rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-950 hover:brightness-105 disabled:opacity-50"
+                            >
+                                {validating ? "Validando..." : "Confirmar presença"}
+                            </button>
+                        </div>
                     </div>
                 ) : null}
+
 
                 <div className="mt-6">
                     <Link
