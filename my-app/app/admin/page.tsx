@@ -13,6 +13,7 @@ import {
   normalizeEventRecord,
   type ApiEventNorm,
 } from "@/lib/eventsFromApi";
+import EventsChart from "@/components/EventsChart";
 
 type Participante = {
   id: number;
@@ -679,7 +680,27 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
+
+          <div className="mb-8 overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
+            <div className="border-b border-slate-800 px-6 py-4">
+              <span className="text-sm font-extrabold text-white">
+                Eventos criados nos últimos 6 meses
+              </span>
+            </div>
+            <div className="p-6">
+              <EventsChart
+                events={eventos.map((ev) => ({
+                  date: ev.data,
+                  participants: ev.participantes.length,
+                  title: ev.titulo,
+                }))}
+                months={6}
+              />
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
           <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+            
             <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
               <span className="text-sm font-extrabold text-white">Todos os eventos</span>
               <button
