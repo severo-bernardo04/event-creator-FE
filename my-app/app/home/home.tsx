@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 export function Home() {
   const { isAdmin } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Todos");
+  const [searchTerm, setSearchTerm] = useState("");
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,7 @@ export function Home() {
     (async () => {
       try {
         const data = await apiFetch<unknown>("/events", { method: "GET" });
-        setEvents(normalizeEventList(data).slice(0, 6));
+        setEvents(normalizeEventList(data));
       } catch (err: unknown) {
         setError(getErrorMessage(err));
       } finally {
@@ -37,9 +38,35 @@ export function Home() {
   }, [events]);
 
   const filteredEvents = useMemo(() => {
-    if (activeCategory === "Todos") return events;
-    return events.filter((ev) => (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase());
-  }, [activeCategory, events]);
+    const query = searchTerm.trim().toLowerCase();
+    return events.filter((ev) => {
+      const isCategoryMatch =
+        activeCategory === "Todos" ||
+        (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase();
+
+      if (!isCategoryMatch) return false;
+
+      if (!query) return true;
+
+      const text = [ev.title, ev.description, ev.category]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const participantMatch = ev.participants.some((participant) =>
+        participant.name.toLowerCase().includes(query),
+      );
+
+      return text.includes(query) || participantMatch;
+    });
+  }, [activeCategory, events, searchTerm]);
+
+  const displayEvents = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return filteredEvents.slice(0, 6);
+    }
+    return filteredEvents;
+  }, [filteredEvents, searchTerm]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-950 text-slate-100">
@@ -85,32 +112,52 @@ export function Home() {
           className="w-full border-b border-slate-800 bg-slate-900/50 px-4 py-16 sm:px-6 sm:py-20 lg:px-10"
         >
           <div className="mx-auto w-full max-w-[1600px]">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-                  Eventos em destaque
-                </h2>
-                <p className="mt-2 max-w-2xl text-slate-400">
-                  Uma prévia do que você encontra na plataforma — explore todos
-                  em Eventos.
-                </p>
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-3">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+                    Eventos em destaque
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-slate-400">
+                    Busque palestras, atividades ou participantes na plataforma.
+                  </p>
+                </div>
+                <div className="max-w-2xl">
+                  <label htmlFor="home-search" className="sr-only">
+                    Buscar participante, palestra ou atividade
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="home-search"
+                      type="search"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Buscar participante, palestra ou atividade"
+                      className="w-full rounded-3xl border border-slate-800 bg-slate-950/90 px-5 py-4 text-sm text-slate-100 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
+                      🔎
+                    </span>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => {
                   const isActive = activeCategory === cat;
 
                   return (
-                    <span
+                    <button
+                      type="button"
                       key={cat}
                       onClick={() => setActiveCategory(cat)}
                       className={
                         isActive
-                          ? "rounded-full bg-primary/20 px-4 py-2 text-xs font-bold text-primary cursor-pointer"
-                          : "rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+                          ? "rounded-full bg-primary/20 px-4 py-2 text-xs font-bold text-primary"
+                          : "rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white"
                       }
                     >
                       {cat}
-                    </span>
+                    </button>
                   );
                 })}
               </div>
@@ -126,7 +173,7 @@ export function Home() {
                       <div className="mt-4 h-10 w-full rounded-xl bg-slate-800" />
                     </article>
                   ))
-                : filteredEvents.map((ev) => (
+                : displayEvents.map((ev) => (
                 <article
                   key={ev.id}
                   className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
@@ -149,15 +196,23 @@ export function Home() {
                   </div>
                 </article>
               ))}
-              {!loading && (error || filteredEvents.length === 0) ? (
+              {!loading && (error || displayEvents.length === 0) ? (
                 <div className="col-span-full rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-10 text-center">
                   <div className="mx-auto mb-4 h-14 w-14 text-secondary">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M8 2v3m8-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
                     </svg>
                   </div>
-                  <p className="text-xl font-bold text-white">Nenhum evento por aqui ainda</p>
-                  <p className="mt-2 text-sm text-slate-400">Volte em breve para conferir os próximos eventos</p>
+                  <p className="text-xl font-bold text-white">
+                    {error ? "Não foi possível carregar os eventos" : "Nenhum evento encontrado"}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-400">
+                    {error
+                      ? "Tente novamente ou verifique a conexão."
+                      : searchTerm.trim()
+                      ? "Ajuste sua busca para encontrar palestras, atividades ou participantes."
+                      : "Volte em breve para conferir os próximos eventos."}
+                  </p>
                 </div>
               ) : null}
             </div>

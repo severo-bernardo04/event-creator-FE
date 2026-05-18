@@ -5,6 +5,7 @@ import styles from "./Events.module.css";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
+import EventsChart from "@/components/EventsChart";
 
 function fmtDateIso(d: string) {
   const [y, m, dy] = d.split("-");
@@ -36,6 +37,16 @@ const Events = () => {
       ) : error ? (
         <div className={styles.page}>{error}</div>
       ) : null}
+      {!loading && !error && (
+        <EventsChart
+          events={events.map((event) => ({
+            date: event.date,
+            participants: event.participants.length,
+            title: event.title,
+          }))}
+          months={6}
+        />
+      )}
       <ul className={styles.grid}>
         {events.map((event) => (
           <li key={event.id} className={styles.card}>
