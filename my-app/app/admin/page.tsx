@@ -546,7 +546,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <aside className="fixed bottom-0 left-0 top-auto z-10 flex h-auto w-full flex-row overflow-x-auto border-t border-slate-800 bg-slate-900 px-3 py-2 md:top-0 md:h-screen md:w-[220px] md:flex-col md:border-r md:border-t-0 md:px-4 md:py-6">
+      <aside className="fixed left-0 top-0 z-10 flex h-screen w-[220px] flex-col gap-1 border-r border-slate-800 bg-slate-900 px-4 py-6">
         <div className="mb-5 flex items-center gap-2.5 px-2 text-[15px] font-extrabold text-white">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-black text-white">
             E
@@ -616,7 +616,7 @@ export default function AdminPage() {
         </div>
       </aside>
 
-      <div className="min-h-screen bg-slate-950 px-4 pb-24 pt-6 md:ml-[220px] md:px-10 md:py-8">
+      <div className="ml-[220px] min-h-screen bg-slate-950 px-10 py-8">
         {eventsApiError ? (
           <div
             className="mb-6 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200"
@@ -648,7 +648,7 @@ export default function AdminPage() {
               <p className="mt-1 text-[13px] text-slate-500">Visão geral do sistema</p>
             </div>
           </div>
-          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-8 grid grid-cols-4 gap-3">
             <div className="rounded-xl bg-slate-900 px-5 py-4">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Total de eventos
@@ -680,7 +680,6 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-
           <div className="mb-8 overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
             <div className="border-b border-slate-800 px-6 py-4">
               <span className="text-sm font-extrabold text-white">
@@ -699,8 +698,6 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-          <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
-            
             <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
               <span className="text-sm font-extrabold text-white">Todos os eventos</span>
               <button
@@ -763,7 +760,7 @@ export default function AdminPage() {
               + Novo evento
             </button>
           </div>
-          <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
             <table className="w-full border-collapse">
               <thead>
                 <tr>
@@ -889,7 +886,7 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
-              <div className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <div className="mb-8 grid grid-cols-2 gap-5">
                 <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
                   <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                     Informações
@@ -959,7 +956,7 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
-              <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+              <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
                 <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
                   <span className="text-sm font-extrabold text-white">
                     Participantes inscritos{" "}
@@ -1026,7 +1023,7 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-          <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
             <table className="w-full border-collapse">
               <thead>
                 <tr>
@@ -1068,7 +1065,7 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-          <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
             <table className="w-full border-collapse">
               <thead>
                 <tr>
