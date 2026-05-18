@@ -7,7 +7,13 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
-import { getCategoryForEvent, CATEGORIES } from "@/lib/categoryMocks";
+const CATEGORIES = [
+  "Tecnologia",
+  "Educação",
+  "Música",
+  "Esporte",
+  "Entretenimento"
+];
 
 function fmtDate(d: string) {
   const [y, m, dy] = d.split("-");
@@ -115,15 +121,20 @@ export default function EventosPage() {
   }
 
   const eventList = Array.isArray(events) ? events : [];
+
   const filtered = eventList.filter((ev) => {
-    const category = getCategoryForEvent(ev.id);
     const full = ev.participants.length >= ev.maxParticipants;
-    const categoryOk = filterCategory === "Todos" || category === filterCategory;
-    const statusOk =
-        filterStatus === "Todos" ||
-        (filterStatus === "Disponível" && !full) ||
-        (filterStatus === "Lotado" && full);
-    return categoryOk && statusOk;
+
+    const CategoryOk =
+    filterCategory === "Todos" ||
+    ev.category?.toLowerCase() === filterCategory.toLowerCase();
+
+    const statusOk = 
+    filterStatus === "Todos" ||
+    (filterStatus === "Disponível" && !full) ||
+    (filterStatus === "Lotado" && full);
+
+    return CategoryOk && statusOk;
   });
   const EVENTS_PER_PAGE = 9;
   const [currentPage, setCurrentPage] = useState(1);
@@ -282,10 +293,16 @@ export default function EventosPage() {
                   const isRegistered = ev.participants.some((p) => p.email === user?.email);
 
                   return (
-                      <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg">
+                      <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
+                        <Link
+                          href={`/eventos/${ev.id}`}
+                          className="block"
+                          aria-label={`Ver detalhes do evento ${ev.title}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                         <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15">
                     <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
-                      {getCategoryForEvent(ev.id)}
+                      {ev.category || "Sem categoria"}
                     </span>
                         </div>
                         <div className="flex flex-1 flex-col p-6">
@@ -325,6 +342,7 @@ export default function EventosPage() {
                             )}
                           </div>
                         </div>
+                        </Link>
                       </li>
                   );
                 })}
