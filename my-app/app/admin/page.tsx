@@ -36,6 +36,7 @@ type Evento = {
   local: string;
   max: number;
   participantes: Participante[];
+  private?: boolean;
 };
 
 type PageId =
@@ -72,16 +73,17 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
     local: ev.location ?? "",
     max: ev.maxParticipants,
     participantes: ev.participants.map((p) => {
-      const status = deriveMockParticipantStatus(p.id);
+      const status = (p.status as ParticipantStatus) ?? deriveMockParticipantStatus(p.id);
       return {
         id: p.id,
         nome: p.name,
         email: p.email,
         telefone: p.phone,
         status,
-        createdAt: deriveMockCreatedAt(p.id),
+        createdAt: p.createdAt ?? deriveMockCreatedAt(p.id),
       };
     }),
+    private: Boolean((ev as any).private),
   };
 }
 
@@ -210,6 +212,7 @@ export default function AdminPage() {
     hora: "",
     local: "",
     max: "",
+    private: false,
   });
   const [imageError, setImageError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -221,6 +224,74 @@ export default function AdminPage() {
     text: string;
   } | null>(null);
   const pendingActionRef = useRef<(() => void) | null>(null);
+
+  // Approval mechanism: manual or automatic with configurable rules
+  const [approvalMode, setApprovalMode] = useState<"MANUAL" | "AUTO">("MANUAL");
+  const [approvalRule, setApprovalRule] = useState<"ALL" | "EMAIL_ALLOWLIST" | "CAPACITY">("ALL");
+  const [emailAllowlist, setEmailAllowlist] = useState<string>(""); // comma-separated domains
+
+  function parseAllowlist() {
+    return emailAllowlist
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  /**
+   * Apply approval rules to all pending registrations.
+   * - MANUAL mode: no-op
+   * - AUTO mode with rule:
+   *   - ALL: approve every pending
+   *   - EMAIL_ALLOWLIST: approve only if email domain is in allowlist
+   *   - CAPACITY: approve in FIFO order until event.max is reached; others remain pending or rejected
+   */
+  function applyApprovalRules() {
+    if (approvalMode !== "AUTO") return;
+    const allowed = parseAllowlist();
+
+    // Use local snapshot to avoid stale closures; iterate events and participants
+    eventos.forEach((ev) => {
+      const approvedCount = ev.participantes.filter((p) => p.status === "APPROVED").length;
+      let capacityLeft = ev.max > 0 ? ev.max - approvedCount : 0;
+
+      // pending participants in deterministic order (createdAt || id)
+      const pending = ev.participantes
+        .filter((p) => p.status === "PENDING")
+        .slice()
+        .sort((a, b) => {
+          const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+          const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+          if (ta !== tb) return ta - tb;
+          return a.id - b.id;
+        });
+
+      pending.forEach((p) => {
+        let shouldApprove = false;
+        if (approvalRule === "ALL") {
+          shouldApprove = true;
+        } else if (approvalRule === "EMAIL_ALLOWLIST") {
+          if (!p.email) shouldApprove = false;
+          const domain = p.email.split("@").pop()?.toLowerCase() ?? "";
+          shouldApprove = allowed.length === 0 ? false : allowed.includes(domain);
+        } else if (approvalRule === "CAPACITY") {
+          if (capacityLeft > 0) {
+            shouldApprove = true;
+            capacityLeft -= 1;
+          } else {
+            shouldApprove = false;
+          }
+        }
+
+        try {
+          if (shouldApprove) aprovarParticipante(p.id);
+          else rejeitarParticipante(p.id);
+        } catch (err) {
+          // keep UI stable; set formError to surface to admin
+          setFormError((e) => (String(err) || "Erro ao aplicar regra") ?? e);
+        }
+      });
+    });
+  }
 
   const eventoAtual = useMemo(
     () => eventos.find((e) => e.id === eventoAtualId) ?? null,
@@ -351,6 +422,7 @@ export default function AdminPage() {
         hora: ev.hora,
         local: ev.local,
         max: String(ev.max),
+        private: Boolean(ev.private ?? false),
       });
     } else {
       setModalEventoTitulo("Novo evento");
@@ -362,6 +434,7 @@ export default function AdminPage() {
         hora: "",
         local: "",
         max: "",
+        private: false,
       });
     }
     setModalEventoOpen(true);
@@ -435,6 +508,7 @@ export default function AdminPage() {
               location: local,
               maxParticipants: max,
               majority18: false,
+              private: Boolean(form.private),
             },
           });
           const n = normalizeEventRecord(updatedRaw as Record<string, unknown>);
@@ -455,6 +529,7 @@ export default function AdminPage() {
               location: local,
               maxParticipants: max,
               majority18: false,
+              private: Boolean(form.private),
             },
           });
           const n = normalizeEventRecord(createdRaw as Record<string, unknown>);
@@ -716,23 +791,81 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="mb-8 overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-            <div className="border-b border-slate-800 px-6 py-4">
-              <span className="text-sm font-extrabold text-white">
-                Eventos criados nos últimos 6 meses
-              </span>
+          <div className="mb-8 grid grid-cols-2 gap-4">
+            <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
+              <div className="border-b border-slate-800 px-6 py-4">
+                <span className="text-sm font-extrabold text-white">Eventos criados nos últimos 6 meses</span>
+              </div>
+              <div className="p-6">
+                <EventsChart
+                  events={eventos.map((ev) => ({
+                    date: ev.data,
+                    participants: ev.participantes.length,
+                    title: ev.titulo,
+                  }))}
+                  months={6}
+                />
+              </div>
             </div>
-            <div className="p-6">
-              <EventsChart
-                events={eventos.map((ev) => ({
-                  date: ev.data,
-                  participants: ev.participantes.length,
-                  title: ev.titulo,
-                }))}
-                months={6}
-              />
+
+            <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-4">
+              <div className="mb-2 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">Regras de aprovação</h3>
+                  <p className="mt-1 text-[13px] text-slate-500">Defina se as inscrições são aprovadas manualmente ou automaticamente.</p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setApprovalMode((m) => (m === 'AUTO' ? 'MANUAL' : 'AUTO'))}
+                    className="cursor-pointer rounded-[8px] border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-white"
+                  >
+                    {approvalMode === 'AUTO' ? 'Modo: Automático' : 'Modo: Manual'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-500">Regra</label>
+                  <select
+                    value={approvalRule}
+                    onChange={(e) => setApprovalRule(e.target.value as any)}
+                    className={inputClass}
+                    disabled={approvalMode !== 'AUTO'}
+                  >
+                    <option value="ALL">Aprovar todos</option>
+                    <option value="EMAIL_ALLOWLIST">Aprovar por domínio de e-mail</option>
+                    <option value="CAPACITY">Aprovar até lotação</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-500">Domínios permitidos (separados por vírgula)</label>
+                  <input
+                    type="text"
+                    value={emailAllowlist}
+                    onChange={(e) => setEmailAllowlist(e.target.value)}
+                    placeholder="ex: universidade.edu, empresa.com"
+                    className={inputClass}
+                    disabled={approvalMode !== 'AUTO' || approvalRule !== 'EMAIL_ALLOWLIST'}
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => applyApprovalRules()}
+                    disabled={approvalMode !== 'AUTO'}
+                    className="cursor-pointer rounded-[8px] border border-primary bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Aplicar regras agora
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+
           <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
           <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
             
@@ -1256,6 +1389,18 @@ export default function AdminPage() {
                 />
               </div>
             </div>
+
+            <div className="mb-4 flex items-center gap-3">
+              <input
+                id="event-private"
+                type="checkbox"
+                checked={Boolean(form.private)}
+                onChange={(e) => setForm((f) => ({ ...f, private: e.target.checked }))}
+                className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+              />
+              <label htmlFor="event-private" className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</label>
+            </div>
+
             {formError ? (
               <div className="mt-1 rounded-[10px] border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-[13px] font-semibold text-red-400">
                 {formError}
