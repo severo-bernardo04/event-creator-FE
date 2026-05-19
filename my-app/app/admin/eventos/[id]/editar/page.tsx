@@ -20,6 +20,7 @@ type EventForm = {
     hora: string;
     local: string;
     max: string;
+    private?: boolean;
 };
 
 export default function EditarEventoPage() {
@@ -67,6 +68,7 @@ export default function EditarEventoPage() {
                     hora: (event.time ?? "").slice(0, 5),
                     local: event.location ?? "",
                     max: String(event.maxParticipants),
+                    private: Boolean((event as any).private),
                 };
                 setForm(loadedForm);
                 setInitialForm(loadedForm);
@@ -152,6 +154,7 @@ export default function EditarEventoPage() {
                     location: local,
                     maxParticipants: max,
                     majority18: false,
+                    private: Boolean(form.private),
                 },
             });
             addEventHistory(
@@ -289,6 +292,17 @@ export default function EditarEventoPage() {
                                             className={inputClass}
                                         />
                                     </div>
+                                </div>
+
+                                <div className="mb-4 flex items-center gap-3">
+                                    <input
+                                        id="event-private"
+                                        type="checkbox"
+                                        checked={Boolean(form.private)}
+                                        onChange={(e) => setForm((f) => ({ ...f, private: e.target.checked }))}
+                                        className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+                                    />
+                                    <label htmlFor="event-private" className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</label>
                                 </div>
                                 {formError ? (
                                     <div className="mt-1 rounded-[10px] border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-[13px] font-semibold text-red-400">
