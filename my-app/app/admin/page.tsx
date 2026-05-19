@@ -14,12 +14,16 @@ import {
   type ApiEventNorm,
 } from "@/lib/eventsFromApi";
 import EventsChart from "@/components/EventsChart";
+import StatusParticipante from "@/components/StatusParticipante";
+import type { ParticipantStatus } from "@/types";
 
 type Participante = {
   id: number;
   nome: string;
   email: string;
   telefone: string;
+  status: ParticipantStatus;
+  createdAt?: string;
 };
 
 type Evento = {
@@ -38,7 +42,24 @@ type PageId =
   | "eventos"
   | "evento-detalhe"
   | "participantes"
+  | "aprovacoes"
   | "usuarios";
+
+function deriveMockParticipantStatus(participantId: number): ParticipantStatus {
+  // MOCK: distribuição determinística para visualização no frontend (futuro: virá do backend)
+  const mod = participantId % 3;
+  if (mod === 0) return "PENDING";
+  if (mod === 1) return "APPROVED";
+  return "REJECTED";
+}
+
+function deriveMockCreatedAt(participantId: number): string {
+  // MOCK: datas recentes (futuro: virá do backend)
+  const now = Date.now();
+  const daysAgo = participantId % 21; // 0..20
+  const d = new Date(now - daysAgo * 24 * 60 * 60 * 1000);
+  return d.toISOString();
+}
 
 function mapNormToEvento(ev: ApiEventNorm): Evento {
   return {
@@ -49,18 +70,30 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
     hora: (ev.time ?? "").slice(0, 5),
     local: ev.location ?? "",
     max: ev.maxParticipants,
-    participantes: ev.participants.map((p) => ({
-      id: p.id,
-      nome: p.name,
-      email: p.email,
-      telefone: p.phone,
-    })),
+    participantes: ev.participants.map((p) => {
+      const status = deriveMockParticipantStatus(p.id);
+      return {
+        id: p.id,
+        nome: p.name,
+        email: p.email,
+        telefone: p.phone,
+        status,
+        createdAt: deriveMockCreatedAt(p.id),
+      };
+    }),
   };
 }
 
 function fmtDate(d: string) {
   const [y, m, dy] = d.split("-");
   return `${dy}/${m}/${y}`;
+}
+
+function fmtInscricaoDate(createdAt?: string) {
+  if (!createdAt) return "—";
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${fmtDate(d.toISOString().slice(0, 10))}`;
 }
 
 function getStatus(ev: Evento) {
@@ -96,93 +129,7 @@ function StatusBadge({ ev }: { ev: Evento }) {
   );
 }
 
-function NavIconDashboard(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      viewBox="0 0 16 16"
-      aria-hidden
-      {...props}
-    >
-      <rect x="1" y="1" width="6" height="6" rx="1" />
-      <rect x="9" y="1" width="6" height="6" rx="1" />
-      <rect x="1" y="9" width="6" height="6" rx="1" />
-      <rect x="9" y="9" width="6" height="6" rx="1" />
-    </svg>
-  );
-}
-
-function NavIconCalendar(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      viewBox="0 0 16 16"
-      aria-hidden
-      {...props}
-    >
-      <rect x="1" y="3" width="14" height="12" rx="1.5" />
-      <path d="M5 1v4M11 1v4M1 7h14" />
-    </svg>
-  );
-}
-
-function NavIconPeople(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      viewBox="0 0 16 16"
-      aria-hidden
-      {...props}
-    >
-      <circle cx="6" cy="5" r="3" />
-      <path d="M1 14c0-3 2-5 5-5s5 2 5 5" />
-      <circle cx="13" cy="5" r="2" />
-      <path d="M13 9c1.5 0 3 1 3 4" />
-    </svg>
-  );
-}
-
-function NavIconUser(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      viewBox="0 0 16 16"
-      aria-hidden
-      {...props}
-    >
-      <circle cx="8" cy="5" r="3.5" />
-      <path d="M1 15c0-3.5 3-6 7-6s7 2.5 7 6" />
-    </svg>
-  );
-}
-
-function NavIconBack(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.75}
-      viewBox="0 0 16 16"
-      aria-hidden
-      {...props}
-    >
-      <path d="M6 12L2 8l4-4M2 8h12" />
-    </svg>
-  );
-}
+import { NavIconDashboard, NavIconCalendar, NavIconPeople, NavIconUser, NavIconBack } from "./components/NavIcons";
 
 const inputClass =
   "w-full rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -196,6 +143,51 @@ const tdClass =
 export default function AdminPage() {
   const { user } = useAuth();
   const [eventos, setEventos] = useState<Evento[]>([]);
+  
+  function flattenParticipantes() {
+    const rows: { ev: Evento; p: Participante }[] = [];
+    eventos.forEach((ev) => ev.participantes.forEach((p) => rows.push({ ev, p })));
+    return rows;
+  }
+
+  function aprovarParticipante(participanteId: number) {
+    // FUTURO BACKEND
+    // PATCH /registrations/:id/approve
+    //
+    // Exemplo (comentado):
+    // await apiFetch(`/registrations/${participanteId}/approve`, { method: "PATCH" });
+
+    setEventos((prev) =>
+      prev.map((ev) => ({
+        ...ev,
+        participantes: ev.participantes.map((p) =>
+          p.id === participanteId
+            ? { ...p, status: "APPROVED", createdAt: p.createdAt ?? new Date().toISOString() }
+            : p,
+        ),
+      })),
+    );
+  }
+
+  function rejeitarParticipante(participanteId: number) {
+    // FUTURO BACKEND
+    // PATCH /registrations/:id/reject
+    //
+    // Exemplo (comentado):
+    // await apiFetch(`/registrations/${participanteId}/reject`, { method: "PATCH" });
+
+    setEventos((prev) =>
+      prev.map((ev) => ({
+        ...ev,
+        participantes: ev.participantes.map((p) =>
+          p.id === participanteId
+            ? { ...p, status: "REJECTED", createdAt: p.createdAt ?? new Date().toISOString() }
+            : p,
+        ),
+      })),
+    );
+  }
+
   const [currentPage, setCurrentPage] = useState<PageId>("dashboard");
   const [eventoAtualId, setEventoAtualId] = useState<number | null>(null);
   const [sessionRole, setSessionRole] = useState<string | null>(null);
@@ -280,13 +272,33 @@ export default function AdminPage() {
 
   const dashboardStats = useMemo(() => {
     const totalP = eventos.reduce((a, e) => a + e.participantes.length, 0);
+
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
+
+    eventos.forEach((e) => {
+      e.participantes.forEach((p) => {
+        if (p.status === "PENDING") pending += 1;
+        else if (p.status === "APPROVED") approved += 1;
+        else rejected += 1;
+      });
+    });
+
     const ativos = eventos.filter((e) => e.participantes.length < e.max).length;
+
     return {
       total: eventos.length,
       ativos,
       inscricoes: totalP,
+      pending,
+      approved,
+      rejected,
     };
   }, [eventos]);
+
+  type AprovalFilter = "TODOS" | "PENDENTES" | "APROVADOS" | "REJEITADOS";
+  const [aprovacoesFilter, setAprovacoesFilter] = useState<AprovalFilter>("PENDENTES");
 
   const participantesRows = useMemo(() => {
     const rows: { p: Participante; titulo: string }[] = [];
@@ -296,12 +308,23 @@ export default function AdminPage() {
     return rows;
   }, [eventos]);
 
+  const aprovacoesRows = useMemo(() => {
+    const all = flattenParticipantes().map(({ ev, p }) => ({ ev, p }));
+    if (aprovacoesFilter === "TODOS") return all;
+    if (aprovacoesFilter === "PENDENTES")
+      return all.filter(({ p }) => p.status === "PENDING");
+    if (aprovacoesFilter === "APROVADOS")
+      return all.filter(({ p }) => p.status === "APPROVED");
+    return all.filter(({ p }) => p.status === "REJECTED");
+  }, [eventos, aprovacoesFilter]);
+
   function navigate(page: PageId) {
     setCurrentPage(page);
     const navPages: PageId[] = [
       "dashboard",
       "eventos",
       "participantes",
+      "aprovacoes",
       "usuarios",
     ];
     if (navPages.includes(page)) {
@@ -527,7 +550,8 @@ export default function AdminPage() {
     dashboard: 0,
     eventos: 1,
     participantes: 2,
-    usuarios: 3,
+    aprovacoes: 3,
+    usuarios: 4,
   };
 
   function navActiveIndex() {
@@ -595,9 +619,21 @@ export default function AdminPage() {
         </button>
         <button
           type="button"
-          onClick={() => navigate("usuarios")}
+          onClick={() => navigate("aprovacoes")}
           className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
             activeNav === 3
+              ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          }`}
+        >
+          <NavIconPeople />
+          Aprovações
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("usuarios")}
+          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+            activeNav === 4
               ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           }`}
