@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
@@ -53,10 +53,72 @@ export default function EventoDetalhesPage() {
     return t.slice(0, 5);
   }
 
-  const isRegistered = Boolean(
-    event?.participants?.some((p) => p.email === user?.email),
-  );
+  const currentParticipant = event?.participants?.find((p) => p.email === user?.email) ?? null;
+  const isRegistered = Boolean(currentParticipant);
+  const isApproved = currentParticipant?.status === "APPROVED";
+  const isPending = currentParticipant?.status === "PENDING";
   const full = Boolean(event && event.participants.length >= event.maxParticipants);
+  const isPrivate = Boolean((event as any)?.private);
+
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [successBanner, setSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  async function enrollNow() {
+    if (!user) {
+      router.push(`/login?next=/eventos/${id}`);
+      return;
+    }
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      const alreadyRegistered = await apiFetch<{ emailInscrito?: boolean }>(
+        `/events/${id}/participants/check-email?email=${encodeURIComponent(user.email!)}`,
+        { method: "GET" },
+      ).catch(() => ({ emailInscrito: false }));
+
+      if (alreadyRegistered.emailInscrito) {
+        setFormError("Você já está inscrito neste evento.");
+        return;
+      }
+
+      await apiFetch(`/events/${id}/participants?userId=${user.userId}`, {
+        method: "POST",
+        json: {
+          name: user.name,
+          email: user.email,
+          phone: "",
+          cpf: user.cpf ?? "",
+        },
+      });
+
+      // reload event
+      const raw = await apiFetch<unknown>(`/events/${id}`, { method: "GET" });
+      const norm = normalizeEventRecord(raw as Record<string, unknown>);
+      setEvent(norm);
+
+      const part = norm?.participants?.find((p) => p.email === user.email);
+      if (part) {
+        if (part.status === "PENDING") {
+          setSuccessMessage("Inscrição realizada — Aguardando aprovação do administrador.");
+        } else if (part.status === "APPROVED") {
+          setSuccessMessage("Inscrição confirmada — Bem-vindo ao evento!");
+        } else {
+          setSuccessMessage("Inscrição realizada.");
+        }
+      } else {
+        setSuccessMessage("Inscrição realizada com sucesso!");
+      }
+      setSuccessBanner(true);
+      window.setTimeout(() => setSuccessBanner(false), 4000);
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -118,7 +180,7 @@ export default function EventoDetalhesPage() {
                       <h2 className="text-2xl font-black text-white">{event.title}</h2>
                       <p className="mt-2 text-sm text-slate-400">
                         {fmtDate(event.date)} · {timeShort(event.time)}
-                        {event.location ? ` · ${event.location}` : ""}
+                        {(!isPrivate || isApproved) && event.location ? ` · ${event.location}` : ""}
                       </p>
                     </div>
 
@@ -145,10 +207,10 @@ export default function EventoDetalhesPage() {
                         Status
                       </p>
                       <p className="mt-2 text-sm font-bold text-secondary">
-                        {isRegistered ? "Você está inscrito" : "Você ainda não está inscrito"}
+                        {isRegistered ? (isApproved ? "Você está inscrito" : "Sua inscrição está pendente") : "Você ainda não está inscrito"}
                       </p>
                       <p className="mt-1 text-sm text-slate-400">
-                        {isRegistered ? "Acesse o check-in para gerar seu QR." : "Inscreva-se na lista de eventos."}
+                        {isRegistered ? (isApproved ? "Acesse o check-in para gerar seu QR." : "Aguarde aprovação do administrador.") : "Inscreva-se na lista de eventos."}
                       </p>
                     </div>
                   </div>
@@ -156,7 +218,11 @@ export default function EventoDetalhesPage() {
                   <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/30 p-5">
                     <p className="text-sm font-bold text-white">Sobre</p>
                     <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                      {event.description?.trim() || "Sem descrição."}
+                      {isPrivate && !isApproved ? (
+                        "Informações privadas — sua inscrição precisa ser aprovada para ver os detalhes."
+                      ) : (
+                        event.description?.trim() || "Sem descrição."
+                      )}
                     </p>
                   </div>
                 </div>
@@ -170,19 +236,40 @@ export default function EventoDetalhesPage() {
                 </p>
 
                 {isRegistered ? (
-                  <Link
-                    href={`/checkin/${event.id}`}
-                    className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110"
-                  >
-                    Check-in (QR)
-                  </Link>
+                  isApproved ? (
+                    <Link
+                      href={`/checkin/${event.id}`}
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110"
+                    >
+                      Check-in (QR)
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-slate-800/60 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed"
+                      title={isPending ? "Sua inscrição está pendente — aguarde aprovação." : "Inscrição não aprovada."}
+                    >
+                      {isPending ? "Inscrição pendente" : "Aprovação necessária"}
+                    </button>
+                  )
                 ) : (
-                  <Link
-                    href="/eventos"
-                    className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/20"
-                  >
-                    Voltar para inscrever
-                  </Link>
+                  <>
+                    {formError ? (
+                      <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">{formError}</p>
+                    ) : null}
+                    {successBanner ? (
+                      <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100">{successMessage}</div>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void enrollNow()}
+                      disabled={full || submitting}
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {full ? "Lotado" : submitting ? "Inscrevendo…" : "Inscrever-se"}
+                    </button>
+                  </>
                 )}
 
                 <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/30 p-4">

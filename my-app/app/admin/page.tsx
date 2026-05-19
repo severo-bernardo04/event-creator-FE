@@ -14,6 +14,7 @@ import {
   type ApiEventNorm,
 } from "@/lib/eventsFromApi";
 import EventsChart from "@/components/EventsChart";
+import { CATEGORIES } from "@/lib/categoryMocks";
 import { NavIconDashboard, NavIconCalendar, NavIconPeople, NavIconUser, NavIconBack } from "./components/NavIcons";
 import StatusParticipante from "@/components/StatusParticipante";
 import type { ParticipantStatus } from "@/types";
@@ -36,6 +37,7 @@ type Evento = {
   local: string;
   max: number;
   participantes: Participante[];
+  category?: string | null;
   private?: boolean;
 };
 
@@ -83,6 +85,7 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
         createdAt: p.createdAt ?? deriveMockCreatedAt(p.id),
       };
     }),
+    category: (ev as any).category ?? undefined,
     private: Boolean((ev as any).private),
   };
 }
@@ -212,6 +215,7 @@ export default function AdminPage() {
     hora: "",
     local: "",
     max: "",
+    category: "",
     private: false,
   });
   const [imageError, setImageError] = useState<string | null>(null);
@@ -422,6 +426,7 @@ export default function AdminPage() {
         hora: ev.hora,
         local: ev.local,
         max: String(ev.max),
+        category: ev.category ?? "",
         private: Boolean(ev.private ?? false),
       });
     } else {
@@ -434,6 +439,7 @@ export default function AdminPage() {
         hora: "",
         local: "",
         max: "",
+        category: "",
         private: false,
       });
     }
@@ -491,6 +497,10 @@ export default function AdminPage() {
       setFormError("Informe um horário válido.");
       return;
     }
+    if (!form.category || !form.category.trim()) {
+      setFormError("Selecione uma categoria.");
+      return;
+    }
     setFormError(null);
     const idStr = form.id;
 
@@ -508,6 +518,7 @@ export default function AdminPage() {
               location: local,
               maxParticipants: max,
               majority18: false,
+              category: form.category || null,
               private: Boolean(form.private),
             },
           });
@@ -529,6 +540,7 @@ export default function AdminPage() {
               location: local,
               maxParticipants: max,
               majority18: false,
+              category: form.category || null,
               private: Boolean(form.private),
             },
           });
@@ -1388,6 +1400,22 @@ export default function AdminPage() {
                   className={inputClass}
                 />
               </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                Categoria *
+              </label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                className={inputClass}
+              >
+                <option value="">Selecione</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
 
             <div className="mb-4 flex items-center gap-3">

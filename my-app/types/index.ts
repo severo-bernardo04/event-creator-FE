@@ -7,12 +7,16 @@ export type AuthUser = {
   cpf?: string;  // opcional para não quebrar quem já tem dados sem cpf
 };
 
+export type ParticipantStatus = "PENDING" | "APPROVED" | "REJECTED";
+
 export type Participant = {
   id: number;
   name: string;
   email: string;
   phone: string;
   cpf?: string;
+  status: ParticipantStatus;
+  createdAt?: string;
 };
 
 export type Event = {

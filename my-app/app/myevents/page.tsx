@@ -39,7 +39,7 @@ export default function MeusEventosPage() {
         setEvents(
           all.filter((event) =>
             event.participants.some(
-              (participant) => participant.email === user?.email,
+              (participant) => participant.email === user?.email && participant.status === "APPROVED",
             ),
           ),
         );

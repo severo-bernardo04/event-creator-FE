@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { addEventHistory, type EventHistoryFieldChange } from "@/lib/eventHistory";
 import { getErrorMessage } from "@/lib/errors";
 import { coerceTime, normalizeEventRecord } from "@/lib/eventsFromApi";
+import { CATEGORIES } from "@/lib/categoryMocks";
 
 const inputClass =
     "w-full rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -20,6 +21,7 @@ type EventForm = {
     hora: string;
     local: string;
     max: string;
+    category?: string;
     private?: boolean;
 };
 
@@ -41,6 +43,7 @@ export default function EditarEventoPage() {
         hora: "",
         local: "",
         max: "",
+        category: "",
     });
     const [initialForm, setInitialForm] = useState<EventForm | null>(null);
 
@@ -68,6 +71,7 @@ export default function EditarEventoPage() {
                     hora: (event.time ?? "").slice(0, 5),
                     local: event.location ?? "",
                     max: String(event.maxParticipants),
+                    category: (event as any).category ?? "",
                     private: Boolean((event as any).private),
                 };
                 setForm(loadedForm);
@@ -120,6 +124,10 @@ export default function EditarEventoPage() {
             setFormError("Informe um horário válido.");
             return;
         }
+        if (!form.category || !form.category.trim()) {
+            setFormError("Selecione uma categoria.");
+            return;
+        }
 
         setSubmitting(true);
         setFormError(null);
@@ -134,6 +142,7 @@ export default function EditarEventoPage() {
                     { key: "hora", label: "Horário" },
                     { key: "local", label: "Local" },
                     { key: "max", label: "Máximo de participantes" },
+                    { key: "category", label: "Categoria" },
                 ];
                 for (const { key, label } of fields) {
                     const from = (original[key] ?? "").trim();
@@ -154,6 +163,7 @@ export default function EditarEventoPage() {
                     location: local,
                     maxParticipants: max,
                     majority18: false,
+                    category: form.category || null,
                     private: Boolean(form.private),
                 },
             });
@@ -292,6 +302,22 @@ export default function EditarEventoPage() {
                                             className={inputClass}
                                         />
                                     </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                        Categoria *
+                                    </label>
+                                    <select
+                                        value={form.category}
+                                        onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Selecione</option>
+                                        {CATEGORIES.map((c) => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div className="mb-4 flex items-center gap-3">
