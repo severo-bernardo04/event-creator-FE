@@ -14,6 +14,7 @@ import {
   type ApiEventNorm,
 } from "@/lib/eventsFromApi";
 import EventsChart from "@/components/EventsChart";
+import { NavIconDashboard, NavIconCalendar, NavIconPeople, NavIconUser, NavIconBack } from "./components/NavIcons";
 import StatusParticipante from "@/components/StatusParticipante";
 import type { ParticipantStatus } from "@/types";
 
@@ -129,7 +130,7 @@ function StatusBadge({ ev }: { ev: Evento }) {
   );
 }
 
-import { NavIconDashboard, NavIconCalendar, NavIconPeople, NavIconUser, NavIconBack } from "./components/NavIcons";
+
 
 const inputClass =
   "w-full rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -144,11 +145,8 @@ export default function AdminPage() {
   const { user } = useAuth();
   const [eventos, setEventos] = useState<Evento[]>([]);
   
-  function flattenParticipantes() {
-    const rows: { ev: Evento; p: Participante }[] = [];
-    eventos.forEach((ev) => ev.participantes.forEach((p) => rows.push({ ev, p })));
-    return rows;
-  }
+  const flattenParticipantes = () => eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
+
 
   function aprovarParticipante(participanteId: number) {
     // FUTURO BACKEND
