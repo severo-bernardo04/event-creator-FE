@@ -576,7 +576,8 @@ export default function AdminPage() {
               ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           }`}
-        >
+          >
+
           <NavIconCalendar />
           Eventos
         </button>
@@ -738,6 +739,7 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
 
         {/* EVENTOS LIST */}
