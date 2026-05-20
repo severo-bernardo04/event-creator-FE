@@ -104,6 +104,15 @@
   border-radius: 999px;
 }
 
+.spots {
+  background: #dcfce7;
+  color: #065f46;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+}
+
 .stars {
   display: flex;
   gap: 2px;

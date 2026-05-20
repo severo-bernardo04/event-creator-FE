@@ -145,8 +145,8 @@ export default function EditarEventoPage() {
                     { key: "category", label: "Categoria" },
                 ];
                 for (const { key, label } of fields) {
-                    const from = (original[key] ?? "").trim();
-                    const to = (form[key] ?? "").trim();
+                    const from = String(original[key] ?? "").trim();
+                    const to = String(form[key] ?? "").trim();
                     if (from !== to) {
                         changes.push({ field: label, from, to });
                     }

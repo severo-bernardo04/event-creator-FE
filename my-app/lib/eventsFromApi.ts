@@ -80,8 +80,14 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
     name: str(raw.name),
     email: str(raw.email),
     phone: str(raw.phone ?? raw.telefone),
-    status: raw.status ?? raw.approvalStatus ?? raw.state ?? undefined,
-    createdAt: raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? undefined,
+    status: (() => {
+      const s = raw.status ?? raw.approvalStatus ?? raw.state;
+      return s == null ? undefined : str(s);
+    })(),
+    createdAt: (() => {
+      const c = raw.createdAt ?? raw.created_at ?? raw.registeredAt;
+      return c == null ? undefined : str(c);
+    })(),
   };
 }
 
