@@ -7,7 +7,7 @@ import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 import { useAuth } from "@/context/AuthContext";
 
 export function Home() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
@@ -173,29 +173,54 @@ export function Home() {
                       <div className="mt-4 h-10 w-full rounded-xl bg-slate-800" />
                     </article>
                   ))
-                : displayEvents.map((ev) => (
-                <article
-                  key={ev.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
+                : displayEvents.map((ev) => {
+  const isRegistered = ev.participants.some(
+    (participant) => participant.email === user?.email,
+  );
+
+        return (
+          <article
+            key={ev.id}
+            className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
+          >
+            <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20">
+              <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
+                {ev.category ?? "Evento"}
+              </span>
+            </div>
+
+            <div className="flex flex-1 flex-col p-6">
+              <h3 className="text-lg font-bold text-white">
+                {ev.title}
+              </h3>
+
+              <p className="mt-2 line-clamp-2 text-sm text-slate-400">
+                {ev.description || "Sem descrição."}
+              </p>
+
+              <p className="mt-4 text-sm text-slate-400">
+                {ev.date} · {ev.location || "Local a definir"}
+              </p>
+
+              {isRegistered ? (
+                <Link
+                  href="/myevents"
+                  className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
                 >
-                  <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20">
-                    <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
-                      {ev.category ?? "Evento"}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col p-6">
-                    <h3 className="text-lg font-bold text-white">{ev.title}</h3>
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">{ev.description || "Sem descrição."}</p>
-                    <p className="mt-4 text-sm text-slate-400">{ev.date} · {ev.location || "Local a definir"}</p>
-                    <Link
-                      href="/eventos"
-                      className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary/15 py-3 text-sm font-bold text-primary ring-1 ring-primary/40 hover:bg-primary/25"
-                    >
-                      Quero participar
-                    </Link>
-                  </div>
-                </article>
-              ))}
+                  Inscrito — Ver meus eventos
+                </Link>
+              ) : (
+                <Link
+                  href="/eventos"
+                  className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary/15 py-3 text-sm font-bold text-primary ring-1 ring-primary/40 hover:bg-primary/25"
+                >
+                  Quero participar
+                </Link>
+              )}
+            </div>
+          </article>
+        );
+      })}
               {!loading && (error || displayEvents.length === 0) ? (
                 <div className="col-span-full rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-10 text-center">
                   <div className="mx-auto mb-4 h-14 w-14 text-secondary">

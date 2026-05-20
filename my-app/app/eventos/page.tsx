@@ -332,10 +332,11 @@ export default function EventosPage() {
                             {fmtDate(ev.date)} · {timeShort(ev.time)}
                             {ev.location ? ` · ${ev.location}` : ""}
                           </p>
-                          <p className="mt-2 text-sm font-semibold text-secondary">
-                            {count}/{ev.maxParticipants} inscritos
-                            {ev.majority18 ? " · +18" : ""}
-                          </p>
+                          <p className={`text-sm font-bold ${
+                                full ? "text-red-400" : "text-yellow-400"
+                              }`}>
+                                {count}/{ev.maxParticipants} inscritos
+                              </p>
                           <div className="mt-6 flex flex-wrap gap-2">
                             {!isAdmin && (
                               isRegistered ? (
