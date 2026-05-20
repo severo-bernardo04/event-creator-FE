@@ -3,6 +3,8 @@ export type ApiParticipantNorm = {
   name: string;
   email: string;
   phone: string;
+  status?: string; // e.g. PENDING | APPROVED | REJECTED
+  createdAt?: string;
 };
 
 export type ApiEventNorm = {
@@ -16,6 +18,7 @@ export type ApiEventNorm = {
   majority18: boolean;
   participants: ApiParticipantNorm[];
   category?: string;
+  private?: boolean;
 };
 
 function num(v: unknown, fallback = 0): number {
@@ -77,6 +80,8 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
     name: str(raw.name),
     email: str(raw.email),
     phone: str(raw.phone ?? raw.telefone),
+    status: raw.status ?? raw.approvalStatus ?? raw.state ?? undefined,
+    createdAt: raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? undefined,
   };
 }
 
@@ -133,6 +138,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
   const descRaw = raw.description ?? raw.descricao ?? raw.details;
   const locRaw = raw.location ?? raw.local ?? raw.address;
   const categoryRaw = raw.category;
+  const privateRaw = raw.private ?? raw.isPrivate ?? raw.privateEvent ?? raw.is_private;
 
   return {
     id,
@@ -145,6 +151,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     majority18: Boolean(raw.majority18 ?? raw.majority_18),
     participants,
     category: categoryRaw != null ? str(categoryRaw) : undefined,
+    private: Boolean(privateRaw),
   };
 }
 

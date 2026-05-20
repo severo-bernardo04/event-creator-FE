@@ -14,6 +14,29 @@ function pickMessage(payload: unknown, fallback: string) {
   return fallback;
 }
 
+function sanitizeMessage(msg: string) {
+  if (!msg) return msg;
+  const lower = msg.toLowerCase();
+  const sensitiveKeywords = [
+    "duplicate",
+    "duplicate key",
+    "unique constraint",
+    "violates",
+    "constraint",
+    "sql",
+    "syntax",
+    "stack",
+    "trace",
+    "exception",
+    "pg_",
+    "error code",
+  ];
+  if (sensitiveKeywords.some((k) => lower.includes(k))) {
+    return "Ocorreu um erro no servidor. Contate o administrador.";
+  }
+  return msg;
+}
+
 async function parseJsonSafe(res: Response) {
   const text = await res.text();
   if (!text) return null;
@@ -61,7 +84,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit & { json?: un
 
   if (res.status >= 400) {
     const payload = await parseJsonSafe(res);
-    const message = pickMessage(payload, res.statusText || "Erro na requisição");
+    const rawMessage = pickMessage(payload, res.statusText || "Erro na requisição");
+    const message = sanitizeMessage(rawMessage);
+    // do not leak server internals to users
     throw new Error(message);
   }
 

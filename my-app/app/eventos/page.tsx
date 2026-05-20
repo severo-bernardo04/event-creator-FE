@@ -6,8 +6,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
-import { getCategoryForEvent, CATEGORIES } from "@/lib/categoryMocks";
+import { normalizeEventList, normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
+const CATEGORIES = [
+  "Tecnologia",
+  "Educação",
+  "Música",
+  "Esporte",
+  "Entretenimento"
+];
 
 function fmtDate(d: string) {
   const [y, m, dy] = d.split("-");
@@ -82,10 +88,28 @@ export default function EventosPage() {
         },
       });
       setOpenId(null);
-      setSuccessMessage("Inscrição realizada com sucesso!");
+      // reload events and fetch single event to inspect participant status
+      await loadEvents();
+      try {
+        const raw = await apiFetch<unknown>(`/events/${eventId}`, { method: "GET" });
+        const norm = normalizeEventRecord(raw as Record<string, unknown>);
+        const part = norm?.participants?.find((p) => p.email === user.email);
+        if (part) {
+          if (part.status === "PENDING") {
+            setSuccessMessage("Inscrição realizada — Aguardando aprovação do administrador.");
+          } else if (part.status === "APPROVED") {
+            setSuccessMessage("Inscrição confirmada — Bem-vindo ao evento!");
+          } else {
+            setSuccessMessage("Inscrição realizada.");
+          }
+        } else {
+          setSuccessMessage("Inscrição realizada com sucesso!");
+        }
+      } catch {
+        setSuccessMessage("Inscrição realizada com sucesso!");
+      }
       setSuccessBanner(true);
       window.setTimeout(() => setSuccessBanner(false), 4000);
-      await loadEvents();
     } catch (err: unknown) {
       setFormError(getErrorMessage(err));
     } finally {
@@ -115,15 +139,20 @@ export default function EventosPage() {
   }
 
   const eventList = Array.isArray(events) ? events : [];
+
   const filtered = eventList.filter((ev) => {
-    const category = getCategoryForEvent(ev.id);
     const full = ev.participants.length >= ev.maxParticipants;
-    const categoryOk = filterCategory === "Todos" || category === filterCategory;
-    const statusOk =
-        filterStatus === "Todos" ||
-        (filterStatus === "Disponível" && !full) ||
-        (filterStatus === "Lotado" && full);
-    return categoryOk && statusOk;
+
+    const CategoryOk =
+    filterCategory === "Todos" ||
+    ev.category?.toLowerCase() === filterCategory.toLowerCase();
+
+    const statusOk = 
+    filterStatus === "Todos" ||
+    (filterStatus === "Disponível" && !full) ||
+    (filterStatus === "Lotado" && full);
+
+    return CategoryOk && statusOk;
   });
   const EVENTS_PER_PAGE = 9;
   const [currentPage, setCurrentPage] = useState(1);
@@ -279,17 +308,23 @@ export default function EventosPage() {
                 {paginated.map((ev) => {
                   const count = ev.participants.length;
                   const full = count >= ev.maxParticipants;
-                  const isRegistered = ev.participants.some((p) => p.email === user?.email);
+                  const participant = ev.participants.find((p) => p.email === user?.email) ?? null;
+                   const isRegistered = Boolean(participant);
+                   const isApproved = participant?.status === "APPROVED";
 
                   return (
-                      <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg">
+                      <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
                         <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15">
-                    <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
-                      {getCategoryForEvent(ev.id)}
-                    </span>
+                          <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
+                            {ev.category || "Sem categoria"}
+                          </span>
                         </div>
                         <div className="flex flex-1 flex-col p-6">
-                          <h2 className="text-lg font-bold text-white">{ev.title}</h2>
+                          <h2 className="text-lg font-bold text-white">
+                            <Link href={`/eventos/${ev.id}`} className="hover:underline">
+                              {ev.title}
+                            </Link>
+                          </h2>
                           <p className="mt-2 line-clamp-2 text-sm text-slate-400">
                             {ev.description?.trim() || "Sem descrição."}
                           </p>
@@ -303,25 +338,30 @@ export default function EventosPage() {
                           </p>
                           <div className="mt-6 flex flex-wrap gap-2">
                             {!isAdmin && (
-                                isRegistered ? (
-                                    <button
-                                        type="button"
-                                        disabled={submitting}
-                                        onClick={() => handleUnenroll(ev.id)}
-                                        className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-emerald-600/10 border border-emerald-500/50 px-4 py-3 text-sm font-bold text-emerald-400 transition hover:bg-red-500/20 hover:border-red-500 hover:text-red-200 disabled:opacity-50"
-                                    >
-                                      {submitting ? "..." : "Inscrito — Cancelar"}
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        disabled={full || !user || submitting}
-                                        onClick={() => openEnroll(ev)}
-                                        className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      {full ? "Lotado" : user ? "Inscrever-se" : "Login para inscrever"}
-                                    </button>
-                                )
+                              isRegistered ? (
+                                <button
+                                  type="button"
+                                  disabled={submitting}
+                                  onClick={() => handleUnenroll(ev.id)}
+                                  className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-emerald-600/10 border border-emerald-500/50 px-4 py-3 text-sm font-bold text-emerald-400 transition hover:bg-red-500/20 hover:border-red-500 hover:text-red-200 disabled:opacity-50"
+                                >
+                                  {submitting ? "..." : (participant?.status === "PENDING" ? "Inscrição pendente — Cancelar" : "Inscrito — Cancelar")}
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={full || !user || submitting}
+                                    onClick={() => openEnroll(ev)}
+                                    className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    {full ? "Lotado" : user ? "Inscrever-se" : "Login para inscrever"}
+                                  </button>
+                                  <Link href={`/eventos/${ev.id}`} className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800">
+                                    Ver detalhes
+                                  </Link>
+                                </>
+                              )
                             )}
                           </div>
                         </div>

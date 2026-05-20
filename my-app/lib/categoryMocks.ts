@@ -1,11 +1,9 @@
 export const CATEGORIES = [
-    "Show",
-    "Workshop",
-    "Palestra",
-    "Festival",
-    "Feira",
+    "Tecnologia",
+    "Educação",
+    "Música",
     "Esporte",
-    "Online",
+    "Entretenimento",
 ] as const;
 
 const STORAGE_KEY = "event_categories";

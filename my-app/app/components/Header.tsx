@@ -63,7 +63,7 @@ const Header = () => {
             Categorias
           </Link>
           <Link
-              href="/meus-eventos"
+              href="/myevents"
               role="menuitem"
               className="block px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
               onClick={() => setMenuOpen(false)}

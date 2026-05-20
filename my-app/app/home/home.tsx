@@ -6,17 +6,6 @@ import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 import { useAuth } from "@/context/AuthContext";
 
-const CATEGORIES = [
-  "Shows",
-  "Festas e festivais",
-  "Palestras",
-  "Workshops",
-  "Cursos",
-  "Congresso",
-  "Feiras",
-  "Esportes",
-] as const;
-
 export function Home() {
   const { isAdmin } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Todos");
@@ -81,12 +70,12 @@ export function Home() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-950 text-slate-100">
-      {/* Header — largura total */}
+      
 
       <main className="flex w-full flex-1 flex-col">
-        {/* Hero — ocupa a altura da tela (menos header aprox.) */}
-        <section className="flex w-full flex-1 flex-col justify-center border-b border-slate-800 px-4 py-16 sm:px-6 sm:py-20 lg:min-h-[calc(100dvh-73px)] lg:px-10">
-          <div className="mx-auto w-full max-w-[1600px]">
+        
+        <section className="flex w-full flex-1 flex-col justify-center border-b border-slate-800 px-4 py-16 sm:px-6 sm:py-20 lg:px-10">
+          <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-10">
             <p className="text-sm font-bold uppercase tracking-widest text-secondary">
               Eventos ao vivo · ingressos · organização
             </p>
@@ -243,7 +232,9 @@ export function Home() {
               Atalhos para explorar as categorias.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              {CATEGORIES.map((name) => (
+              {categories
+                .filter((name) => name !== "Todos")
+                  .map((name) => (
                 <Link
                   key={name}
                   href="/eventos"
@@ -258,7 +249,7 @@ export function Home() {
       </main>
 
       {/* Footer — largura total */}
-      <footer>
+      <footer className="border-t border-slate-800 px-6 py-10 sm:px-8 lg:px-10">
         <div className="mx-auto grid w-full max-w-[1600px] gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
@@ -321,7 +312,7 @@ export function Home() {
             <p className="mt-2 text-sm text-slate-500">Seg–Sex, 9h–18h</p>
           </div>
         </div>
-        <div className="mx-auto mt-10 flex w-full max-w-[1600px] flex-col items-center justify-between gap-4 border-t border-slate-800 pt-8 text-xs text-slate-500 sm:flex-row">
+        <div className="mx-auto mt-10 flex w-full max-w-[1600px] flex-col items-center justify-between gap-4 border-t border-slate-800 pt-8 text-center text-xs text-slate-500 sm:flex-row">
           <span>
             © {new Date().getFullYear()} Event Creator. Todos os direitos
             reservados.
