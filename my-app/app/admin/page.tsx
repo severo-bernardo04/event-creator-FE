@@ -153,42 +153,45 @@ export default function AdminPage() {
   const flattenParticipantes = () => eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
 
 
-  function aprovarParticipante(participanteId: number) {
-    // FUTURO BACKEND
-    // PATCH /registrations/:id/approve
-    //
-    // Exemplo (comentado):
-    // await apiFetch(`/registrations/${participanteId}/approve`, { method: "PATCH" });
+  async function aprovarParticipante(participanteId: number) {
+    try {
+      // Chamada ao backend para aprovar inscrição
+      await apiFetch(`/registrations/${participanteId}/approve`, { method: "PATCH" });
 
-    setEventos((prev) =>
-      prev.map((ev) => ({
-        ...ev,
-        participantes: ev.participantes.map((p) =>
-          p.id === participanteId
-            ? { ...p, status: "APPROVED", createdAt: p.createdAt ?? new Date().toISOString() }
-            : p,
-        ),
-      })),
-    );
+      // Atualiza estado local após sucesso
+      setEventos((prev) =>
+        prev.map((ev) => ({
+          ...ev,
+          participantes: ev.participantes.map((p) =>
+            p.id === participanteId
+              ? { ...p, status: "APPROVED", createdAt: p.createdAt ?? new Date().toISOString() }
+              : p,
+          ),
+        })),
+      );
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    }
   }
 
-  function rejeitarParticipante(participanteId: number) {
-    // FUTURO BACKEND
-    // PATCH /registrations/:id/reject
-    //
-    // Exemplo (comentado):
-    // await apiFetch(`/registrations/${participanteId}/reject`, { method: "PATCH" });
+  async function rejeitarParticipante(participanteId: number) {
+    try {
+      // Chamada ao backend para rejeitar inscrição
+      await apiFetch(`/registrations/${participanteId}/reject`, { method: "PATCH" });
 
-    setEventos((prev) =>
-      prev.map((ev) => ({
-        ...ev,
-        participantes: ev.participantes.map((p) =>
-          p.id === participanteId
-            ? { ...p, status: "REJECTED", createdAt: p.createdAt ?? new Date().toISOString() }
-            : p,
-        ),
-      })),
-    );
+      setEventos((prev) =>
+        prev.map((ev) => ({
+          ...ev,
+          participantes: ev.participantes.map((p) =>
+            p.id === participanteId
+              ? { ...p, status: "REJECTED", createdAt: p.createdAt ?? new Date().toISOString() }
+              : p,
+          ),
+        })),
+      );
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    }
   }
 
   const [currentPage, setCurrentPage] = useState<PageId>("dashboard");
