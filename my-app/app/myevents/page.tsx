@@ -20,16 +20,18 @@ function formatDate(date: string) {
   }
 }
 
+
 function formatTime(time?: string | null) {
   return time ? time.slice(0, 5) : "A definir";
 }
 
 export default function MeusEventosPage() {
   const { user } = useAuth();
+
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     async function loadEvents() {
       try {
@@ -39,7 +41,7 @@ export default function MeusEventosPage() {
         setEvents(
           all.filter((event) =>
             event.participants.some(
-              (participant) => participant.email === user?.email && participant.status === "APPROVED",
+              (participant) => participant.email === user?.email && participant.status === "APROVADO",
             ),
           ),
         );
