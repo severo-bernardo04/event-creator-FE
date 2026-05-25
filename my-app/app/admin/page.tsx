@@ -153,6 +153,7 @@ export default function AdminPage() {
   const flattenParticipantes = () => eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
 
 
+<<<<<<< HEAD
  async function recarregarEventos() {
   const data = await apiFetch<unknown>("/events", { method: "GET" });
   const list = normalizeEventList(data);
@@ -174,9 +175,31 @@ async function aprovarParticipante(participanteId: number) {
     await recarregarEventos();
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
+=======
+  async function aprovarParticipante(participanteId: number) {
+    try {
+      // Chamada ao backend para aprovar inscrição
+      await apiFetch(`/registrations/${participanteId}/approve`, { method: "PATCH" });
+
+      // Atualiza estado local após sucesso
+      setEventos((prev) =>
+        prev.map((ev) => ({
+          ...ev,
+          participantes: ev.participantes.map((p) =>
+            p.id === participanteId
+              ? { ...p, status: "APPROVED", createdAt: p.createdAt ?? new Date().toISOString() }
+              : p,
+          ),
+        })),
+      );
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    }
+>>>>>>> f06a76443a2afa12319ed370195e40865bf89bfe
   }
 }
 
+<<<<<<< HEAD
 async function rejeitarParticipante(participanteId: number) {
   const evento = eventos.find((ev) =>
     ev.participantes.some((p) => p.id === participanteId),
@@ -192,6 +215,26 @@ async function rejeitarParticipante(participanteId: number) {
     await recarregarEventos();
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
+=======
+  async function rejeitarParticipante(participanteId: number) {
+    try {
+      // Chamada ao backend para rejeitar inscrição
+      await apiFetch(`/registrations/${participanteId}/reject`, { method: "PATCH" });
+
+      setEventos((prev) =>
+        prev.map((ev) => ({
+          ...ev,
+          participantes: ev.participantes.map((p) =>
+            p.id === participanteId
+              ? { ...p, status: "REJECTED", createdAt: p.createdAt ?? new Date().toISOString() }
+              : p,
+          ),
+        })),
+      );
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    }
+>>>>>>> f06a76443a2afa12319ed370195e40865bf89bfe
   }
 }
 

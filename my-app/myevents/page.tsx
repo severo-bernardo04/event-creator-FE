@@ -22,14 +22,11 @@ export default function MeusEventosPage() {
         setLoading(true);
         setError(null);
         try {
-            // TODO: substituir por GET /users/me/events quando endpoint existir
-            const data = await apiFetch<unknown>("/events", { method: "GET" });
+            // Usar endpoint do backend que retorna eventos do usuário autenticado
+            const data = await apiFetch<unknown>("/users/me/events", { method: "GET" });
             const all = normalizeEventList(data);
-            // Filtra apenas eventos onde o usuário está inscrito
-            const mine = all.filter((ev) =>
-                ev.participants.some((p) => p.email === user?.email)
-            );
-            setEvents(mine);
+            // O endpoint já retorna apenas os eventos do usuário
+            setEvents(all);
         } catch (err) {
             setError(getErrorMessage(err));
         } finally {

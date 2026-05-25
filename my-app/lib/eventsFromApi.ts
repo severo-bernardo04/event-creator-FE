@@ -75,13 +75,31 @@ export function coerceTime(val: unknown): string | null {
 function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null {
   const id = num(raw.id, NaN);
   if (!Number.isFinite(id)) return null;
+
+  function normStatus(v: unknown): string | undefined {
+    if (typeof v !== "string") return undefined;
+    const s = v.trim().toUpperCase();
+    if (s === "PENDING" || s === "PENDENTE") return "PENDING";
+    if (s === "APPROVED" || s === "APROVADO") return "APPROVED";
+    if (s === "REJECTED" || s === "REJEITADO") return "REJECTED";
+    return undefined;
+  }
+
+  const rawStatus =
+    raw.status ?? raw.approvalStatus ?? raw.state ?? raw.approval ?? raw.approved ?? raw.aprovado ?? undefined;
+  const status = normStatus(rawStatus);
+
+  const createdAtRaw =
+    raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? raw.registered_at ?? raw.dataInscricao ?? raw.data_inscricao ?? undefined;
+  const createdAt = createdAtRaw == null ? undefined : typeof createdAtRaw === "string" ? createdAtRaw : String(createdAtRaw);
+
   return {
     id,
     name: str(raw.name),
     email: str(raw.email),
     phone: str(raw.phone ?? raw.telefone),
-    status: raw.status ?? raw.approvalStatus ?? raw.state ?? undefined,
-    createdAt: raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? undefined,
+    status,
+    createdAt,
   };
 }
 
