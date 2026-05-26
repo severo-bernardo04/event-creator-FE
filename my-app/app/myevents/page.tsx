@@ -6,7 +6,24 @@ import { Calendar, Clock, MapPin, ArrowRight, Inbox } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
+import {
+  normalizeEventList,
+  type ApiEventNorm,
+  type ApiParticipantNorm,
+} from "@/lib/eventsFromApi";
+import {
+  canViewPrivateEventInfo,
+  getParticipantForEmail,
+  isActiveRegistration,
+  isApprovedRegistration,
+  isPendingRegistration,
+  participantStatusLabel,
+} from "@/lib/eventParticipants";
+
+type MyEventRow = {
+  event: ApiEventNorm;
+  participant: ApiParticipantNorm;
+};
 
 function isEventFinished(date: string) {
   return new Date(`${date}T23:59:59`) < new Date();
@@ -28,7 +45,7 @@ function formatTime(time?: string | null) {
 export default function MeusEventosPage() {
   const { user } = useAuth();
 
-  const [events, setEvents] = useState<ApiEventNorm[]>([]);
+  const [myEvents, setMyEvents] = useState<MyEventRow[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,12 +55,12 @@ export default function MeusEventosPage() {
         const data = await apiFetch("/events", { method: "GET" });
         const all = normalizeEventList(data);
 
-        setEvents(
-          all.filter((event) =>
-            event.participants.some(
-              (participant) => participant.email === user?.email && participant.status === "APROVADO",
-            ),
-          ),
+        setMyEvents(
+          all.flatMap((event) => {
+            const participant = getParticipantForEmail(event, user?.email);
+            if (!participant || !isActiveRegistration(participant)) return [];
+            return [{ event, participant }];
+          }),
         );
       } catch (err: unknown) {
         setError(getErrorMessage(err));
@@ -59,14 +76,31 @@ export default function MeusEventosPage() {
     }
   }, [user]);
 
+  const pendingEvents = useMemo(
+    () =>
+      myEvents.filter(
+        ({ event, participant }) =>
+          !isEventFinished(event.date) && isPendingRegistration(participant),
+      ),
+    [myEvents],
+  );
+
   const activeEvents = useMemo(
-    () => events.filter((event) => !isEventFinished(event.date)),
-    [events],
+    () =>
+      myEvents.filter(
+        ({ event, participant }) =>
+          !isEventFinished(event.date) && isApprovedRegistration(participant),
+      ),
+    [myEvents],
   );
 
   const finishedEvents = useMemo(
-    () => events.filter((event) => isEventFinished(event.date)),
-    [events],
+    () =>
+      myEvents.filter(
+        ({ event, participant }) =>
+          isEventFinished(event.date) && isApprovedRegistration(participant),
+      ),
+    [myEvents],
   );
 
   if (!user) {
@@ -123,17 +157,38 @@ export default function MeusEventosPage() {
       ) : (
         <div className="space-y-14">
           <EventSection
+            title="Aguardando aprovação"
+            description="Eventos privados ou moderados em que sua inscrição ainda precisa ser aprovada."
+            count={pendingEvents.length}
+          >
+            {pendingEvents.length ? (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {pendingEvents.map(({ event, participant }) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    participant={participant}
+                    variant="pending"
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyCard text="Você não tem inscrições pendentes." />
+            )}
+          </EventSection>
+
+          <EventSection
             title="Próximos eventos"
             description="Eventos em que você está inscrito e que ainda vão acontecer."
             count={activeEvents.length}
           >
             {activeEvents.length ? (
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {activeEvents.map((event) => (
+                {activeEvents.map(({ event, participant }) => (
                   <EventCard
                     key={event.id}
                     event={event}
-                    status="Inscrição confirmada"
+                    participant={participant}
                     variant="active"
                   />
                 ))}
@@ -150,11 +205,11 @@ export default function MeusEventosPage() {
           >
             {finishedEvents.length ? (
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {finishedEvents.map((event) => (
+                {finishedEvents.map(({ event, participant }) => (
                   <EventCard
                     key={event.id}
                     event={event}
-                    status="Evento finalizado"
+                    participant={participant}
                     variant="finished"
                   />
                 ))}
@@ -200,14 +255,21 @@ function EventSection({
 
 function EventCard({
   event,
-  status,
+  participant,
   variant,
 }: {
   event: ApiEventNorm;
-  status: string;
-  variant: "active" | "finished";
+  participant: ApiParticipantNorm;
+  variant: "pending" | "active" | "finished";
 }) {
   const isActive = variant === "active";
+  const isPending = variant === "pending";
+  const canViewDetails = canViewPrivateEventInfo(event, participant);
+  const description = canViewDetails
+    ? event.description || "Sem descrição."
+    : "Informações privadas — aguarde aprovação do administrador.";
+  const location = canViewDetails ? event.location || "A definir" : "Local liberado após aprovação";
+  const badgeLabel = variant === "finished" ? "Evento finalizado" : participantStatusLabel(participant);
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-primary/10">
@@ -218,19 +280,21 @@ function EventCard({
 
         <span
           className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
-            isActive
+            isPending
+              ? "bg-amber-500/15 text-amber-300"
+              : isActive
               ? "bg-secondary/15 text-secondary"
               : "bg-white/10 text-blue-300/70"
           }`}
         >
-          {status}
+          {badgeLabel}
         </span>
       </div>
 
       <h3 className="text-xl font-extrabold text-white">{event.title}</h3>
 
       <p className="mt-2 line-clamp-2 text-sm text-blue-300/70">
-        {event.description || "Sem descrição."}
+        {description}
       </p>
 
       <div className="my-5 h-px bg-white/5" />
@@ -251,19 +315,21 @@ function EventCard({
         <InfoRow
           icon={<MapPin className="h-4 w-4" />}
           label="Local"
-          value={event.location || "A definir"}
+          value={location}
         />
       </div>
 
       <Link
-        href={`/myevents/${event.id}`}
+        href={`/eventos/${event.id}`}
         className={`mt-6 inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all duration-300 ${
-          isActive
+          isPending
+            ? "border border-amber-400/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+            : isActive
             ? "bg-primary text-white shadow-lg shadow-primary/25 hover:brightness-110"
             : "border border-primary/40 text-primary hover:bg-primary/10"
         }`}
       >
-        Ver detalhes do evento
+        {isPending ? "Ver status da inscrição" : "Ver detalhes do evento"}
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </Link>
     </article>

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Festival ao ar livre</title>
+  <desc id="desc">Festival ao ar livre com tenda, palco, food trucks e visitantes.</desc>
+  <defs>
+    <linearGradient id="sunset" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset=".45" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" x2="1">
+      <stop offset="0" stop-color="#14532d"/>
+      <stop offset=".5" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#365314"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#sunset)"/>
+  <circle cx="920" cy="130" r="86" fill="#facc15" opacity=".9"/>
+  <path d="M0 500c130-60 245-64 358-14 95 42 201 38 310-12 171-78 350-53 532 74v172H0Z" fill="url(#ground)"/>
+  <path d="M150 455 345 260l195 195Z" fill="#f8fafc"/>
+  <path d="M150 455h390v76H150Z" fill="#1e293b"/>
+  <path d="M226 455 345 335l119 120Z" fill="#facc15"/>
+  <rect x="690" y="338" width="310" height="130" rx="20" fill="#020617" stroke="#64748b" stroke-width="3"/>
+  <rect x="724" y="370" width="112" height="58" rx="12" fill="#38bdf8"/>
+  <rect x="858" y="370" width="104" height="58" rx="12" fill="#fb7185"/>
+  <rect x="736" y="468" width="248" height="42" rx="21" fill="#facc15"/>
+  <rect x="90" y="545" width="170" height="72" rx="18" fill="#f97316"/>
+  <rect x="116" y="565" width="70" height="26" rx="8" fill="#ffedd5"/>
+  <circle cx="128" cy="630" r="20" fill="#020617"/>
+  <circle cx="222" cy="630" r="20" fill="#020617"/>
+  <g fill="#020617">
+    <circle cx="384" cy="600" r="22"/>
+    <circle cx="448" cy="620" r="18"/>
+    <circle cx="548" cy="596" r="24"/>
+    <circle cx="625" cy="622" r="18"/>
+    <circle cx="708" cy="598" r="22"/>
+    <circle cx="802" cy="615" r="19"/>
+    <circle cx="902" cy="592" r="24"/>
+    <circle cx="1010" cy="618" r="18"/>
+  </g>
+  <g stroke="#020617" stroke-linecap="round" stroke-width="12">
+    <path d="M384 625v54"/>
+    <path d="M448 642v42"/>
+    <path d="M548 622v60"/>
+    <path d="M625 642v42"/>
+    <path d="M708 622v56"/>
+    <path d="M802 638v44"/>
+    <path d="M902 618v62"/>
+    <path d="M1010 638v43"/>
+  </g>
+  <path d="M120 150c90-60 180-60 270 0M510 118c72-48 144-48 216 0" stroke="#f8fafc" stroke-width="10" stroke-linecap="round" opacity=".16"/>
+</svg>

@@ -19,6 +19,7 @@ export type ApiEventNorm = {
   participants: ApiParticipantNorm[];
   category?: string;
   private?: boolean;
+  imageUrl?: string | null;
 };
 
 function num(v: unknown, fallback = 0): number {
@@ -157,6 +158,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
   const locRaw = raw.location ?? raw.local ?? raw.address;
   const categoryRaw = raw.category;
   const privateRaw = raw.private ?? raw.isPrivate ?? raw.privateEvent ?? raw.is_private;
+  const imageRaw = raw.imageUrl ?? raw.image_url ?? raw.image ?? raw.coverImage ?? raw.cover_image ?? raw.bannerUrl ?? raw.banner_url;
 
   return {
     id,
@@ -170,6 +172,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     participants,
     category: categoryRaw != null ? str(categoryRaw) : undefined,
     private: Boolean(privateRaw),
+    imageUrl: imageRaw == null ? null : str(imageRaw),
   };
 }
 

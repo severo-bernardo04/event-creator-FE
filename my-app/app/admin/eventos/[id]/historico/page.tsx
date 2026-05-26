@@ -24,6 +24,10 @@ export default function HistoricoEventoPage() {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [history, setHistory] = useState<EventHistoryItem[]>([]);
+    const totalChanges = useMemo(
+        () => history.reduce((total, item) => total + item.changes.length, 0),
+        [history],
+    );
 
     useEffect(() => {
         if (!Number.isFinite(eventId)) {
@@ -33,6 +37,9 @@ export default function HistoricoEventoPage() {
         }
 
         let cancelled = false;
+        setEventTitle(`Evento #${eventId}`);
+        setHistory(getEventHistory(eventId));
+
         (async () => {
             try {
                 const data = await apiFetch<unknown>(`/events/${eventId}`, { method: "GET" });
@@ -43,6 +50,7 @@ export default function HistoricoEventoPage() {
             } catch (err: unknown) {
                 if (cancelled) return;
                 setLoadError(getErrorMessage(err));
+                setHistory(getEventHistory(eventId));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -83,20 +91,44 @@ export default function HistoricoEventoPage() {
                 </div>
 
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/50">
-                    {loading ? (
-                        <div className="px-6 py-7 text-sm text-slate-400">Carregando histórico...</div>
-                    ) : loadError ? (
-                        <div className="px-6 py-7">
-                            <p className="rounded-[10px] border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-[13px] font-semibold text-red-300">
-                                {loadError}
+                    <div className="grid gap-3 border-b border-slate-800 px-6 py-5 sm:grid-cols-3">
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                Registros
+                            </p>
+                            <p className="mt-1 text-2xl font-black text-white">{history.length}</p>
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                Campos alterados
+                            </p>
+                            <p className="mt-1 text-2xl font-black text-white">{totalChanges}</p>
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                Última alteração
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-slate-300">
+                                {history[0] ? formatDateTime(history[0].changedAt) : "—"}
                             </p>
                         </div>
+                    </div>
+
+                    {loadError ? (
+                        <div className="border-b border-slate-800 px-6 py-4">
+                            <p className="rounded-[10px] border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5 text-[13px] font-semibold text-amber-200">
+                                Não foi possível atualizar os dados do evento agora: {loadError}
+                            </p>
+                        </div>
+                    ) : null}
+
+                    {loading ? (
+                        <div className="px-6 py-7 text-sm text-slate-400">Carregando histórico...</div>
                     ) : history.length === 0 ? (
                         <div className="px-6 py-10 text-center">
                             <p className="text-base font-bold text-white">Nenhuma alteração registrada.</p>
                             <p className="mt-2 text-sm text-slate-400">
-                                O histórico começa a ser salvo quando este evento é atualizado pela nova tela
-                                de edição.
+                                O histórico começa a ser salvo quando este evento é atualizado no painel.
                             </p>
                         </div>
                     ) : (
@@ -104,10 +136,18 @@ export default function HistoricoEventoPage() {
                             {history.map((item) => (
                                 <li key={item.id} className="px-6 py-5">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <p className="text-sm font-bold text-white">{item.changedBy}</p>
-                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                        <div>
+                                            <p className="text-sm font-bold text-white">{item.changedBy}</p>
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                {item.changes.length} campo{item.changes.length === 1 ? "" : "s"} alterado{item.changes.length === 1 ? "" : "s"}
+                                            </p>
+                                        </div>
+                                        <time
+                                            dateTime={item.changedAt}
+                                            className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+                                        >
                                             {formatDateTime(item.changedAt)}
-                                        </p>
+                                        </time>
                                     </div>
                                     <ul className="mt-4 space-y-2">
                                         {item.changes.map((change, idx) => (

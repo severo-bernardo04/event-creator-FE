@@ -88,7 +88,6 @@ export async function apiFetch<T>(
   const headers = new Headers(init?.headers);
 
   headers.set("Accept", "application/json");
-  headers.set("Content-Type", "application/json");
 
   const token = getAuthUser()?.token;
 
@@ -99,6 +98,7 @@ export async function apiFetch<T>(
   let body = init?.body;
 
   if (init && "json" in init) {
+    headers.set("Content-Type", "application/json");
     body = JSON.stringify(init.json);
   }
 

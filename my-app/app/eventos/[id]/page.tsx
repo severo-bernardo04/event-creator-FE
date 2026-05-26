@@ -9,10 +9,28 @@ import type { ApiEventNorm } from "@/lib/eventsFromApi";
 import { normalizeEventRecord } from "@/lib/eventsFromApi";
 import { getCategoryForEvent } from "@/lib/categoryMocks";
 import { useAuth } from "@/context/AuthContext";
+import {
+  canViewPrivateEventInfo,
+  getParticipantForEmail,
+  getParticipantStatus,
+  isApprovedRegistration,
+  isPendingRegistration,
+} from "@/lib/eventParticipants";
 
 type EventByIdRaw = unknown;
 
 type EventDetails = ApiEventNorm;
+
+function eventCoverStyle(imageUrl?: string | null) {
+  if (!imageUrl) return undefined;
+  return {
+    backgroundImage: `linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.34)), url("${imageUrl.replace(/"/g, "%22")}")`,
+  };
+}
+
+function infoCardClass() {
+  return "rounded-xl border border-slate-800 bg-slate-950/35 p-4";
+}
 
 export default function EventoDetalhesPage() {
   const { user } = useAuth();
@@ -53,12 +71,31 @@ export default function EventoDetalhesPage() {
     return t.slice(0, 5);
   }
 
-  const currentParticipant = event?.participants?.find((p) => p.email === user?.email) ?? null;
-  const isRegistered = Boolean(currentParticipant);
-  const isApproved = currentParticipant?.status === "APPROVED";
-  const isPending = currentParticipant?.status === "PENDING";
+  const currentParticipant = event ? getParticipantForEmail(event, user?.email) : null;
+  const hasRegistration = Boolean(currentParticipant);
+  const isApproved = isApprovedRegistration(currentParticipant);
+  const isPending = isPendingRegistration(currentParticipant);
+  const isRejected = getParticipantStatus(currentParticipant) === "REJECTED";
   const full = Boolean(event && event.participants.length >= event.maxParticipants);
-  const isPrivate = Boolean((event as any)?.private);
+  const canViewDetails = event ? canViewPrivateEventInfo(event, currentParticipant) : false;
+  const approvedCount = event?.participants.filter((participant) => participant.status === "APPROVED").length ?? 0;
+  const capacityPercent = event
+    ? Math.min(100, Math.round((approvedCount / Math.max(event.maxParticipants, 1)) * 100))
+    : 0;
+  const statusTitle = hasRegistration
+    ? isApproved
+      ? "Inscrição confirmada"
+      : isPending
+      ? "Inscrição em análise"
+      : "Inscrição não aprovada"
+    : "Inscrição aberta";
+  const statusDescription = hasRegistration
+    ? isApproved
+      ? "Sua vaga foi aprovada. O check-in fica disponível pelo QR Code."
+      : isPending
+      ? "A organização precisa aprovar sua inscrição antes de liberar as informações privadas."
+      : "Entre em contato com a organização para mais informações."
+    : "Inscreva-se para participar deste evento.";
 
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -118,39 +155,31 @@ export default function EventoDetalhesPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="border-b border-slate-800 bg-slate-900/40">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-10 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:px-10">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-widest text-secondary">
-              Detalhes do evento
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              {loading ? "Carregando..." : event?.title ?? "Evento"}
-            </h1>
-            <p className="mt-2 max-w-2xl text-slate-400">
-              {event?.description?.trim() || "Sem descrição."}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/eventos"
-              className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
-            >
-              Voltar
-            </Link>
-          </div>
+        <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
+          <Link
+            href="/eventos"
+            className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+          >
+            Voltar
+          </Link>
+          {event ? (
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-400">
+              Evento #{event.id}
+            </span>
+          ) : null}
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-[1180px] px-4 py-8 sm:px-6 lg:px-8">
         {loading ? (
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-              <div className="aspect-[16/10] rounded-xl bg-slate-800" />
-            </div>
+          <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
             <div className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
               <div className="h-6 rounded bg-slate-800" />
               <div className="mt-3 h-4 rounded bg-slate-800" />
+              <div className="mt-6 aspect-[16/7] rounded-xl bg-slate-800" />
+            </div>
+            <div className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+              <div className="h-6 rounded bg-slate-800" />
               <div className="mt-3 h-4 rounded bg-slate-800" />
               <div className="mt-8 h-10 rounded-xl bg-slate-800" />
             </div>
@@ -160,77 +189,99 @@ export default function EventoDetalhesPage() {
             <p className="text-red-300">{error}</p>
           </div>
         ) : event ? (
-          <div className="grid gap-8 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
-                <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15">
+          <div className="grid gap-6 lg:grid-cols-[1fr_340px] lg:items-start">
+            <main className="space-y-6">
+              <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/45">
+                <div
+                  className={`relative aspect-[16/7] min-h-[220px] w-full bg-cover bg-center ${
+                    event.imageUrl
+                      ? "bg-slate-900"
+                      : "bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15"
+                  }`}
+                  style={eventCoverStyle(event.imageUrl)}
+                >
                   <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
                     {event.category ? event.category : getCategoryForEvent(event.id)}
+                  </span>
+                  <span className="absolute right-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                    {event.majority18 ? "+18" : "Livre"}
                   </span>
                 </div>
 
                 <div className="p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-2xl font-black text-white">{event.title}</h2>
-                      <p className="mt-2 text-sm text-slate-400">
-                        {fmtDate(event.date)} · {timeShort(event.time)}
-                        {(!isPrivate || isApproved) && event.location ? ` · ${event.location}` : ""}
-                      </p>
-                    </div>
-
-                    <div className="rounded-full bg-secondary/15 px-4 py-2 text-xs font-bold text-secondary ring-1 ring-secondary/30">
-                      {event.majority18 ? "+18" : "Livre"}
-                    </div>
+                  <div>
+                    <p className="text-sm font-bold uppercase tracking-widest text-secondary">
+                      Detalhes do evento
+                    </p>
+                    <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                      {event.title}
+                    </h1>
+                    <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-400 sm:text-base">
+                      {!canViewDetails
+                        ? "Informações privadas — sua inscrição precisa ser aprovada para ver os detalhes."
+                        : event.description?.trim() || "Sem descrição."}
+                    </p>
                   </div>
 
-                  <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4">
+                  <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                    <div className={infoCardClass()}>
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                        Inscritos
+                        Data
                       </p>
-                      <p className="mt-2 text-2xl font-black text-white">
-                        {event.participants.length}/{event.maxParticipants}
+                      <p className="mt-2 text-base font-black text-white">
+                        {fmtDate(event.date)}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {timeShort(event.time)}
+                      </p>
+                    </div>
+
+                    <div className={infoCardClass()}>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                        Local
+                      </p>
+                      <p className="mt-2 text-base font-black text-white">
+                        {canViewDetails ? event.location || "A definir" : "Após aprovação"}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {canViewDetails ? "Informação liberada" : "Evento privado"}
+                      </p>
+                    </div>
+
+                    <div className={infoCardClass()}>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                        Vagas
+                      </p>
+                      <p className="mt-2 text-base font-black text-white">
+                        {approvedCount}/{event.maxParticipants}
                       </p>
                       <p className="mt-1 text-sm text-slate-400">
                         {full ? "Lotado" : "Disponível"}
                       </p>
                     </div>
-
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4">
-                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                        Status
-                      </p>
-                      <p className="mt-2 text-sm font-bold text-secondary">
-                        {isRegistered ? (isApproved ? "Você está inscrito" : "Sua inscrição está pendente") : "Você ainda não está inscrito"}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-400">
-                        {isRegistered ? (isApproved ? "Acesse o check-in para gerar seu QR." : "Aguarde aprovação do administrador.") : "Inscreva-se na lista de eventos."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/30 p-5">
-                    <p className="text-sm font-bold text-white">Sobre</p>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                      {isPrivate && !isApproved ? (
-                        "Informações privadas — sua inscrição precisa ser aprovada para ver os detalhes."
-                      ) : (
-                        event.description?.trim() || "Sem descrição."
-                      )}
-                    </p>
                   </div>
                 </div>
-              </div>
-            </div>
+              </section>
 
-            <div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-                <p className="text-xs font-bold uppercase tracking-widest text-secondary">
-                  Ações
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
+                <p className="text-sm font-bold text-white">Sobre o evento</p>
+                <p className="mt-3 text-sm leading-7 text-slate-400">
+                  {!canViewDetails
+                    ? "Este é um evento privado. As informações completas ficam disponíveis somente depois que sua inscrição for aprovada pela organização."
+                    : event.description?.trim() || "Sem descrição."}
                 </p>
+              </section>
+            </main>
 
-                {isRegistered ? (
+            <aside className="space-y-4 lg:sticky lg:top-6">
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/20">
+                <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+                  Sua participação
+                </p>
+                <h2 className="mt-2 text-xl font-black text-white">{statusTitle}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">{statusDescription}</p>
+
+                {hasRegistration ? (
                   isApproved ? (
                     <Link
                       href={`/checkin/${event.id}`}
@@ -243,9 +294,17 @@ export default function EventoDetalhesPage() {
                       type="button"
                       disabled
                       className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-slate-800/60 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed"
-                      title={isPending ? "Sua inscrição está pendente — aguarde aprovação." : "Inscrição não aprovada."}
+                      title={
+                        isPending
+                          ? "Sua inscrição está pendente — aguarde aprovação."
+                          : "Inscrição não aprovada."
+                      }
                     >
-                      {isPending ? "Inscrição pendente" : "Aprovação necessária"}
+                      {isPending
+                        ? "Inscrição pendente"
+                        : isRejected
+                        ? "Inscrição não aprovada"
+                        : "Aprovação necessária"}
                     </button>
                   )
                 ) : (
@@ -266,31 +325,31 @@ export default function EventoDetalhesPage() {
                     </button>
                   </>
                 )}
+              </section>
 
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/30 p-4">
-                  <p className="text-sm font-bold text-white">Informações</p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    {event.majority18 ? "+18" : "Sem restrição"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Evento #{event.id}
-                  </p>
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-white">Ocupação</span>
+                  <span className="text-slate-400">{capacityPercent}%</span>
                 </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${capacityPercent}%` }} />
+                </div>
+                <p className="mt-3 text-xs text-slate-500">
+                  {approvedCount} participante{approvedCount === 1 ? "" : "s"} aprovado{approvedCount === 1 ? "" : "s"} de {event.maxParticipants} vagas.
+                </p>
+              </section>
 
-                <div className="mt-4">
-                  <Link
-                    href="/eventos"
-                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
-                  >
-                    Ver mais eventos
-                  </Link>
-                </div>
-              </div>
-            </div>
+              <Link
+                href="/eventos"
+                className="inline-flex w-full items-center justify-center rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+              >
+                Ver mais eventos
+              </Link>
+            </aside>
           </div>
         ) : null}
       </div>
     </div>
   );
 }
-

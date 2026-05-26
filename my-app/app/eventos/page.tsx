@@ -7,6 +7,13 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
+import {
+  canViewPrivateEventInfo,
+  getParticipantForEmail,
+  getParticipantStatus,
+  isApprovedRegistration,
+  isPendingRegistration,
+} from "@/lib/eventParticipants";
 const CATEGORIES = [
   "Tecnologia",
   "Educação",
@@ -23,6 +30,13 @@ function fmtDate(d: string) {
 function timeShort(t: string | null) {
   if (!t) return "—";
   return t.slice(0, 5);
+}
+
+function eventCoverStyle(imageUrl?: string | null) {
+  if (!imageUrl) return undefined;
+  return {
+    backgroundImage: `linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.34)), url("${imageUrl.replace(/"/g, "%22")}")`,
+  };
 }
 
 export default function EventosPage() {
@@ -316,12 +330,27 @@ export default function EventosPage() {
                   const count = ev.participants.length;
                   const full = count >= ev.maxParticipants;
                   const availableSpots = Math.max(0, ev.maxParticipants - count);
-                  const participant = ev.participants.find((p) => p.email === user?.email) ?? null;
-                   const isRegistered = Boolean(participant);
+                  const participant = getParticipantForEmail(ev, user?.email);
+                   const hasRegistration = Boolean(participant);
+                   const isApproved = isApprovedRegistration(participant);
+                   const isPending = isPendingRegistration(participant);
+                   const isRejected = getParticipantStatus(participant) === "REJECTED";
+                   const canViewDetails = canViewPrivateEventInfo(ev, participant);
+                   const description = canViewDetails
+                     ? ev.description?.trim() || "Sem descrição."
+                     : "Informações privadas — aguarde aprovação do administrador.";
+                   const location = canViewDetails ? ev.location : null;
 
                   return (
                       <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
-                        <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15">
+                        <div
+                          className={`relative aspect-[16/10] w-full bg-cover bg-center ${
+                            ev.imageUrl
+                              ? "bg-slate-900"
+                              : "bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15"
+                          }`}
+                          style={eventCoverStyle(ev.imageUrl)}
+                        >
                           <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
                             {ev.category || "Sem categoria"}
                           </span>
@@ -333,11 +362,11 @@ export default function EventosPage() {
                             </Link>
                           </h2>
                           <p className="mt-2 line-clamp-2 text-sm text-slate-400">
-                            {ev.description?.trim() || "Sem descrição."}
+                            {description}
                           </p>
                           <p className="mt-3 text-sm text-slate-500">
                             {fmtDate(ev.date)} · {timeShort(ev.time)}
-                            {ev.location ? ` · ${ev.location}` : ""}
+                            {location ? ` · ${location}` : ""}
                           </p>
                           <p className={`text-sm font-bold ${
                                 full ? "text-red-400" : "text-yellow-400"
@@ -349,14 +378,26 @@ export default function EventosPage() {
                           </p>
                           <div className="mt-6 flex flex-wrap gap-2">
                             {!isAdmin && (
-                              isRegistered ? (
+                              hasRegistration ? (
                                 <button
                                   type="button"
-                                  disabled={submitting}
+                                  disabled={submitting || isRejected}
                                   onClick={() => handleUnenroll(ev.id)}
-                                  className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-emerald-600/10 border border-emerald-500/50 px-4 py-3 text-sm font-bold text-emerald-400 transition hover:bg-red-500/20 hover:border-red-500 hover:text-red-200 disabled:opacity-50"
+                                  className={`inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold transition disabled:opacity-50 ${
+                                    isPending
+                                      ? "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-red-500/20 hover:border-red-500 hover:text-red-200"
+                                      : isApproved
+                                      ? "border-emerald-500/50 bg-emerald-600/10 text-emerald-400 hover:bg-red-500/20 hover:border-red-500 hover:text-red-200"
+                                      : "cursor-not-allowed border-red-500/40 bg-red-500/10 text-red-300"
+                                  }`}
                                 >
-                                  {submitting ? "..." : (participant?.status === "PENDING" ? "Inscrição pendente — Cancelar" : "Inscrito — Cancelar")}
+                                  {submitting
+                                    ? "..."
+                                    : isPending
+                                    ? "Inscrição pendente — Cancelar"
+                                    : isApproved
+                                    ? "Inscrito — Cancelar"
+                                    : "Inscrição não aprovada"}
                                 </button>
                               ) : (
                                 <>

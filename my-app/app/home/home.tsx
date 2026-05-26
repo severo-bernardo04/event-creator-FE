@@ -5,6 +5,20 @@ import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 import { useAuth } from "@/context/AuthContext";
+import Carousel from "@/app/components/Carousel";
+import {
+  canViewPrivateEventInfo,
+  getParticipantForEmail,
+  isApprovedRegistration,
+  isPendingRegistration,
+} from "@/lib/eventParticipants";
+
+function eventCoverStyle(imageUrl?: string | null) {
+  if (!imageUrl) return undefined;
+  return {
+    backgroundImage: `linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.34)), url("${imageUrl.replace(/"/g, "%22")}")`,
+  };
+}
 
 export function Home() {
   const { isAdmin, user } = useAuth();
@@ -164,6 +178,23 @@ async function submitEnroll(eventId: number) {
           </div>
         </section>
 
+        <section className="w-full border-b border-slate-800 bg-slate-950 px-4 py-14 sm:px-6 sm:py-16 lg:px-10">
+          <div className="mx-auto grid w-full max-w-[1600px] gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-widest text-secondary">
+                Demonstração
+              </p>
+              <h2 className="mt-3 max-w-xl text-3xl font-black tracking-tight text-white sm:text-4xl">
+                Eventos com visual pronto para chamar atenção.
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-400">
+                Uma prévia dos formatos que podem aparecer na plataforma, de conferências a festivais.
+              </p>
+            </div>
+            <Carousel />
+          </div>
+        </section>
+
         {/* Lista de eventos — largura total, fundo levemente diferente */}
         <section
           id="eventos"
@@ -232,17 +263,30 @@ async function submitEnroll(eventId: number) {
                     </article>
                   ))
                 : displayEvents.map((ev) => {
-  const isRegistered = ev.participants.some(
-    (participant) => participant.email === user?.email,
-  );
+  const participant = getParticipantForEmail(ev, user?.email);
+  const hasRegistration = Boolean(participant);
+  const isApproved = isApprovedRegistration(participant);
+  const isPending = isPendingRegistration(participant);
+  const canViewDetails = canViewPrivateEventInfo(ev, participant);
   const availableSpots = Math.max(0, ev.maxParticipants - ev.participants.length);
+  const description = canViewDetails
+    ? ev.description || "Sem descrição."
+    : "Informações privadas — aguarde aprovação do administrador.";
+  const location = canViewDetails ? ev.location || "Local a definir" : "Local liberado após aprovação";
 
         return (
           <article
             key={ev.id}
             className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
           >
-            <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20">
+            <div
+              className={`relative aspect-[16/10] w-full bg-cover bg-center ${
+                ev.imageUrl
+                  ? "bg-slate-900"
+                  : "bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20"
+              }`}
+              style={eventCoverStyle(ev.imageUrl)}
+            >
               <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
                 {ev.category ?? "Evento"}
               </span>
@@ -254,23 +298,33 @@ async function submitEnroll(eventId: number) {
               </h3>
 
               <p className="mt-2 line-clamp-2 text-sm text-slate-400">
-                {ev.description || "Sem descrição."}
+                {description}
               </p>
 
               <p className="mt-4 text-sm text-slate-400">
-                {ev.date} · {ev.location || "Local a definir"}
+                {ev.date} · {location}
               </p>
 
               <p className="mt-2 text-sm font-bold text-emerald-400">
                 Vagas disponíveis: {availableSpots}
               </p>
 
-              {isRegistered ? (
+              {hasRegistration ? (
             <Link
               href={`/eventos/${ev.id}`}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-3 text-sm font-bold text-emerald-300"
+              className={`mt-6 inline-flex w-full items-center justify-center rounded-xl border py-3 text-sm font-bold ${
+                isPending
+                  ? "border-amber-400/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                  : isApproved
+                  ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                  : "border-red-400/40 bg-red-500/10 text-red-300"
+              }`}
             >
-              Inscrito — Ver Detalhes
+              {isPending
+                ? "Inscrição pendente — Ver status"
+                : isApproved
+                ? "Inscrito — Ver detalhes"
+                : "Inscrição não aprovada"}
             </Link>
           ) : (
             <button
@@ -474,4 +528,3 @@ async function submitEnroll(eventId: number) {
     </div>
   );
 }
-
