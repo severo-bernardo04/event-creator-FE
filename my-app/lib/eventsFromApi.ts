@@ -19,7 +19,6 @@ export type ApiEventNorm = {
   participants: ApiParticipantNorm[];
   category?: string;
   private?: boolean;
-  imageUrl?: string | null;
 };
 
 function num(v: unknown, fallback = 0): number {
@@ -29,29 +28,6 @@ function num(v: unknown, fallback = 0): number {
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
-}
-
-function normalizeAssetUrl(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const raw = value.trim();
-  if (!raw) return null;
-
-  if (raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
-
-  try {
-    const url = new URL(raw);
-    if (
-      url.origin === "http://localhost:8080" ||
-      url.origin === "http://127.0.0.1:8080"
-    ) {
-      return `/api${url.pathname}${url.search}`;
-    }
-    return raw;
-  } catch {
-    if (raw.startsWith("/api/") || raw.startsWith("/images/")) return raw;
-    if (raw.startsWith("/")) return `/api${raw}`;
-    return `/api/${raw}`;
-  }
 }
 
 export function coerceIsoDate(val: unknown): string {
@@ -99,31 +75,13 @@ export function coerceTime(val: unknown): string | null {
 function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null {
   const id = num(raw.id, NaN);
   if (!Number.isFinite(id)) return null;
-
-  function normStatus(v: unknown): string | undefined {
-    if (typeof v !== "string") return undefined;
-    const s = v.trim().toUpperCase();
-    if (s === "PENDING" || s === "PENDENTE") return "PENDING";
-    if (s === "APPROVED" || s === "APROVADO") return "APPROVED";
-    if (s === "REJECTED" || s === "REJEITADO") return "REJECTED";
-    return undefined;
-  }
-
-  const rawStatus =
-    raw.status ?? raw.approvalStatus ?? raw.state ?? raw.approval ?? raw.approved ?? raw.aprovado ?? undefined;
-  const status = normStatus(rawStatus);
-
-  const createdAtRaw =
-    raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? raw.registered_at ?? raw.dataInscricao ?? raw.data_inscricao ?? undefined;
-  const createdAt = createdAtRaw == null ? undefined : typeof createdAtRaw === "string" ? createdAtRaw : String(createdAtRaw);
-
   return {
     id,
     name: str(raw.name),
     email: str(raw.email),
     phone: str(raw.phone ?? raw.telefone),
-    status,
-    createdAt,
+    status: raw.status ?? raw.approvalStatus ?? raw.state ?? undefined,
+    createdAt: raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? undefined,
   };
 }
 
@@ -136,41 +94,6 @@ function pickMaxParticipants(raw: Record<string, unknown>): number {
 
 function pickParticipantsArray(raw: Record<string, unknown>): unknown {
   return raw.participants ?? raw.participantList ?? raw.inscriptions ?? raw.registrations;
-}
-
-function pickImageUrl(raw: Record<string, unknown>): string | null {
-  const imageObject = raw.image;
-  const imageFromObject =
-    imageObject && typeof imageObject === "object"
-      ? (imageObject as Record<string, unknown>).url ??
-        (imageObject as Record<string, unknown>).path ??
-        (imageObject as Record<string, unknown>).src
-      : undefined;
-
-  return normalizeAssetUrl(
-    raw.imageUrl ??
-      raw.image_url ??
-      raw.coverImageUrl ??
-      raw.cover_image_url ??
-      raw.capaUrl ??
-      raw.capa_url ??
-      raw.imagemUrl ??
-      raw.imagem_url ??
-      raw.urlImagem ??
-      raw.url_imagem ??
-      raw.bannerUrl ??
-      raw.banner_url ??
-      raw.photoUrl ??
-      raw.thumbnailUrl ??
-      raw.imagePath ??
-      raw.image_path ??
-      raw.imagemPath ??
-      raw.imagem_path ??
-      imageFromObject ??
-      raw.image ??
-      raw.imagem ??
-      raw.capa,
-  );
 }
 
 function unwrapEventPayload(data: unknown): unknown[] {
@@ -216,7 +139,6 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
   const locRaw = raw.location ?? raw.local ?? raw.address;
   const categoryRaw = raw.category;
   const privateRaw = raw.private ?? raw.isPrivate ?? raw.privateEvent ?? raw.is_private;
-  const imageUrl = pickImageUrl(raw);
 
   return {
     id,
@@ -230,7 +152,6 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     participants,
     category: categoryRaw != null ? str(categoryRaw) : undefined,
     private: Boolean(privateRaw),
-    imageUrl,
   };
 }
 
