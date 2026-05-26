@@ -141,19 +141,26 @@ export default function EventosPage() {
   const eventList = Array.isArray(events) ? events : [];
 
   const filtered = eventList.filter((ev) => {
-    const full = ev.participants.length >= ev.maxParticipants;
+  const eventDate = new Date(`${ev.date}T${ev.time || "00:00"}`);
 
-    const CategoryOk =
+  // remove eventos já finalizados
+  if (eventDate <= new Date()) {
+    return false;
+  }
+
+  const full = ev.participants.length >= ev.maxParticipants;
+
+  const CategoryOk =
     filterCategory === "Todos" ||
     ev.category?.toLowerCase() === filterCategory.toLowerCase();
 
-    const statusOk = 
+  const statusOk =
     filterStatus === "Todos" ||
     (filterStatus === "Disponível" && !full) ||
     (filterStatus === "Lotado" && full);
 
-    return CategoryOk && statusOk;
-  });
+  return CategoryOk && statusOk;
+});
   const EVENTS_PER_PAGE = 9;
   const [currentPage, setCurrentPage] = useState(1);
 

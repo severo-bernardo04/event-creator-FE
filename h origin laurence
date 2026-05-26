@@ -1,0 +1,17 @@
+* [33m55fed5f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mlaurence[m[33m)[m feat(events): add participant approval and capacity control
+*   [33m0636861[m feat(admin): implement participant approval and rejection system
+[32m|[m[33m\[m  
+[32m|[m *   [33mf06a764[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: improve home page and my events responsiveness
+[32m|[m [34m|[m[35m\[m  
+[32m|[m * [35m|[m [33m4149622[m[33m ([m[1;31morigin/PedroGuerra[m[33m, [m[1;32mmain[m[33m)[m update: erro /api
+[32m|[m * [35m|[m [33m98b5b44[m update na parte de aprovação e pendente do usuario em eventos
+* [35m|[m [35m|[m [33m81bc5bc[m feat(admin): implement participant approval and rejection system
+[35m|[m [35m|[m[35m/[m  
+[35m|[m[35m/[m[35m|[m   
+* [35m|[m [33mde00896[m[33m ([m[1;31morigin/laurence[m[33m)[m feat: improve home page and my events responsiveness
+[35m|[m[35m/[m  
+* [33m409eefe[m feat: update home page and add event status
+[35m|[m *   [33m1fb4ab6[m[33m ([m[1;35mrefs/stash[m[33m)[m WIP on laurence: f0907df participant my events page
+[35m|[m [36m|[m[1;31m\[m  
+[35m|[m [36m|[m * [33md653dd5[m index on laurence: f0907df participant my events page
+[35m|[m [36m|[m[36m/[m  

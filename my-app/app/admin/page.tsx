@@ -541,20 +541,22 @@ async function rejeitarParticipante(participanteId: number) {
           const mapped = mapNormToEvento(n);
           setEventos((prev) => prev.map((e) => (e.id === idNum ? mapped : e)));
         } else {
-          const createdRaw = await apiFetch<unknown>("/events", {
-            method: "POST",
-            json: {
-              title: titulo,
-              description: desc || null,
-              date: data,
-              time: timeForApi,
-              location: local,
-              maxParticipants: max,
-              majority18: false,
-              category: form.category || null,
-              private: Boolean(form.private),
-            },
-          });
+              const formData = new FormData();
+
+            formData.append("title", titulo);
+            formData.append("description", desc || "");
+            formData.append("date", data);
+            formData.append("time", timeForApi);
+            formData.append("location", local);
+            formData.append("maxParticipants", String(max));
+            formData.append("majority18", "false");
+            formData.append("category", form.category || "");
+            formData.append("private", String(Boolean(form.private)));
+
+            const createdRaw = await apiFetch<unknown>("/events", {
+              method: "POST",
+              body: formData,
+            });
           const n = normalizeEventRecord(createdRaw as Record<string, unknown>);
           if (!n) {
             setFormError("Resposta inválida do servidor ao criar o evento.");
