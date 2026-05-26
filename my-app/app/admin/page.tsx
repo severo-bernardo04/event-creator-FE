@@ -104,7 +104,13 @@ function fmtInscricaoDate(createdAt?: string) {
 
 function getStatus(ev: Evento) {
   const cap = ev.max > 0 ? ev.max : 1;
-  const p = ev.participantes.length / cap;
+
+  const approved = ev.participantes.filter(
+    (p) => p.status === "APPROVED"
+  ).length;
+
+  const p = approved / cap;
+
   if (p >= 1) return "full" as const;
   if (p >= 0.8) return "almost" as const;
   return "ok" as const;
@@ -153,46 +159,48 @@ export default function AdminPage() {
   const flattenParticipantes = () => eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
 
 
-  async function aprovarParticipante(participanteId: number) {
-    try {
-      // Chamada ao backend para aprovar inscrição
-      await apiFetch(`/registrations/${participanteId}/approve`, { method: "PATCH" });
+ async function recarregarEventos() {
+  const data = await apiFetch<unknown>("/events", { method: "GET" });
+  const list = normalizeEventList(data);
+  setEventos(list.map(mapNormToEvento));
+}
 
-      // Atualiza estado local após sucesso
-      setEventos((prev) =>
-        prev.map((ev) => ({
-          ...ev,
-          participantes: ev.participantes.map((p) =>
-            p.id === participanteId
-              ? { ...p, status: "APPROVED", createdAt: p.createdAt ?? new Date().toISOString() }
-              : p,
-          ),
-        })),
-      );
-    } catch (err: unknown) {
-      setFormError(getErrorMessage(err));
-    }
+async function aprovarParticipante(participanteId: number) {
+  const evento = eventos.find((ev) =>
+    ev.participantes.some((p) => p.id === participanteId),
+  );
+
+  if (!evento) return;
+
+  try {
+    await apiFetch(`/events/${evento.id}/participants/${participanteId}/aprovar`, {
+      method: "PATCH",
+    });
+
+    await recarregarEventos();
+  } catch (err: unknown) {
+    setFormError(getErrorMessage(err));
   }
+}
 
-  async function rejeitarParticipante(participanteId: number) {
-    try {
-      // Chamada ao backend para rejeitar inscrição
-      await apiFetch(`/registrations/${participanteId}/reject`, { method: "PATCH" });
 
-      setEventos((prev) =>
-        prev.map((ev) => ({
-          ...ev,
-          participantes: ev.participantes.map((p) =>
-            p.id === participanteId
-              ? { ...p, status: "REJECTED", createdAt: p.createdAt ?? new Date().toISOString() }
-              : p,
-          ),
-        })),
-      );
-    } catch (err: unknown) {
-      setFormError(getErrorMessage(err));
-    }
+async function rejeitarParticipante(participanteId: number) {
+  const evento = eventos.find((ev) =>
+    ev.participantes.some((p) => p.id === participanteId),
+  );
+
+  if (!evento) return;
+
+  try {
+    await apiFetch(`/events/${evento.id}/participants/${participanteId}/rejeitar`, {
+      method: "PATCH",
+    });
+
+    await recarregarEventos();
+  } catch (err: unknown) {
+    setFormError(getErrorMessage(err));
   }
+}
 
   const [currentPage, setCurrentPage] = useState<PageId>("dashboard");
   const [eventoAtualId, setEventoAtualId] = useState<number | null>(null);
@@ -911,7 +919,11 @@ export default function AdminPage() {
                     <td className={tdClass}>{fmtDate(ev.data)}</td>
                     <td className={tdClass}>{ev.local}</td>
                     <td className={tdClass}>
-                      {ev.participantes.length}/{ev.max}
+                      {
+                        ev.participantes.filter(
+                          (p) => p.status === "APPROVED"
+                        ).length
+                      }/{ev.max}
                     </td>
                     <td className={tdClass}>
                       <StatusBadge ev={ev} />
@@ -975,7 +987,11 @@ export default function AdminPage() {
                       </td>
                       <td className={tdClass}>{ev.local}</td>
                       <td className={tdClass}>
-                        {ev.participantes.length}/{ev.max}
+                        {
+                        ev.participantes.filter(
+                          (p) => p.status === "APPROVED"
+                        ).length
+                      }/{ev.max}
                       </td>
                       <td className={tdClass}>
                         <StatusBadge ev={ev} />
@@ -1195,52 +1211,52 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* PARTICIPANTES */}
-        <div
-          id="page-participantes"
-          className={currentPage === "participantes" ? "block" : "hidden"}
-        >
-          <div className="mb-8 flex items-start justify-between">
-            <div>
-              <h1 className="text-[26px] font-black tracking-tight text-white">
-                Participantes
-              </h1>
-              <p className="mt-1 text-[13px] text-slate-500">
-                Todas as inscrições realizadas na plataforma
-              </p>
-            </div>
+        {/* APROVAÇÕES */}
+<div
+  id="page-aprovacoes"
+  className={currentPage === "aprovacoes" ? "block" : "hidden"}
+>
+  <h1 className="mb-6 text-2xl font-bold text-white">
+    Aprovações
+  </h1>
+
+  <div className="space-y-4">
+    {aprovacoesRows.map(({ ev, p }) => (
+      <div
+        key={`${ev.id}-${p.id}`}
+        className="rounded-xl border border-slate-800 bg-slate-900 p-4"
+      >
+        <p className="font-bold text-white">{p.nome}</p>
+
+        <p className="text-sm text-slate-400">
+          Evento: {ev.titulo}
+        </p>
+
+        <p className="mt-2 text-xs text-yellow-400">
+          {p.status}
+        </p>
+
+        {p.status === "PENDING" && (
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => aprovarParticipante(p.id)}
+              className="rounded-lg bg-green-500 px-3 py-2 text-sm font-bold text-black"
+            >
+              Aprovar
+            </button>
+
+            <button
+              onClick={() => rejeitarParticipante(p.id)}
+              className="rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white"
+            >
+              Rejeitar
+            </button>
           </div>
-          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className={thClass}>Nome</th>
-                  <th className={thClass}>E-mail</th>
-                  <th className={thClass}>Telefone</th>
-                  <th className={thClass}>Evento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!participantesRows.length ? (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-12 text-center text-sm text-slate-500">
-                      Nenhuma inscrição encontrada
-                    </td>
-                  </tr>
-                ) : (
-                  participantesRows.map(({ p, titulo }) => (
-                    <tr key={`${titulo}-${p.id}`} className="group hover:[&>td]:bg-slate-900/60">
-                      <td className={`${tdClass} font-semibold text-white`}>{p.nome}</td>
-                      <td className={`${tdClass} text-slate-500`}>{p.email}</td>
-                      <td className={tdClass}>{p.telefone}</td>
-                      <td className={`${tdClass} text-slate-500`}>{titulo}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        )}
+      </div>
+    ))}
+  </div>
+</div>
 
         {/* USUÁRIOS */}
         <div id="page-usuarios" className={currentPage === "usuarios" ? "block" : "hidden"}>
