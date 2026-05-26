@@ -52,9 +52,9 @@ type PageId =
 function deriveMockParticipantStatus(participantId: number): ParticipantStatus {
   // MOCK: distribuição determinística para visualização no frontend (futuro: virá do backend)
   const mod = participantId % 3;
-  if (mod === 0) return "PENDENTE";
-  if (mod === 1) return "APROVADO";
-  return "REJEITADO";
+  if (mod === 0) return "PENDING";
+  if (mod === 1) return "APPROVED";
+  return "REJECTED";
 }
 
 function deriveMockCreatedAt(participantId: number): string {
@@ -104,7 +104,13 @@ function fmtInscricaoDate(createdAt?: string) {
 
 function getStatus(ev: Evento) {
   const cap = ev.max > 0 ? ev.max : 1;
-  const p = ev.participantes.length / cap;
+
+  const approved = ev.participantes.filter(
+    (p) => p.status === "APPROVED"
+  ).length;
+
+  const p = approved / cap;
+
   if (p >= 1) return "full" as const;
   if (p >= 0.8) return "almost" as const;
   return "ok" as const;
@@ -153,7 +159,6 @@ export default function AdminPage() {
   const flattenParticipantes = () => eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
 
 
-<<<<<<< HEAD
  async function recarregarEventos() {
   const data = await apiFetch<unknown>("/events", { method: "GET" });
   const list = normalizeEventList(data);
@@ -175,31 +180,10 @@ async function aprovarParticipante(participanteId: number) {
     await recarregarEventos();
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
-=======
-  async function aprovarParticipante(participanteId: number) {
-    try {
-      // Chamada ao backend para aprovar inscrição
-      await apiFetch(`/registrations/${participanteId}/approve`, { method: "PATCH" });
-
-      // Atualiza estado local após sucesso
-      setEventos((prev) =>
-        prev.map((ev) => ({
-          ...ev,
-          participantes: ev.participantes.map((p) =>
-            p.id === participanteId
-              ? { ...p, status: "APPROVED", createdAt: p.createdAt ?? new Date().toISOString() }
-              : p,
-          ),
-        })),
-      );
-    } catch (err: unknown) {
-      setFormError(getErrorMessage(err));
-    }
->>>>>>> f06a76443a2afa12319ed370195e40865bf89bfe
   }
 }
 
-<<<<<<< HEAD
+
 async function rejeitarParticipante(participanteId: number) {
   const evento = eventos.find((ev) =>
     ev.participantes.some((p) => p.id === participanteId),
@@ -215,26 +199,6 @@ async function rejeitarParticipante(participanteId: number) {
     await recarregarEventos();
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
-=======
-  async function rejeitarParticipante(participanteId: number) {
-    try {
-      // Chamada ao backend para rejeitar inscrição
-      await apiFetch(`/registrations/${participanteId}/reject`, { method: "PATCH" });
-
-      setEventos((prev) =>
-        prev.map((ev) => ({
-          ...ev,
-          participantes: ev.participantes.map((p) =>
-            p.id === participanteId
-              ? { ...p, status: "REJECTED", createdAt: p.createdAt ?? new Date().toISOString() }
-              : p,
-          ),
-        })),
-      );
-    } catch (err: unknown) {
-      setFormError(getErrorMessage(err));
-    }
->>>>>>> f06a76443a2afa12319ed370195e40865bf89bfe
   }
 }
 
@@ -302,12 +266,12 @@ async function rejeitarParticipante(participanteId: number) {
 
     // Use local snapshot to avoid stale closures; iterate events and participants
     eventos.forEach((ev) => {
-      const approvedCount = ev.participantes.filter((p) => p.status === "APROVADO").length;
+      const approvedCount = ev.participantes.filter((p) => p.status === "APPROVED").length;
       let capacityLeft = ev.max > 0 ? ev.max - approvedCount : 0;
 
       // pending participants in deterministic order (createdAt || id)
       const pending = ev.participantes
-        .filter((p) => p.status === "PENDENTE")
+        .filter((p) => p.status === "PENDING")
         .slice()
         .sort((a, b) => {
           const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
@@ -432,10 +396,10 @@ async function rejeitarParticipante(participanteId: number) {
     const all = flattenParticipantes().map(({ ev, p }) => ({ ev, p }));
     if (aprovacoesFilter === "TODOS") return all;
     if (aprovacoesFilter === "PENDENTES")
-      return all.filter(({ p }) => p.status === "PENDENTE");
+      return all.filter(({ p }) => p.status === "PENDING");
     if (aprovacoesFilter === "APROVADOS")
-      return all.filter(({ p }) => p.status === "APROVADO");
-    return all.filter(({ p }) => p.status === "REJEITADO");
+      return all.filter(({ p }) => p.status === "APPROVED");
+    return all.filter(({ p }) => p.status === "REJECTED");
   }, [eventos, aprovacoesFilter]);
 
   function navigate(page: PageId) {
@@ -955,7 +919,11 @@ async function rejeitarParticipante(participanteId: number) {
                     <td className={tdClass}>{fmtDate(ev.data)}</td>
                     <td className={tdClass}>{ev.local}</td>
                     <td className={tdClass}>
-                      {ev.participantes.length}/{ev.max}
+                      {
+                        ev.participantes.filter(
+                          (p) => p.status === "APPROVED"
+                        ).length
+                      }/{ev.max}
                     </td>
                     <td className={tdClass}>
                       <StatusBadge ev={ev} />
@@ -1019,7 +987,11 @@ async function rejeitarParticipante(participanteId: number) {
                       </td>
                       <td className={tdClass}>{ev.local}</td>
                       <td className={tdClass}>
-                        {ev.participantes.length}/{ev.max}
+                        {
+                        ev.participantes.filter(
+                          (p) => p.status === "APPROVED"
+                        ).length
+                      }/{ev.max}
                       </td>
                       <td className={tdClass}>
                         <StatusBadge ev={ev} />
@@ -1264,7 +1236,7 @@ async function rejeitarParticipante(participanteId: number) {
           {p.status}
         </p>
 
-        {p.status === "PENDENTE" && (
+        {p.status === "PENDING" && (
           <div className="mt-4 flex gap-2">
             <button
               onClick={() => aprovarParticipante(p.id)}
