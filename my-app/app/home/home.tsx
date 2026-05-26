@@ -87,28 +87,37 @@ async function submitEnroll(eventId: number) {
   }, [events]);
 
   const filteredEvents = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    return events.filter((ev) => {
-      const isCategoryMatch =
-        activeCategory === "Todos" ||
-        (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase();
+  const query = searchTerm.trim().toLowerCase();
 
-      if (!isCategoryMatch) return false;
+  return events.filter((ev) => {
 
-      if (!query) return true;
+    // ESCONDE EVENTOS JÁ FINALIZADOS
+    const dataEvento = new Date(`${ev.date}T${ev.time || "00:00"}`);
 
-      const text = [ev.title, ev.description, ev.category]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+    if (dataEvento < new Date()) {
+      return false;
+    }
 
-      const participantMatch = ev.participants.some((participant) =>
-        participant.name.toLowerCase().includes(query),
-      );
+    const isCategoryMatch =
+      activeCategory === "Todos" ||
+      (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase();
 
-      return text.includes(query) || participantMatch;
-    });
-  }, [activeCategory, events, searchTerm]);
+    if (!isCategoryMatch) return false;
+
+    if (!query) return true;
+
+    const text = [ev.title, ev.description, ev.category]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const participantMatch = ev.participants.some((participant) =>
+      participant.name.toLowerCase().includes(query),
+    );
+
+    return text.includes(query) || participantMatch;
+  });
+}, [activeCategory, events, searchTerm]);
 
   const displayEvents = useMemo(() => {
     if (!searchTerm.trim()) {
