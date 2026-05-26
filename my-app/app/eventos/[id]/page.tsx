@@ -84,14 +84,9 @@ export default function EventoDetalhesPage() {
         return;
       }
 
-      await apiFetch(`/events/${id}/participants?userId=${user.userId}`, {
+      // POST to create participant using server-side authenticated user (no userId query param)
+      await apiFetch(`/events/${id}/participants`, {
         method: "POST",
-        json: {
-          name: user.name,
-          email: user.email,
-          phone: "",
-          cpf: user.cpf ?? "",
-        },
       });
 
       // reload event

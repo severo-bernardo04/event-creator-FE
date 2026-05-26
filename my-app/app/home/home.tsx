@@ -7,12 +7,61 @@ import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 import { useAuth } from "@/context/AuthContext";
 
 export function Home() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [events, setEvents] = useState<ApiEventNorm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+
+async function submitEnroll(eventId: number) {
+  if (!user) {
+    window.location.href = "/login";
+    return;
+  }
+
+  setFormError(null);
+  setSubmitting(true);
+
+  try {
+    const alreadyRegistered = await apiFetch<{ emailInscrito: boolean }>(
+      `/events/${eventId}/participants/check-email?email=${encodeURIComponent(user.email)}`,
+      { method: "GET" },
+    );
+
+    if (alreadyRegistered.emailInscrito) {
+      setFormError("Você já está inscrito neste evento.");
+      return;
+    }
+
+    await apiFetch(`/events/${eventId}/participants?userId=${user.userId}`, {
+      method: "POST",
+      json: {
+        name: user.name,
+        email: user.email,
+        phone: "",
+        cpf: user.cpf ?? "",
+      },
+    });
+
+    const data = await apiFetch<unknown>("/events", {
+      method: "GET",
+    });
+
+    setEvents(normalizeEventList(data));
+
+    setOpenId(null);
+  } catch (err: unknown) {
+    setFormError(getErrorMessage(err));
+  } finally {
+    setSubmitting(false);
+  }
+}
+
 
   useEffect(() => {
     (async () => {
@@ -38,28 +87,37 @@ export function Home() {
   }, [events]);
 
   const filteredEvents = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    return events.filter((ev) => {
-      const isCategoryMatch =
-        activeCategory === "Todos" ||
-        (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase();
+  const query = searchTerm.trim().toLowerCase();
 
-      if (!isCategoryMatch) return false;
+  return events.filter((ev) => {
 
-      if (!query) return true;
+    // ESCONDE EVENTOS JÁ FINALIZADOS
+    const dataEvento = new Date(`${ev.date}T${ev.time || "00:00"}`);
 
-      const text = [ev.title, ev.description, ev.category]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+    if (dataEvento < new Date()) {
+      return false;
+    }
 
-      const participantMatch = ev.participants.some((participant) =>
-        participant.name.toLowerCase().includes(query),
-      );
+    const isCategoryMatch =
+      activeCategory === "Todos" ||
+      (ev.category ?? "").toLowerCase() === activeCategory.toLowerCase();
 
-      return text.includes(query) || participantMatch;
-    });
-  }, [activeCategory, events, searchTerm]);
+    if (!isCategoryMatch) return false;
+
+    if (!query) return true;
+
+    const text = [ev.title, ev.description, ev.category]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const participantMatch = ev.participants.some((participant) =>
+      participant.name.toLowerCase().includes(query),
+    );
+
+    return text.includes(query) || participantMatch;
+  });
+}, [activeCategory, events, searchTerm]);
 
   const displayEvents = useMemo(() => {
     if (!searchTerm.trim()) {
@@ -173,29 +231,55 @@ export function Home() {
                       <div className="mt-4 h-10 w-full rounded-xl bg-slate-800" />
                     </article>
                   ))
-                : displayEvents.map((ev) => (
-                <article
-                  key={ev.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
-                >
-                  <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20">
-                    <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
-                      {ev.category ?? "Evento"}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col p-6">
-                    <h3 className="text-lg font-bold text-white">{ev.title}</h3>
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">{ev.description || "Sem descrição."}</p>
-                    <p className="mt-4 text-sm text-slate-400">{ev.date} · {ev.location || "Local a definir"}</p>
-                    <Link
-                      href="/eventos"
-                      className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary/15 py-3 text-sm font-bold text-primary ring-1 ring-primary/40 hover:bg-primary/25"
-                    >
-                      Quero participar
-                    </Link>
-                  </div>
-                </article>
-              ))}
+                : displayEvents.map((ev) => {
+  const isRegistered = ev.participants.some(
+    (participant) => participant.email === user?.email,
+  );
+
+        return (
+          <article
+            key={ev.id}
+            className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
+          >
+            <div className="relative aspect-[16/10] w-full bg-gradient-to-br from-primary/40 via-slate-900 to-secondary/20">
+              <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
+                {ev.category ?? "Evento"}
+              </span>
+            </div>
+
+            <div className="flex flex-1 flex-col p-6">
+              <h3 className="text-lg font-bold text-white">
+                {ev.title}
+              </h3>
+
+              <p className="mt-2 line-clamp-2 text-sm text-slate-400">
+                {ev.description || "Sem descrição."}
+              </p>
+
+              <p className="mt-4 text-sm text-slate-400">
+                {ev.date} · {ev.location || "Local a definir"}
+              </p>
+
+              {isRegistered ? (
+            <Link
+              href={`/eventos/${ev.id}`}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-3 text-sm font-bold text-emerald-300"
+            >
+              Inscrito — Ver Detalhes
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setOpenId(ev.id)}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary/15 py-3 text-sm font-bold text-primary ring-1 ring-primary/40 hover:bg-primary/25"
+            >
+              Quero participar
+            </button>
+          )}
+            </div>
+          </article>
+        );
+      })}
               {!loading && (error || displayEvents.length === 0) ? (
                 <div className="col-span-full rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950 p-10 text-center">
                   <div className="mx-auto mb-4 h-14 w-14 text-secondary">
@@ -248,7 +332,7 @@ export function Home() {
         </section>
       </main>
 
-      {/* Footer — largura total */}
+            {/* Footer — largura total */}
       <footer className="border-t border-slate-800 px-6 py-10 sm:px-8 lg:px-10">
         <div className="mx-auto grid w-full max-w-[1600px] gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -260,6 +344,7 @@ export function Home() {
               participantes e gestão de inscrições.
             </p>
           </div>
+
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
               Plataforma
@@ -282,21 +367,22 @@ export function Home() {
               </li>
             </ul>
           </div>
-          {/* Gestão só aparece para ADMIN */}
+
           {isAdmin && (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                  Gestão
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-slate-400">
-                  <li>
-                    <Link href="/admin" className="hover:text-secondary">
-                      Meu painel
-                    </Link>
-                  </li>
-                </ul>
-              </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Gestão
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-400">
+                <li>
+                  <Link href="/admin" className="hover:text-secondary">
+                    Meu painel
+                  </Link>
+                </li>
+              </ul>
+            </div>
           )}
+
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
               Contato
@@ -312,11 +398,13 @@ export function Home() {
             <p className="mt-2 text-sm text-slate-500">Seg–Sex, 9h–18h</p>
           </div>
         </div>
+
         <div className="mx-auto mt-10 flex w-full max-w-[1600px] flex-col items-center justify-between gap-4 border-t border-slate-800 pt-8 text-center text-xs text-slate-500 sm:flex-row">
           <span>
             © {new Date().getFullYear()} Event Creator. Todos os direitos
             reservados.
           </span>
+
           <div className="flex gap-6">
             <a href="#" className="hover:text-slate-300">
               Privacidade
@@ -326,8 +414,58 @@ export function Home() {
             </a>
           </div>
         </div>
-
       </footer>
+
+      {openId !== null ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 px-4"
+          onClick={() => !submitting && setOpenId(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-extrabold text-white">
+              Confirmar inscrição
+            </h3>
+
+            <p className="mt-3 text-sm text-slate-400">
+              Deseja se inscrever neste evento como:
+            </p>
+
+            <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3">
+              <p className="text-sm font-bold text-white">{user?.name}</p>
+              <p className="text-xs text-slate-500">{user?.email}</p>
+            </div>
+
+            {formError ? (
+              <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
+                {formError}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setOpenId(null)}
+                className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void submitEnroll(openId)}
+                className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-bold text-slate-950 hover:brightness-105 disabled:opacity-50"
+              >
+                {submitting ? "Inscrevendo..." : "Sim, quero participar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

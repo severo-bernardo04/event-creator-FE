@@ -5,12 +5,16 @@ export function getErrorMessage(err: unknown): string {
       const msg = String((err as { message: unknown }).message);
       const lower = msg.toLowerCase();
       const sensitive = ["duplicate", "violates", "constraint", "sql", "stack", "trace"];
+      // hide SQL/stack traces
       if (sensitive.some((k) => lower.includes(k))) return "Ocorreu um erro no servidor. Contate o administrador.";
+      // hide HTML responses
+      if (msg.trim().startsWith("<!DOCTYPE") || msg.trim().toLowerCase().startsWith("<html") || /<\/html>/.test(msg)) return fallback;
       return msg || fallback;
     }
     if (typeof err === "string" && err.trim()) {
       const lower = err.toLowerCase();
       if (["duplicate", "violates", "constraint", "sql", "stack", "trace"].some((k) => lower.includes(k))) return "Ocorreu um erro no servidor. Contate o administrador.";
+      if (err.trim().startsWith("<!DOCTYPE") || err.trim().toLowerCase().startsWith("<html") || /<\/html>/.test(err)) return fallback;
       return err;
     }
   } catch (e) {
