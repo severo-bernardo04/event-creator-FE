@@ -19,6 +19,7 @@ export type ApiEventNorm = {
   participants: ApiParticipantNorm[];
   category?: string;
   private?: boolean;
+  imageUrl?: string | null;
 };
 
 function num(v: unknown, fallback = 0): number {
@@ -28,6 +29,29 @@ function num(v: unknown, fallback = 0): number {
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+function normalizeAssetUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw) return null;
+
+  if (raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
+
+  try {
+    const url = new URL(raw);
+    if (
+      url.origin === "http://localhost:8080" ||
+      url.origin === "http://127.0.0.1:8080"
+    ) {
+      return `/api${url.pathname}${url.search}`;
+    }
+    return raw;
+  } catch {
+    if (raw.startsWith("/api/") || raw.startsWith("/images/")) return raw;
+    if (raw.startsWith("/")) return `/api${raw}`;
+    return `/api/${raw}`;
+  }
 }
 
 export function coerceIsoDate(val: unknown): string {
@@ -114,6 +138,41 @@ function pickParticipantsArray(raw: Record<string, unknown>): unknown {
   return raw.participants ?? raw.participantList ?? raw.inscriptions ?? raw.registrations;
 }
 
+function pickImageUrl(raw: Record<string, unknown>): string | null {
+  const imageObject = raw.image;
+  const imageFromObject =
+    imageObject && typeof imageObject === "object"
+      ? (imageObject as Record<string, unknown>).url ??
+        (imageObject as Record<string, unknown>).path ??
+        (imageObject as Record<string, unknown>).src
+      : undefined;
+
+  return normalizeAssetUrl(
+    raw.imageUrl ??
+      raw.image_url ??
+      raw.coverImageUrl ??
+      raw.cover_image_url ??
+      raw.capaUrl ??
+      raw.capa_url ??
+      raw.imagemUrl ??
+      raw.imagem_url ??
+      raw.urlImagem ??
+      raw.url_imagem ??
+      raw.bannerUrl ??
+      raw.banner_url ??
+      raw.photoUrl ??
+      raw.thumbnailUrl ??
+      raw.imagePath ??
+      raw.image_path ??
+      raw.imagemPath ??
+      raw.imagem_path ??
+      imageFromObject ??
+      raw.image ??
+      raw.imagem ??
+      raw.capa,
+  );
+}
+
 function unwrapEventPayload(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   if (!data || typeof data !== "object") return [];
@@ -157,6 +216,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
   const locRaw = raw.location ?? raw.local ?? raw.address;
   const categoryRaw = raw.category;
   const privateRaw = raw.private ?? raw.isPrivate ?? raw.privateEvent ?? raw.is_private;
+  const imageUrl = pickImageUrl(raw);
 
   return {
     id,
@@ -170,6 +230,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     participants,
     category: categoryRaw != null ? str(categoryRaw) : undefined,
     private: Boolean(privateRaw),
+    imageUrl,
   };
 }
 

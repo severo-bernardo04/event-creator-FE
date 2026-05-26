@@ -10,10 +10,12 @@ import { apiFetch } from "@/lib/api";
 
 import {
     addEventHistory,
-    type EventHistoryFieldChange,
+    buildEventHistoryChanges,
+    type EventHistoryFieldDefinition,
 } from "@/lib/eventHistory";
 
 import { getErrorMessage } from "@/lib/errors";
+import { uploadEventImage } from "@/lib/eventImages";
 
 import {
     coerceTime,
@@ -36,6 +38,17 @@ type EventForm = {
     category?: string;
     private?: boolean;
 };
+
+const eventHistoryFields: EventHistoryFieldDefinition<EventForm>[] = [
+    { key: "titulo", label: "Título" },
+    { key: "desc", label: "Descrição" },
+    { key: "data", label: "Data" },
+    { key: "hora", label: "Horário" },
+    { key: "local", label: "Local" },
+    { key: "max", label: "Máx. participantes" },
+    { key: "category", label: "Categoria" },
+    { key: "private", label: "Evento privado" },
+];
 
 export default function EditarEventoPage() {
 
@@ -285,147 +298,39 @@ export default function EditarEventoPage() {
 
         try {
 
-            const changes:
-                EventHistoryFieldChange[] = [];
-
             const original =
                 initialForm;
 
-            if (original) {
+            const changes = original
+                ? buildEventHistoryChanges(
+                    original,
+                    form,
+                    eventHistoryFields
+                )
+                : [];
 
-                const fields: Array<{
-                    key: keyof EventForm;
-                    label: string;
-                }> = [
-                    { key: "titulo", label: "Título" },
-                    { key: "desc", label: "Descrição" },
-                    { key: "data", label: "Data" },
-                    { key: "hora", label: "Horário" },
-                    { key: "local", label: "Local" },
-                    {
-                        key: "max",
-                        label: "Máx. participantes",
+            await apiFetch<unknown>(
+                `/events/${eventId}`,
+                {
+                    method: "PUT",
+                    json: {
+                        title: titulo,
+                        description: desc || null,
+                        date: data,
+                        time: timeForApi,
+                        location: local,
+                        maxParticipants: max,
+                        majority18: false,
+                        category: form.category || null,
+                        private: Boolean(form.private),
                     },
-                    {
-                        key: "category",
-                        label: "Categoria",
-                    },
-                ];
-
-                for (const {
-                    key,
-                    label,
-                } of fields) {
-
-                    const from =
-                        String(
-                            original[key] ?? ""
-                        );
-
-                    const to =
-                        String(
-                            form[key] ?? ""
-                        );
-
-                    if (from !== to) {
-
-                        changes.push({
-                            field: label,
-                            from,
-                            to,
-                        });
-                    }
                 }
-            }
-
-            // ====================================
-            // FORM DATA
-            // ====================================
-
-            const formData =
-                new FormData();
-
-            formData.append(
-                "title",
-                titulo
-            );
-
-            formData.append(
-                "description",
-                desc || ""
-            );
-
-            formData.append(
-                "date",
-                data
-            );
-
-            formData.append(
-                "time",
-                timeForApi
-            );
-
-            formData.append(
-                "location",
-                local
-            );
-
-            formData.append(
-                "maxParticipants",
-                String(max)
-            );
-
-            formData.append(
-                "majority18",
-                "false"
-            );
-
-            formData.append(
-                "category",
-                form.category || ""
-            );
-
-            formData.append(
-                "private",
-                String(Boolean(form.private))
             );
 
             if (image) {
-
-                formData.append(
-                    "image",
+                await uploadEventImage(
+                    eventId,
                     image
-                );
-            }
-
-            const token =
-                localStorage.getItem(
-                    "token"
-                );
-
-            const response =
-                await fetch(
-                    `http://localhost:8080/events/${eventId}`,
-                    {
-                        method: "PUT",
-
-                        headers: token
-                            ? {
-                                Authorization:
-                                    `Bearer ${token}`,
-                            }
-                            : undefined,
-
-                        body: formData,
-
-                        credentials: "include",
-                    }
-                );
-
-            if (!response.ok) {
-
-                throw new Error(
-                    "Erro ao atualizar evento."
                 );
             }
 

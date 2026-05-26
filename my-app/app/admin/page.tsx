@@ -7,6 +7,12 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { setAuthUser } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
+import { uploadEventImage } from "@/lib/eventImages";
+import {
+  addEventHistory,
+  buildEventHistoryChanges,
+  type EventHistoryFieldDefinition,
+} from "@/lib/eventHistory";
 import {
   coerceTime,
   normalizeEventList,
@@ -52,6 +58,28 @@ type PageId =
 type ParticipantSortField = "nome" | "createdAt" | "status";
 type SortDirection = "asc" | "desc";
 type ApprovalRule = "ALL" | "EMAIL_ALLOWLIST" | "CAPACITY";
+
+type EventHistorySnapshot = {
+  titulo: string;
+  desc: string;
+  data: string;
+  hora: string;
+  local: string;
+  max: string;
+  category: string;
+  private: boolean;
+};
+
+const eventHistoryFields: EventHistoryFieldDefinition<EventHistorySnapshot>[] = [
+  { key: "titulo", label: "Título" },
+  { key: "desc", label: "Descrição" },
+  { key: "data", label: "Data" },
+  { key: "hora", label: "Horário" },
+  { key: "local", label: "Local" },
+  { key: "max", label: "Máx. participantes" },
+  { key: "category", label: "Categoria" },
+  { key: "private", label: "Evento privado" },
+];
 
 const participantStatusLabels: Record<ParticipantStatus, string> = {
   APPROVED: "Aprovado",
@@ -303,6 +331,7 @@ async function rejeitarParticipante(participanteId: number) {
     private: false,
   });
   const [imageError, setImageError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [modalEventoTitulo, setModalEventoTitulo] = useState("Novo evento");
@@ -513,6 +542,9 @@ async function rejeitarParticipante(participanteId: number) {
 
   function openModalEvento(id?: number) {
     setFormError(null);
+    setImageError(null);
+    setImageFile(null);
+    setImagePreview(null);
     if (id !== undefined) {
       const ev = eventos.find((e) => e.id === id);
       if (!ev) return;
@@ -548,6 +580,7 @@ async function rejeitarParticipante(participanteId: number) {
   function closeModalEvento() {
     setModalEventoOpen(false);
     setImageError(null);
+    setImageFile(null);
     setImagePreview(null);
   }
 
@@ -607,6 +640,32 @@ async function rejeitarParticipante(participanteId: number) {
       try {
         if (idStr) {
           const idNum = parseInt(idStr, 10);
+          const originalEvent = eventos.find((event) => event.id === idNum);
+          const changes = originalEvent
+            ? buildEventHistoryChanges(
+                {
+                  titulo: originalEvent.titulo,
+                  desc: originalEvent.desc,
+                  data: originalEvent.data,
+                  hora: originalEvent.hora,
+                  local: originalEvent.local,
+                  max: String(originalEvent.max),
+                  category: originalEvent.category ?? "",
+                  private: Boolean(originalEvent.private),
+                },
+                {
+                  titulo,
+                  desc,
+                  data,
+                  hora,
+                  local,
+                  max: String(max),
+                  category: form.category || "",
+                  private: Boolean(form.private),
+                },
+                eventHistoryFields,
+              )
+            : [];
           const updatedRaw = await apiFetch<unknown>(`/events/${idNum}`, {
             method: "PUT",
             json: {
@@ -626,7 +685,20 @@ async function rejeitarParticipante(participanteId: number) {
             setFormError("Resposta inválida do servidor ao atualizar o evento.");
             return;
           }
-          const mapped = mapNormToEvento(n);
+          let mapped = mapNormToEvento(n);
+          if (imageFile) {
+            await uploadEventImage(idNum, imageFile);
+            const refreshedRaw = await apiFetch<unknown>(`/events/${idNum}`, {
+              method: "GET",
+            });
+            const refreshed = normalizeEventRecord(refreshedRaw as Record<string, unknown>);
+            if (refreshed) mapped = mapNormToEvento(refreshed);
+          }
+          addEventHistory(
+            idNum,
+            user ? `${user.name} (${user.email})` : "Administrador",
+            changes,
+          );
           setEventos((prev) => prev.map((e) => (e.id === idNum ? mapped : e)));
         } else {
               const formData = new FormData();
@@ -650,7 +722,16 @@ async function rejeitarParticipante(participanteId: number) {
             setFormError("Resposta inválida do servidor ao criar o evento.");
             return;
           }
-          setEventos((prev) => [...prev, mapNormToEvento(n)]);
+          let mapped = mapNormToEvento(n);
+          if (imageFile) {
+            await uploadEventImage(n.id, imageFile);
+            const refreshedRaw = await apiFetch<unknown>(`/events/${n.id}`, {
+              method: "GET",
+            });
+            const refreshed = normalizeEventRecord(refreshedRaw as Record<string, unknown>);
+            if (refreshed) mapped = mapNormToEvento(refreshed);
+          }
+          setEventos((prev) => [...prev, mapped]);
         }
         closeModalEvento();
       } catch (err: unknown) {
@@ -1592,19 +1673,23 @@ async function rejeitarParticipante(participanteId: number) {
                   const allowed = ["image/jpeg", "image/png", "image/webp"];
                   if (!allowed.includes(file.type)) {
                     setImageError("Formato inválido. Use JPEG, PNG ou WEBP.");
+                    setImageFile(null);
+                    setImagePreview(null);
                     return;
                   }
                   if (file.size > 5 * 1024 * 1024) {
                     setImageError("A imagem deve ter no máximo 5MB.");
+                    setImageFile(null);
+                    setImagePreview(null);
                     return;
                   }
                   const preview = URL.createObjectURL(file);
+                  setImageFile(file);
                   setImagePreview(preview);
                 }}
                 className={inputClass}
               />
               {imagePreview ? (
-                // TODO: enviar imagem para POST /events/{id}/image após criação
                 <img src={imagePreview} alt="Preview da capa" className="mt-3 h-36 w-full rounded-xl object-cover" />
               ) : null}
               {imageError ? <p className="mt-2 text-xs font-semibold text-red-300">{imageError}</p> : null}
