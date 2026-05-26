@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 import { useAuth } from "@/context/AuthContext";
+import Carousel from "@/app/components/Carousel";
 
 export function Home() {
   const { isAdmin, user } = useAuth();
@@ -161,6 +162,23 @@ async function submitEnroll(eventId: number) {
                   </Link>
               )}
             </div>
+          </div>
+        </section>
+
+        <section className="w-full border-b border-slate-800 bg-slate-950 px-4 py-14 sm:px-6 sm:py-16 lg:px-10">
+          <div className="mx-auto grid w-full max-w-[1600px] gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-widest text-secondary">
+                Demonstração
+              </p>
+              <h2 className="mt-3 max-w-xl text-3xl font-black tracking-tight text-white sm:text-4xl">
+                Eventos com visual pronto para chamar atenção.
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-400">
+                Uma prévia dos formatos que podem aparecer na plataforma, de conferências a festivais.
+              </p>
+            </div>
+            <Carousel />
           </div>
         </section>
 
@@ -469,4 +487,3 @@ async function submitEnroll(eventId: number) {
     </div>
   );
 }
-

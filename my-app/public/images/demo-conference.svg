@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Conferencia em palco</title>
+  <desc id="desc">Palco de conferencia com publico e luzes coloridas.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#17345f"/>
+      <stop offset="0.48" stop-color="#111827"/>
+      <stop offset="1" stop-color="#34206b"/>
+    </linearGradient>
+    <linearGradient id="stage" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="0.52" stop-color="#facc15"/>
+      <stop offset="1" stop-color="#14b8a6"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="720" fill="url(#sky)"/>
+  <circle cx="170" cy="130" r="118" fill="#facc15" opacity=".16" filter="url(#glow)"/>
+  <circle cx="1010" cy="150" r="150" fill="#22c55e" opacity=".12" filter="url(#glow)"/>
+  <path d="M120 520 430 205h340l310 315Z" fill="#0f172a" opacity=".82"/>
+  <rect x="278" y="168" width="644" height="290" rx="20" fill="#020617" stroke="#475569" stroke-width="3"/>
+  <rect x="306" y="198" width="588" height="202" rx="14" fill="#12213f"/>
+  <path d="M330 366c80-80 151-112 215-96 52 13 86 68 142 69 55 0 90-52 180-88v149H330Z" fill="#2563eb" opacity=".78"/>
+  <circle cx="448" cy="258" r="46" fill="#facc15"/>
+  <rect x="390" y="431" width="420" height="34" rx="17" fill="url(#stage)"/>
+  <rect x="180" y="545" width="840" height="58" rx="29" fill="#020617" opacity=".86"/>
+  <g fill="#0f172a">
+    <circle cx="144" cy="612" r="26"/>
+    <circle cx="210" cy="600" r="32"/>
+    <circle cx="284" cy="613" r="27"/>
+    <circle cx="359" cy="596" r="34"/>
+    <circle cx="439" cy="612" r="29"/>
+    <circle cx="520" cy="596" r="34"/>
+    <circle cx="600" cy="612" r="28"/>
+    <circle cx="680" cy="596" r="34"/>
+    <circle cx="761" cy="612" r="29"/>
+    <circle cx="842" cy="598" r="33"/>
+    <circle cx="918" cy="612" r="28"/>
+    <circle cx="990" cy="600" r="31"/>
+    <circle cx="1058" cy="613" r="26"/>
+  </g>
+  <g opacity=".75" stroke-linecap="round" stroke-width="8">
+    <path d="M205 88 450 170" stroke="#facc15"/>
+    <path d="M995 84 778 174" stroke="#38bdf8"/>
+    <path d="M598 72v96" stroke="#22c55e"/>
+  </g>
+</svg>

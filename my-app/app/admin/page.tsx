@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties, SVGProps } from "react";
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -49,6 +49,27 @@ type PageId =
   | "aprovacoes"
   | "usuarios";
 
+type ParticipantSortField = "nome" | "createdAt" | "status";
+type SortDirection = "asc" | "desc";
+type ApprovalRule = "ALL" | "EMAIL_ALLOWLIST" | "CAPACITY";
+
+const participantStatusLabels: Record<ParticipantStatus, string> = {
+  APPROVED: "Aprovado",
+  PENDING: "Pendente",
+  REJECTED: "Rejeitado",
+};
+
+const participantSortOptions: { value: ParticipantSortField; label: string }[] = [
+  { value: "nome", label: "Nome" },
+  { value: "createdAt", label: "Data de inscrição" },
+  { value: "status", label: "Status de presença" },
+];
+
+const participantSortDirectionLabels: Record<SortDirection, string> = {
+  asc: "Crescente",
+  desc: "Decrescente",
+};
+
 function deriveMockParticipantStatus(participantId: number): ParticipantStatus {
   // MOCK: distribuição determinística para visualização no frontend (futuro: virá do backend)
   const mod = participantId % 3;
@@ -85,8 +106,8 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
         createdAt: p.createdAt ?? deriveMockCreatedAt(p.id),
       };
     }),
-    category: (ev as any).category ?? undefined,
-    private: Boolean((ev as any).private),
+    category: ev.category ?? undefined,
+    private: Boolean(ev.private),
   };
 }
 
@@ -100,6 +121,61 @@ function fmtInscricaoDate(createdAt?: string) {
   const d = new Date(createdAt);
   if (Number.isNaN(d.getTime())) return "—";
   return `${fmtDate(d.toISOString().slice(0, 10))}`;
+}
+
+function getParticipantCreatedAtTime(participant: Participante) {
+  if (!participant.createdAt) return null;
+  const time = Date.parse(participant.createdAt);
+  return Number.isNaN(time) ? null : time;
+}
+
+function compareOptionalTime(a: number | null, b: number | null) {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return a - b;
+}
+
+function compareParticipantes(
+  a: Participante,
+  b: Participante,
+  sortBy: ParticipantSortField,
+  direction: SortDirection,
+) {
+  const multiplier = direction === "asc" ? 1 : -1;
+
+  if (sortBy === "createdAt") {
+    const timeA = getParticipantCreatedAtTime(a);
+    const timeB = getParticipantCreatedAtTime(b);
+    const byDate =
+      timeA !== null && timeB !== null
+        ? (timeA - timeB) * multiplier
+        : compareOptionalTime(timeA, timeB);
+    if (byDate !== 0) return byDate;
+  } else if (sortBy === "status") {
+    const byStatus = participantStatusLabels[a.status].localeCompare(
+      participantStatusLabels[b.status],
+      "pt-BR",
+      { sensitivity: "base" },
+    ) * multiplier;
+    if (byStatus !== 0) return byStatus;
+  }
+
+  const byName =
+    a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }) *
+    (sortBy === "nome" ? multiplier : 1);
+  if (byName !== 0) return byName;
+  return a.id - b.id;
+}
+
+function sortParticipantes<T extends { p: Participante }>(
+  rows: T[],
+  sortBy: ParticipantSortField,
+  direction: SortDirection,
+) {
+  return rows
+    .slice()
+    .sort((a, b) => compareParticipantes(a.p, b.p, sortBy, direction));
 }
 
 function getStatus(ev: Evento) {
@@ -155,9 +231,6 @@ const tdClass =
 export default function AdminPage() {
   const { user } = useAuth();
   const [eventos, setEventos] = useState<Evento[]>([]);
-  
-  const flattenParticipantes = () => eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
-
 
  async function recarregarEventos() {
   const data = await apiFetch<unknown>("/events", { method: "GET" });
@@ -242,7 +315,7 @@ async function rejeitarParticipante(participanteId: number) {
 
   // Approval mechanism: manual or automatic with configurable rules
   const [approvalMode, setApprovalMode] = useState<"MANUAL" | "AUTO">("MANUAL");
-  const [approvalRule, setApprovalRule] = useState<"ALL" | "EMAIL_ALLOWLIST" | "CAPACITY">("ALL");
+  const [approvalRule, setApprovalRule] = useState<ApprovalRule>("ALL");
   const [emailAllowlist, setEmailAllowlist] = useState<string>(""); // comma-separated domains
 
   function parseAllowlist() {
@@ -383,24 +456,39 @@ async function rejeitarParticipante(participanteId: number) {
 
   type AprovalFilter = "TODOS" | "PENDENTES" | "APROVADOS" | "REJEITADOS";
   const [aprovacoesFilter, setAprovacoesFilter] = useState<AprovalFilter>("PENDENTES");
+  const [participantSortBy, setParticipantSortBy] = useState<ParticipantSortField>("nome");
+  const [participantSortDirection, setParticipantSortDirection] = useState<SortDirection>("asc");
 
   const participantesRows = useMemo(() => {
-    const rows: { p: Participante; titulo: string }[] = [];
+    const rows: { p: Participante; titulo: string; eventoId: number }[] = [];
     eventos.forEach((ev) =>
-      ev.participantes.forEach((p) => rows.push({ p, titulo: ev.titulo })),
+      ev.participantes.forEach((p) => rows.push({ p, titulo: ev.titulo, eventoId: ev.id })),
     );
-    return rows;
-  }, [eventos]);
+    return sortParticipantes(rows, participantSortBy, participantSortDirection);
+  }, [eventos, participantSortBy, participantSortDirection]);
+
+  const eventoAtualParticipantes = useMemo(() => {
+    if (!eventoAtual) return [];
+    return sortParticipantes(
+      eventoAtual.participantes.map((p) => ({ p })),
+      participantSortBy,
+      participantSortDirection,
+    ).map(({ p }) => p);
+  }, [eventoAtual, participantSortBy, participantSortDirection]);
 
   const aprovacoesRows = useMemo(() => {
-    const all = flattenParticipantes().map(({ ev, p }) => ({ ev, p }));
-    if (aprovacoesFilter === "TODOS") return all;
-    if (aprovacoesFilter === "PENDENTES")
-      return all.filter(({ p }) => p.status === "PENDING");
-    if (aprovacoesFilter === "APROVADOS")
-      return all.filter(({ p }) => p.status === "APPROVED");
-    return all.filter(({ p }) => p.status === "REJECTED");
-  }, [eventos, aprovacoesFilter]);
+    const all = eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
+    const filtered =
+      aprovacoesFilter === "TODOS"
+        ? all
+        : aprovacoesFilter === "PENDENTES"
+          ? all.filter(({ p }) => p.status === "PENDING")
+          : aprovacoesFilter === "APROVADOS"
+            ? all.filter(({ p }) => p.status === "APPROVED")
+            : all.filter(({ p }) => p.status === "REJECTED");
+
+    return sortParticipantes(filtered, participantSortBy, participantSortDirection);
+  }, [eventos, aprovacoesFilter, participantSortBy, participantSortDirection]);
 
   function navigate(page: PageId) {
     setCurrentPage(page);
@@ -666,6 +754,41 @@ async function rejeitarParticipante(participanteId: number) {
       )
     : 0;
 
+  function renderParticipantSortControls() {
+    return (
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block min-w-[190px]">
+          <span className="mb-1 block text-xs font-bold text-slate-500">Ordenar por</span>
+          <select
+            value={participantSortBy}
+            onChange={(e) => setParticipantSortBy(e.target.value as ParticipantSortField)}
+            className={inputClass}
+          >
+            {participantSortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block min-w-[160px]">
+          <span className="mb-1 block text-xs font-bold text-slate-500">Direção</span>
+          <select
+            value={participantSortDirection}
+            onChange={(e) => setParticipantSortDirection(e.target.value as SortDirection)}
+            className={inputClass}
+          >
+            {(Object.keys(participantSortDirectionLabels) as SortDirection[]).map((direction) => (
+              <option key={direction} value={direction}>
+                {participantSortDirectionLabels[direction]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <aside className="fixed left-0 top-0 z-10 flex h-screen w-[220px] flex-col gap-1 border-r border-slate-800 bg-slate-900 px-4 py-6">
@@ -855,7 +978,12 @@ async function rejeitarParticipante(participanteId: number) {
                   <label className="mb-1 block text-xs font-bold text-slate-500">Regra</label>
                   <select
                     value={approvalRule}
-                    onChange={(e) => setApprovalRule(e.target.value as any)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "ALL" || value === "EMAIL_ALLOWLIST" || value === "CAPACITY") {
+                        setApprovalRule(value);
+                      }
+                    }}
                     className={inputClass}
                     disabled={approvalMode !== 'AUTO'}
                   >
@@ -1036,6 +1164,69 @@ async function rejeitarParticipante(participanteId: number) {
           </div>
         </div>
 
+        {/* PARTICIPANTES */}
+        <div
+          id="page-participantes"
+          className={currentPage === "participantes" ? "block" : "hidden"}
+        >
+          <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[26px] font-black tracking-tight text-white">Participantes</h1>
+              <p className="mt-1 text-[13px] text-slate-500">
+                Todas as inscrições realizadas na plataforma
+              </p>
+            </div>
+            {renderParticipantSortControls()}
+          </div>
+
+          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className={thClass}>Nome</th>
+                    <th className={thClass}>Evento</th>
+                    <th className={thClass}>E-mail</th>
+                    <th className={thClass}>Inscrição</th>
+                    <th className={thClass}>Status</th>
+                    <th className={thClass}>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!participantesRows.length ? (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-500">
+                        Nenhuma inscrição encontrada
+                      </td>
+                    </tr>
+                  ) : (
+                    participantesRows.map(({ p, titulo, eventoId }) => (
+                      <tr key={`${eventoId}-${p.id}`} className="group hover:[&>td]:bg-slate-900/60">
+                        <td className={`${tdClass} font-semibold text-white`}>{p.nome}</td>
+                        <td className={tdClass}>{titulo}</td>
+                        <td className={`${tdClass} text-slate-500`}>{p.email}</td>
+                        <td className={tdClass}>{fmtInscricaoDate(p.createdAt)}</td>
+                        <td className={tdClass}>
+                          <StatusParticipante status={p.status} />
+                        </td>
+                        <td className={tdClass}>
+                          <button
+                            type="button"
+                            onClick={() => verEvento(eventoId)}
+                            className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                          >
+                            Ver evento
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         {/* EVENTO DETALHE */}
         <div
           id="page-evento-detalhe"
@@ -1162,13 +1353,16 @@ async function rejeitarParticipante(participanteId: number) {
                 </div>
               </div>
               <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-                <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-                  <span className="text-sm font-extrabold text-white">
-                    Participantes inscritos{" "}
-                    <span className="font-normal text-slate-500">
-                      ({eventoAtual.participantes.length})
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-4">
+                  <div>
+                    <span className="text-sm font-extrabold text-white">
+                      Participantes inscritos{" "}
+                      <span className="font-normal text-slate-500">
+                        ({eventoAtual.participantes.length})
+                      </span>
                     </span>
-                  </span>
+                  </div>
+                  {renderParticipantSortControls()}
                 </div>
                 <table className="w-full border-collapse">
                   <thead>
@@ -1176,22 +1370,28 @@ async function rejeitarParticipante(participanteId: number) {
                       <th className={thClass}>Nome</th>
                       <th className={thClass}>E-mail</th>
                       <th className={thClass}>Telefone</th>
+                      <th className={thClass}>Inscrição</th>
+                      <th className={thClass}>Status</th>
                       <th className={thClass}>Ação</th>
                     </tr>
                   </thead>
                   <tbody>
                     {!eventoAtual.participantes.length ? (
                       <tr>
-                        <td colSpan={4} className="px-5 py-12 text-center text-sm text-slate-500">
+                        <td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-500">
                           Nenhum participante inscrito
                         </td>
                       </tr>
                     ) : (
-                      eventoAtual.participantes.map((p) => (
+                      eventoAtualParticipantes.map((p) => (
                         <tr key={p.id} className="group hover:[&>td]:bg-slate-900/60">
                           <td className={`${tdClass} font-semibold text-white`}>{p.nome}</td>
                           <td className={`${tdClass} text-slate-500`}>{p.email}</td>
                           <td className={tdClass}>{p.telefone}</td>
+                          <td className={tdClass}>{fmtInscricaoDate(p.createdAt)}</td>
+                          <td className={tdClass}>
+                            <StatusParticipante status={p.status} />
+                          </td>
                           <td className={tdClass}>
                             <button
                               type="button"
@@ -1218,12 +1418,46 @@ async function rejeitarParticipante(participanteId: number) {
   id="page-aprovacoes"
   className={currentPage === "aprovacoes" ? "block" : "hidden"}
 >
-  <h1 className="mb-6 text-2xl font-bold text-white">
-    Aprovações
-  </h1>
+  <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1 className="text-2xl font-bold text-white">
+        Aprovações
+      </h1>
+      <p className="mt-1 text-[13px] text-slate-500">
+        Inscrições filtradas por status de aprovação
+      </p>
+    </div>
+    <div className="flex flex-wrap items-end gap-3">
+      <label className="block min-w-[170px]">
+        <span className="mb-1 block text-xs font-bold text-slate-500">Filtro</span>
+        <select
+          value={aprovacoesFilter}
+          onChange={(e) => setAprovacoesFilter(e.target.value as AprovalFilter)}
+          className={inputClass}
+        >
+          {[
+            { value: "TODOS", label: "Todos" },
+            { value: "PENDENTES", label: "Pendentes" },
+            { value: "APROVADOS", label: "Aprovados" },
+            { value: "REJEITADOS", label: "Rejeitados" },
+          ].map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {renderParticipantSortControls()}
+    </div>
+  </div>
 
   <div className="space-y-4">
-    {aprovacoesRows.map(({ ev, p }) => (
+    {!aprovacoesRows.length ? (
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-500">
+        Nenhuma inscrição encontrada para este filtro
+      </div>
+    ) : (
+      aprovacoesRows.map(({ ev, p }) => (
       <div
         key={`${ev.id}-${p.id}`}
         className="rounded-xl border border-slate-800 bg-slate-900 p-4"
@@ -1234,9 +1468,12 @@ async function rejeitarParticipante(participanteId: number) {
           Evento: {ev.titulo}
         </p>
 
-        <p className="mt-2 text-xs text-yellow-400">
-          {p.status}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <StatusParticipante status={p.status} />
+          <span className="text-xs text-slate-500">
+            Inscrição: {fmtInscricaoDate(p.createdAt)}
+          </span>
+        </div>
 
         {p.status === "PENDING" && (
           <div className="mt-4 flex gap-2">
@@ -1256,7 +1493,8 @@ async function rejeitarParticipante(participanteId: number) {
           </div>
         )}
       </div>
-    ))}
+      ))
+    )}
   </div>
 </div>
 
