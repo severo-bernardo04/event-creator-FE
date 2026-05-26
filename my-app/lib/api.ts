@@ -27,6 +27,10 @@ function sanitizeMessage(msg: string) {
 
   const lower = msg.toLowerCase();
 
+  if (lower === "internal server error") {
+    return "Não foi possível conectar à API. Verifique se o backend está rodando na porta configurada em NEXT_PUBLIC_API_URL.";
+  }
+
   const sensitiveKeywords = [
     "duplicate",
     "duplicate key",

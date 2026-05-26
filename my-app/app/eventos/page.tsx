@@ -315,9 +315,9 @@ export default function EventosPage() {
                 {paginated.map((ev) => {
                   const count = ev.participants.length;
                   const full = count >= ev.maxParticipants;
+                  const availableSpots = Math.max(0, ev.maxParticipants - count);
                   const participant = ev.participants.find((p) => p.email === user?.email) ?? null;
                    const isRegistered = Boolean(participant);
-                   const isApproved = participant?.status === "APPROVED";
 
                   return (
                       <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
@@ -344,6 +344,9 @@ export default function EventosPage() {
                               }`}>
                                 {count}/{ev.maxParticipants} inscritos
                               </p>
+                          <p className={`mt-1 text-sm font-bold ${full ? "text-red-400" : "text-emerald-400"}`}>
+                            {full ? "Vagas disponíveis: 0" : `Vagas disponíveis: ${availableSpots}`}
+                          </p>
                           <div className="mt-6 flex flex-wrap gap-2">
                             {!isAdmin && (
                               isRegistered ? (

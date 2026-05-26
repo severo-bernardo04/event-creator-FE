@@ -20,7 +20,7 @@ type EventWithDate = {
 
 type Props = {
   events: EventWithDate[];
-  months?: number;
+  months?: number | "all";
 };
 
 type AggregatedMonth = {
@@ -28,6 +28,12 @@ type AggregatedMonth = {
   eventCount: number;
   totalInscricoes: number;
   events: string[];
+};
+
+type ChartTooltipProps = {
+  active?: boolean;
+  payload?: Array<{ payload: AggregatedMonth }>;
+  label?: string | number;
 };
 
 function monthKey(dateStr: string) {
@@ -43,7 +49,7 @@ function monthLabel(key: string) {
   return `${m}/${y}`;
 }
 
-function TooltipContent({ active, payload, label }: any) {
+function TooltipContent({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload as AggregatedMonth;
   return (
@@ -71,11 +77,19 @@ function TooltipContent({ active, payload, label }: any) {
 
 export default function EventsChart({ events, months = 6 }: Props) {
   const now = new Date();
-  const keys: string[] = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    keys.push(k);
+  let keys: string[];
+
+  if (months === "all") {
+    keys = Array.from(
+      new Set(events.map((ev) => monthKey(ev.date)).filter((k): k is string => Boolean(k))),
+    ).sort();
+  } else {
+    keys = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      keys.push(k);
+    }
   }
 
   const counts: Record<string, AggregatedMonth> = {};

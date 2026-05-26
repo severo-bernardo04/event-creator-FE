@@ -113,6 +113,12 @@
   border-radius: 8px;
 }
 
+.capacity {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .stars {
   display: flex;
   gap: 2px;

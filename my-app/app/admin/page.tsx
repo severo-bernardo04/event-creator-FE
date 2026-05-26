@@ -5,11 +5,11 @@ import type { CSSProperties, SVGProps } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
+import { fetchAllEvents } from "@/lib/eventRequests";
 import { setAuthUser } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
 import {
   coerceTime,
-  normalizeEventList,
   normalizeEventRecord,
   type ApiEventNorm,
 } from "@/lib/eventsFromApi";
@@ -160,8 +160,7 @@ export default function AdminPage() {
 
 
  async function recarregarEventos() {
-  const data = await apiFetch<unknown>("/events", { method: "GET" });
-  const list = normalizeEventList(data);
+  const list = await fetchAllEvents();
   setEventos(list.map(mapNormToEvento));
 }
 
@@ -338,9 +337,8 @@ async function rejeitarParticipante(participanteId: number) {
       }
 
       try {
-        const data = await apiFetch<unknown>("/events", { method: "GET" });
+        const list = await fetchAllEvents();
         if (cancelled) return;
-        const list = normalizeEventList(data);
         setEventsApiError(null);
         setEventos(list.map(mapNormToEvento));
       } catch (err: unknown) {
@@ -819,7 +817,7 @@ async function rejeitarParticipante(participanteId: number) {
           <div className="mb-8 grid grid-cols-2 gap-4">
             <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
               <div className="border-b border-slate-800 px-6 py-4">
-                <span className="text-sm font-extrabold text-white">Eventos criados nos últimos 6 meses</span>
+                <span className="text-sm font-extrabold text-white">Eventos criados</span>
               </div>
               <div className="p-6">
                 <EventsChart
@@ -828,7 +826,7 @@ async function rejeitarParticipante(participanteId: number) {
                     participants: ev.participantes.length,
                     title: ev.titulo,
                   }))}
-                  months={6}
+                  months="all"
                 />
               </div>
             </div>

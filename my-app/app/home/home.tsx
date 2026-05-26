@@ -235,6 +235,7 @@ async function submitEnroll(eventId: number) {
   const isRegistered = ev.participants.some(
     (participant) => participant.email === user?.email,
   );
+  const availableSpots = Math.max(0, ev.maxParticipants - ev.participants.length);
 
         return (
           <article
@@ -258,6 +259,10 @@ async function submitEnroll(eventId: number) {
 
               <p className="mt-4 text-sm text-slate-400">
                 {ev.date} · {ev.location || "Local a definir"}
+              </p>
+
+              <p className="mt-2 text-sm font-bold text-emerald-400">
+                Vagas disponíveis: {availableSpots}
               </p>
 
               {isRegistered ? (
