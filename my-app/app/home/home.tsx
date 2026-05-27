@@ -30,6 +30,8 @@ export function Home() {
   const [openId, setOpenId] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const perPage = 6;
 
 
 async function submitEnroll(eventId: number) {
@@ -89,6 +91,9 @@ async function submitEnroll(eventId: number) {
       }
     })();
   }, []);
+  useEffect(() => {
+  setPage(1);
+}, [searchTerm, activeCategory]);
 
   const categories = useMemo(() => {
     const catSet = new Set<string>();
@@ -133,12 +138,14 @@ async function submitEnroll(eventId: number) {
   });
 }, [activeCategory, events, searchTerm]);
 
-  const displayEvents = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return filteredEvents.slice(0, 6);
-    }
-    return filteredEvents;
-  }, [filteredEvents, searchTerm]);
+    const totalPages = Math.ceil(filteredEvents.length / perPage);
+
+    const displayEvents = useMemo(() => {
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+
+  return filteredEvents.slice(start, end);
+}, [filteredEvents, page]);
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-slate-950 text-slate-100">
@@ -356,6 +363,32 @@ async function submitEnroll(eventId: number) {
             </div>
           </div>
         </section>
+
+        {totalPages > 1 && (
+  <div className="mt-10 flex items-center justify-center gap-3">
+    <button
+      type="button"
+      disabled={page === 1}
+      onClick={() => setPage((p) => p - 1)}
+      className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-300 disabled:opacity-40"
+    >
+      ← Anterior
+    </button>
+
+    <span className="text-sm font-bold text-white">
+      Página {page} de {totalPages}
+    </span>
+
+    <button
+      type="button"
+      disabled={page === totalPages}
+      onClick={() => setPage((p) => p + 1)}
+      className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-300 disabled:opacity-40"
+    >
+      Próxima →
+    </button>
+  </div>
+)}
 
         {/* Categorias */}
         <section

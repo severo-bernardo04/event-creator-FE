@@ -134,7 +134,7 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
       };
     }),
     category: ev.category ?? undefined,
-    private: Boolean(ev.private),
+    private: Boolean((ev as any).requiresApproval ?? ev.private),
   };
 }
 
@@ -660,7 +660,7 @@ async function rejeitarParticipante(participanteId: number) {
                   local,
                   max: String(max),
                   category: form.category || "",
-                  private: Boolean(form.private),
+                  requiresApproval: Boolean(form.private),
                 },
                 eventHistoryFields,
               )
