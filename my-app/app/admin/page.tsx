@@ -7,7 +7,6 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { setAuthUser } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
-import { uploadEventImage } from "@/lib/eventImages";
 import {
   addEventHistory,
   buildEventHistoryChanges,
@@ -686,14 +685,6 @@ async function rejeitarParticipante(participanteId: number) {
             return;
           }
           let mapped = mapNormToEvento(n);
-          if (imageFile) {
-            await uploadEventImage(idNum, imageFile);
-            const refreshedRaw = await apiFetch<unknown>(`/events/${idNum}`, {
-              method: "GET",
-            });
-            const refreshed = normalizeEventRecord(refreshedRaw as Record<string, unknown>);
-            if (refreshed) mapped = mapNormToEvento(refreshed);
-          }
           addEventHistory(
             idNum,
             user ? `${user.name} (${user.email})` : "Administrador",
@@ -711,26 +702,22 @@ async function rejeitarParticipante(participanteId: number) {
             formData.append("maxParticipants", String(max));
             formData.append("majority18", "false");
             formData.append("category", form.category || "");
-            formData.append("private", String(Boolean(form.private)));
+            formData.append("requiresApproval", String(Boolean(form.private)));
+
+            if (imageFile) {
+              formData.append("image", imageFile);
+            }
 
             const createdRaw = await apiFetch<unknown>("/events", {
               method: "POST",
               body: formData,
-            });
+});
           const n = normalizeEventRecord(createdRaw as Record<string, unknown>);
           if (!n) {
             setFormError("Resposta inválida do servidor ao criar o evento.");
             return;
           }
           let mapped = mapNormToEvento(n);
-          if (imageFile) {
-            await uploadEventImage(n.id, imageFile);
-            const refreshedRaw = await apiFetch<unknown>(`/events/${n.id}`, {
-              method: "GET",
-            });
-            const refreshed = normalizeEventRecord(refreshedRaw as Record<string, unknown>);
-            if (refreshed) mapped = mapNormToEvento(refreshed);
-          }
           setEventos((prev) => [...prev, mapped]);
         }
         closeModalEvento();

@@ -72,6 +72,17 @@ export function coerceTime(val: unknown): string | null {
   return null;
 }
 
+function normalizeParticipantStatus(status: unknown) {
+  const value = String(status ?? "").toUpperCase();
+
+  if (value === "PENDENTE") return "PENDING";
+  if (value === "APROVADO") return "APPROVED";
+  if (value === "REJEITADO") return "REJECTED";
+
+  return value || undefined;
+}
+
+
 function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null {
   const id = num(raw.id, NaN);
   if (!Number.isFinite(id)) return null;
@@ -80,7 +91,9 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
     name: str(raw.name),
     email: str(raw.email),
     phone: str(raw.phone ?? raw.telefone),
-    status: raw.status ?? raw.approvalStatus ?? raw.state ?? undefined,
+    status: normalizeParticipantStatus(
+    raw.status ?? raw.approvalStatus ?? raw.state
+),
     createdAt: raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? undefined,
   };
 }
@@ -138,7 +151,12 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
   const descRaw = raw.description ?? raw.descricao ?? raw.details;
   const locRaw = raw.location ?? raw.local ?? raw.address;
   const categoryRaw = raw.category;
-  const privateRaw = raw.private ?? raw.isPrivate ?? raw.privateEvent ?? raw.is_private;
+  const privateRaw =
+  raw.requiresApproval ??
+  raw.private ??
+  raw.isPrivate ??
+  raw.privateEvent ??
+  raw.is_private;
 
   return {
     id,
