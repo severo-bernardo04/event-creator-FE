@@ -50,3 +50,25 @@ export type ParticipantDTO = {
   phone: string;
   cpf: string;
 };
+
+export type EventMaterial = {
+  id: number;
+  eventId: number;
+  title: string;
+  description: string;
+  fileUrl: string;
+  fileName: string;
+  fileType: "PDF" | "IMAGE" | "DOCUMENT" | "LINK";
+  fileSize?: number; // em bytes
+  uploadedBy: string; // nome do admin
+  uploadedAt: string; // ISO date
+  isApproved: boolean;
+};
+
+export type EventMaterialDTO = {
+  title: string;
+  description: string;
+  fileType: "PDF" | "IMAGE" | "DOCUMENT" | "LINK";
+  file?: File; // para upload
+  link?: string; // para links externos
+};
