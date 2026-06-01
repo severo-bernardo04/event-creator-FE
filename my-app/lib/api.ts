@@ -77,10 +77,19 @@ type ApiFetchOptions = RequestInit & {
   json?: unknown;
 };
 
-export async function apiFetch<T>(
-    path: string,
-    init?: ApiFetchOptions
-): Promise<T> {
+export class ApiError extends Error {
+  status: number;
+  payload: unknown;
+
+  constructor(message: string, status: number, payload: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
+function buildApiRequest(init?: ApiFetchOptions) {
   const headers = new Headers(init?.headers);
 
   headers.set("Accept", "application/json");
@@ -97,6 +106,15 @@ export async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(init.json);
   }
+
+  return { headers, body };
+}
+
+export async function apiFetch<T>(
+    path: string,
+    init?: ApiFetchOptions
+): Promise<T> {
+  const { headers, body } = buildApiRequest(init);
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -131,7 +149,7 @@ export async function apiFetch<T>(
 
     const message = sanitizeMessage(rawMessage);
 
-    throw new Error(message);
+    throw new ApiError(message, res.status, payload);
   }
 
   return (await parseJsonSafe(res)) as T;

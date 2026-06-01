@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Inbox } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -17,6 +17,7 @@ import {
   isApprovedRegistration,
   isPendingRegistration,
 } from "@/lib/eventParticipants";
+import { cancelRegistration } from "@/lib/cancelRegistration";
 import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
 
 type MyEventRow = {
@@ -37,36 +38,43 @@ export default function MeusEventosPage() {
   const [error, setError] = useState<string | null>(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [selectedParticipantId, setSelectedParticipantId] = useState<number | null>(null);
   const [selectedEventTitle, setSelectedEventTitle] = useState("");
   const [cancelingSubmitting, setCancelingSubmitting] = useState(false);
 
-  const handleCancelRequest = (eventId: number, eventTitle: string) => {
+  const buildMyEventRows = useCallback(
+    (events: ApiEventNorm[]) =>
+      events.flatMap((event) => {
+        const participant = getParticipantForEmail(event, user?.email);
+        if (!participant || !isActiveRegistration(participant)) return [];
+        return [{ event, participant }];
+      }),
+    [user?.email],
+  );
+
+  const handleCancelRequest = (eventId: number, participantId: number, eventTitle: string) => {
     setSelectedEventId(eventId);
+    setSelectedParticipantId(participantId);
     setSelectedEventTitle(eventTitle);
     setCancelModalOpen(true);
   };
 
   const handleConfirmCancel = async () => {
-    if (!selectedEventId) return;
+    if (!selectedEventId || !selectedParticipantId) return;
 
     setCancelingSubmitting(true);
     try {
-      await apiFetch(`/events/${selectedEventId}/participants/cancel`, {
-        method: "DELETE",
-      });
+      await cancelRegistration(selectedEventId, selectedParticipantId);
 
       const data = await apiFetch("/events", { method: "GET" });
       const all = normalizeEventList(data);
 
-      setMyEvents(
-        all.flatMap((event) => {
-          const participant = getParticipantForEmail(event, user?.email);
-          if (!participant || !isActiveRegistration(participant)) return [];
-          return [{ event, participant }];
-        }),
-      );
+      setMyEvents(buildMyEventRows(all));
 
       setCancelModalOpen(false);
+      setSelectedEventId(null);
+      setSelectedParticipantId(null);
+      setSelectedEventTitle("");
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -80,13 +88,7 @@ export default function MeusEventosPage() {
         const data = await apiFetch("/events", { method: "GET" });
         const all = normalizeEventList(data);
 
-        setMyEvents(
-          all.flatMap((event) => {
-            const participant = getParticipantForEmail(event, user?.email);
-            if (!participant || !isActiveRegistration(participant)) return [];
-            return [{ event, participant }];
-          }),
-        );
+        setMyEvents(buildMyEventRows(all));
       } catch (err: unknown) {
         setError(getErrorMessage(err));
       } finally {
@@ -99,7 +101,7 @@ export default function MeusEventosPage() {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [buildMyEventRows, user?.email]);
 
   const pendingEvents = useMemo(
     () =>
@@ -298,7 +300,7 @@ function EventCard({
   event: ApiEventNorm;
   participant: ApiParticipantNorm;
   variant: "pending" | "active" | "finished";
-  onCancelationRequested?: (eventId: number, eventTitle: string) => void;
+  onCancelationRequested?: (eventId: number, participantId: number, eventTitle: string) => void;
 }) {
   const isActive = variant === "active";
   const isPending = variant === "pending";
@@ -380,7 +382,7 @@ function EventCard({
 
         {isActive && (
           <button
-            onClick={() => onCancelationRequested?.(event.id, event.title)}
+            onClick={() => onCancelationRequested?.(event.id, participant.id, event.title)}
             className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20"
             title="Cancelar sua inscrição neste evento"
           >

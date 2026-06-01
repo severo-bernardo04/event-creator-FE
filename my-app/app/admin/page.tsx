@@ -30,6 +30,7 @@ type Participante = {
   email: string;
   telefone: string;
   status: ParticipantStatus;
+  presenca?: string;
   createdAt?: string;
 };
 
@@ -67,6 +68,13 @@ type EventHistorySnapshot = {
   max: string;
   category: string;
   private: boolean;
+};
+
+type TicketResponse = {
+  ticketId: string;
+  eventId: number;
+  token: string;
+  qrCodeBase64: string;
 };
 
 const eventHistoryFields: EventHistoryFieldDefinition<EventHistorySnapshot>[] = [
@@ -130,13 +138,14 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
         email: p.email,
         telefone: p.phone,
         status,
+        presenca: p.presenca,
         createdAt: p.createdAt ?? deriveMockCreatedAt(p.id),
       };
     }),
     category: ev.category ?? undefined,
-    private: Boolean((ev as any).requiresApproval ?? ev.private),
+    private: Boolean(ev.private),
   };
-}
+  }
 
 function fmtDate(d: string) {
   const [y, m, dy] = d.split("-");
@@ -316,6 +325,16 @@ async function rejeitarParticipante(participanteId: number) {
 
   const [modalEventoOpen, setModalEventoOpen] = useState(false);
   const [modalConfirmOpen, setModalConfirmOpen] = useState(false);
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [ticketParticipant, setTicketParticipant] = useState<{
+    eventoId: number;
+    eventoTitulo: string;
+    participante: Participante;
+  } | null>(null);
+  const [ticket, setTicket] = useState<TicketResponse | null>(null);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [ticketMessage, setTicketMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -351,6 +370,72 @@ async function rejeitarParticipante(participanteId: number) {
       .split(",")
       .map((s) => s.trim().toLowerCase())
       .filter(Boolean);
+	}
+
+  async function gerarTicketParticipante(
+    eventoId: number,
+    eventoTitulo: string,
+    participante: Participante,
+  ) {
+    setTicketModalOpen(true);
+    setTicketParticipant({ eventoId, eventoTitulo, participante });
+    setTicket(null);
+    setTicketError(null);
+    setTicketMessage(null);
+    setTicketLoading(true);
+
+    try {
+      if (participante.status !== "APPROVED") {
+        throw new Error("Apenas participantes aprovados podem receber QR Code.");
+      }
+
+      const data = await apiFetch<TicketResponse>("/tickets", {
+        method: "POST",
+        json: {
+          eventId: eventoId,
+          participantId: participante.id,
+          expirationMinutes: 60,
+        },
+      });
+
+      setTicket(data);
+    } catch (err: unknown) {
+      setTicketError(getErrorMessage(err));
+    } finally {
+      setTicketLoading(false);
+    }
+  }
+
+  async function validarTicketAtual() {
+    if (!ticket) return;
+
+    setTicketLoading(true);
+    setTicketError(null);
+    setTicketMessage(null);
+
+    try {
+      const data = await apiFetch<{ message?: string }>("/tickets/validar", {
+        method: "POST",
+        json: {
+          token: ticket.token,
+        },
+      });
+
+      setTicketMessage(data?.message ?? "Ticket validado e presença marcada.");
+      await recarregarEventos();
+    } catch (err: unknown) {
+      setTicketError(getErrorMessage(err));
+    } finally {
+      setTicketLoading(false);
+    }
+  }
+
+  function fecharTicketModal() {
+    setTicketModalOpen(false);
+    setTicketParticipant(null);
+    setTicket(null);
+    setTicketError(null);
+    setTicketMessage(null);
   }
 
   /**
@@ -684,7 +769,7 @@ async function rejeitarParticipante(participanteId: number) {
             setFormError("Resposta inválida do servidor ao atualizar o evento.");
             return;
           }
-          let mapped = mapNormToEvento(n);
+          const mapped = mapNormToEvento(n);
           addEventHistory(
             idNum,
             user ? `${user.name} (${user.email})` : "Administrador",
@@ -717,7 +802,7 @@ async function rejeitarParticipante(participanteId: number) {
             setFormError("Resposta inválida do servidor ao criar o evento.");
             return;
           }
-          let mapped = mapNormToEvento(n);
+          const mapped = mapNormToEvento(n);
           setEventos((prev) => [...prev, mapped]);
         }
         closeModalEvento();
@@ -1257,13 +1342,14 @@ async function rejeitarParticipante(participanteId: number) {
                     <th className={thClass}>E-mail</th>
                     <th className={thClass}>Inscrição</th>
                     <th className={thClass}>Status</th>
+                    <th className={thClass}>Presença</th>
                     <th className={thClass}>Ação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {!participantesRows.length ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-500">
+                      <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
                         Nenhuma inscrição encontrada
                       </td>
                     </tr>
@@ -1277,14 +1363,25 @@ async function rejeitarParticipante(participanteId: number) {
                         <td className={tdClass}>
                           <StatusParticipante status={p.status} />
                         </td>
+                        <td className={tdClass}>{p.presenca ?? "—"}</td>
                         <td className={tdClass}>
-                          <button
-                            type="button"
-                            onClick={() => verEvento(eventoId)}
-                            className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
-                          >
-                            Ver evento
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => verEvento(eventoId)}
+                              className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                            >
+                              Ver evento
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => gerarTicketParticipante(eventoId, titulo, p)}
+                              disabled={p.status !== "APPROVED"}
+                              className="cursor-pointer rounded-lg border border-secondary/30 bg-secondary/10 px-2.5 py-1 text-xs font-bold text-secondary hover:bg-secondary/20 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Gerar QR
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1440,13 +1537,14 @@ async function rejeitarParticipante(participanteId: number) {
                       <th className={thClass}>Telefone</th>
                       <th className={thClass}>Inscrição</th>
                       <th className={thClass}>Status</th>
+                      <th className={thClass}>Presença</th>
                       <th className={thClass}>Ação</th>
                     </tr>
                   </thead>
                   <tbody>
                     {!eventoAtual.participantes.length ? (
                       <tr>
-                        <td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-500">
+                        <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
                           Nenhum participante inscrito
                         </td>
                       </tr>
@@ -1460,16 +1558,29 @@ async function rejeitarParticipante(participanteId: number) {
                           <td className={tdClass}>
                             <StatusParticipante status={p.status} />
                           </td>
+                          <td className={tdClass}>{p.presenca ?? "—"}</td>
                           <td className={tdClass}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                pedirRemocaoParticipante(eventoAtual.id, p.id, p.nome)
-                              }
-                              className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/20"
-                            >
-                              Remover
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  gerarTicketParticipante(eventoAtual.id, eventoAtual.titulo, p)
+                                }
+                                disabled={p.status !== "APPROVED"}
+                                className="cursor-pointer rounded-lg border border-secondary/30 bg-secondary/10 px-2.5 py-1 text-xs font-bold text-secondary hover:bg-secondary/20 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Gerar QR
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  pedirRemocaoParticipante(eventoAtual.id, p.id, p.nome)
+                                }
+                                className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/20"
+                              >
+                                Remover
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1780,6 +1891,79 @@ async function rejeitarParticipante(participanteId: number) {
               className="cursor-pointer rounded-[10px] border border-primary bg-primary px-4 py-2 text-[13.5px] text-white hover:border-blue-600 hover:bg-blue-600"
             >
               Salvar evento
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL QR CODE */}
+      <div
+        id="modal-ticket"
+        className={`fixed inset-0 z-[100] items-center justify-center bg-black/65 px-4 ${
+          ticketModalOpen ? "flex" : "hidden"
+        }`}
+        role="presentation"
+      >
+        <div className="w-full max-w-[430px] rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <div className="text-base font-extrabold text-white">QR Code do participante</div>
+              <p className="mt-1 text-[13px] text-slate-500">
+                {ticketParticipant?.participante.nome} · {ticketParticipant?.eventoTitulo}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fecharTicketModal}
+              className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+            >
+              Fechar
+            </button>
+          </div>
+
+          {ticketLoading && !ticket ? (
+            <div className="mx-auto h-[220px] w-[220px] animate-pulse rounded-xl bg-slate-800" />
+          ) : ticketError ? (
+            <div className="rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-sm font-semibold text-red-300">
+              {ticketError}
+            </div>
+          ) : ticket ? (
+            <div className="space-y-5">
+              <div className="mx-auto w-fit rounded-2xl bg-white p-4">
+                <img
+                  src={`data:image/png;base64,${ticket.qrCodeBase64}`}
+                  alt="QR Code do participante"
+                  width={220}
+                  height={220}
+                />
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-xs text-slate-500">
+                Ticket: <span className="text-slate-300">{ticket.ticketId}</span>
+              </div>
+            </div>
+          ) : null}
+
+          {ticketMessage ? (
+            <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100">
+              {ticketMessage}
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={fecharTicketModal}
+              className="cursor-pointer rounded-[10px] border border-slate-600 bg-transparent px-4 py-2 text-[13.5px] text-slate-300 hover:bg-slate-800"
+            >
+              Fechar
+            </button>
+            <button
+              type="button"
+              disabled={!ticket || ticketLoading}
+              onClick={() => void validarTicketAtual()}
+              className="cursor-pointer rounded-[10px] border border-secondary/30 bg-secondary/10 px-4 py-2 text-[13.5px] font-bold text-secondary hover:bg-secondary/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {ticketLoading && ticket ? "Validando..." : "Validar presença"}
             </button>
           </div>
         </div>

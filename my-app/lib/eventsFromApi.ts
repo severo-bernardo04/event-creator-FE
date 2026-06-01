@@ -4,6 +4,7 @@ export type ApiParticipantNorm = {
   email: string;
   phone: string;
   status?: string; // e.g. PENDING | APPROVED | REJECTED
+  presenca?: string;
   createdAt?: string;
 };
 
@@ -94,6 +95,14 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
     status: normalizeParticipantStatus(
     raw.status ?? raw.approvalStatus ?? raw.state
 ),
+    presenca:
+      raw.presenca != null
+        ? str(raw.presenca)
+        : raw.attendance != null
+          ? str(raw.attendance)
+          : raw.presence != null
+            ? str(raw.presence)
+            : undefined,
     createdAt: raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? undefined,
   };
 }

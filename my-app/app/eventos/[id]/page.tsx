@@ -16,6 +16,7 @@ import {
   isApprovedRegistration,
   isPendingRegistration,
 } from "@/lib/eventParticipants";
+import { cancelRegistration } from "@/lib/cancelRegistration";
 import EventMaterials from "@/app/components/EventMaterials";
 import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
 
@@ -160,6 +161,34 @@ export default function EventoDetalhesPage() {
       window.setTimeout(() => setSuccessBanner(false), 4000);
     } catch (err: unknown) {
       setFormError(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function cancelCurrentRegistration() {
+    if (!event || !currentParticipant?.id) {
+      throw new Error("Inscrição não encontrada.");
+    }
+
+    setSubmitting(true);
+    try {
+      await cancelRegistration(event.id, currentParticipant.id);
+
+      setSuccessMessage("Inscrição cancelada com sucesso.");
+      setSuccessBanner(true);
+      window.setTimeout(() => setSuccessBanner(false), 4000);
+
+      const raw = await apiFetch<unknown>(`/events/${id}`, {
+        method: "GET",
+      });
+
+      const norm = normalizeEventRecord(raw as Record<string, unknown>);
+      setEvent(norm);
+      setCancelModalOpen(false);
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+      throw err;
     } finally {
       setSubmitting(false);
     }
@@ -320,31 +349,7 @@ export default function EventoDetalhesPage() {
                         eventTitle={event.title}
                         isLoading={submitting}
                         canCancel={!isEventStarted(event.date, event.time)}
-                        onConfirm={async () => {
-                          setSubmitting(true);
-                          try {
-                            await apiFetch(`/events/${event.id}/participants/cancel`, {
-                              method: "DELETE",
-                            });
-
-                            setSuccessMessage("Inscrição cancelada com sucesso.");
-                            setSuccessBanner(true);
-                            window.setTimeout(() => setSuccessBanner(false), 4000);
-
-                            const raw = await apiFetch<unknown>(`/events/${id}`, {
-                              method: "GET",
-                            });
-
-                            const norm = normalizeEventRecord(raw as Record<string, unknown>);
-                            setEvent(norm);
-                            setCancelModalOpen(false);
-                          } catch (err: unknown) {
-                            setFormError(getErrorMessage(err));
-                            throw err;
-                          } finally {
-                            setSubmitting(false);
-                          }
-                        }}
+                        onConfirm={cancelCurrentRegistration}
                         onCancel={() => setCancelModalOpen(false)}
                       />
                     </>
@@ -373,31 +378,7 @@ export default function EventoDetalhesPage() {
                         eventTitle={event.title}
                         isLoading={submitting}
                         canCancel={!isEventStarted(event.date, event.time)}
-                        onConfirm={async () => {
-                          setSubmitting(true);
-                          try {
-                            await apiFetch(`/events/${event.id}/participants/cancel`, {
-                              method: "DELETE",
-                            });
-
-                            setSuccessMessage("Inscrição cancelada com sucesso.");
-                            setSuccessBanner(true);
-                            window.setTimeout(() => setSuccessBanner(false), 4000);
-
-                            const raw = await apiFetch<unknown>(`/events/${id}`, {
-                              method: "GET",
-                            });
-
-                            const norm = normalizeEventRecord(raw as Record<string, unknown>);
-                            setEvent(norm);
-                            setCancelModalOpen(false);
-                          } catch (err: unknown) {
-                            setFormError(getErrorMessage(err));
-                            throw err;
-                          } finally {
-                            setSubmitting(false);
-                          }
-                        }}
+                        onConfirm={cancelCurrentRegistration}
                         onCancel={() => setCancelModalOpen(false)}
                       />
                     </>

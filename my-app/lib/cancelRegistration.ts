@@ -1,32 +1,36 @@
-export async function cancelRegistration(
-    eventId: number
-) {
+import { ApiError, apiFetch } from "@/lib/api";
+import { getAuthUser } from "@/lib/auth";
 
-    const token =
-        localStorage.getItem("token");
+export async function cancelRegistration(eventId: number, participantId: number) {
+  let lastError: unknown = null;
 
-    const response =
-        await fetch(
-            `http://localhost:8080/events/${eventId}/participants/cancel`,
-            {
-                method: "DELETE",
-
-                headers: {
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-            }
-        );
-
-    if (!response.ok) {
-
-        const error =
-            await response.text();
-
-        throw new Error(
-            error || "Erro ao cancelar inscrição."
-        );
+  try {
+    return await apiFetch<void>(`/events/${eventId}/participants/cancel`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    lastError = err;
+    if (!(err instanceof ApiError) || ![403, 404, 405].includes(err.status)) {
+      throw err;
     }
+  }
 
-    return response.text();
+  try {
+    return await apiFetch<void>(`/events/${eventId}/participants/cancel`, {
+      method: "POST",
+    });
+  } catch (err) {
+    lastError = err;
+    if (!(err instanceof ApiError) || ![403, 404, 405].includes(err.status)) {
+      throw err;
+    }
+  }
+
+  if (getAuthUser()?.role !== "ADMIN") {
+    throw lastError instanceof Error ? lastError : new Error("Erro ao cancelar inscrição.");
+  }
+
+  return apiFetch<void>(`/events/${eventId}/participants/${participantId}`, {
+    method: "DELETE",
+  });
 }
