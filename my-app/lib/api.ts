@@ -71,7 +71,7 @@ async function parseJsonSafe(res: Response) {
   }
 }
 
-const BASE_URL = "/api";
+const BASE_URL = "http://localhost:8080";
 
 type ApiFetchOptions = RequestInit & {
   json?: unknown;

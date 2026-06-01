@@ -17,7 +17,9 @@ export async function cancelRegistration(eventId: number, participantId: number)
 
   try {
     return await apiFetch<void>(`/events/${eventId}/participants/cancel`, {
-      method: "POST",
+      method: "DELETE",      headers: {
+        "X-Participant-Id": participantId.toString(),
+      },
     });
   } catch (err) {
     lastError = err;
