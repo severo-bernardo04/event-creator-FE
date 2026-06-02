@@ -20,6 +20,7 @@ export type ApiEventNorm = {
   participants: ApiParticipantNorm[];
   category?: string;
   private?: boolean;
+  imageUrl?: string | null;
 };
 
 function num(v: unknown, fallback = 0): number {
@@ -179,6 +180,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     participants,
     category: categoryRaw != null ? str(categoryRaw) : undefined,
     private: Boolean(privateRaw),
+    imageUrl: raw.imageUrl != null ? str(raw.imageUrl) : null,
   };
 }
 
