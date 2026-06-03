@@ -6,6 +6,9 @@ export type ApiParticipantNorm = {
   status?: string; // e.g. PENDING | APPROVED | REJECTED
   presenca?: string;
   createdAt?: string;
+  ticketId?: string;
+  ticketToken?: string;
+  qrCodeBase64?: string;
 };
 
 export type ApiEventNorm = {
@@ -84,10 +87,34 @@ function normalizeParticipantStatus(status: unknown) {
   return value || undefined;
 }
 
+function pickTicketValue(raw: Record<string, unknown>, key: string): unknown {
+  const ticket = raw.ticket;
+  if (ticket && typeof ticket === "object" && !Array.isArray(ticket)) {
+    const ticketRecord = ticket as Record<string, unknown>;
+    return ticketRecord[key];
+  }
+
+  return undefined;
+}
+
 
 function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null {
   const id = num(raw.id, NaN);
   if (!Number.isFinite(id)) return null;
+  const createdAt = raw.createdAt ?? raw.created_at ?? raw.registeredAt;
+  const ticketId = raw.ticketId ?? raw.ticket_id ?? pickTicketValue(raw, "ticketId") ?? pickTicketValue(raw, "id");
+  const ticketToken = raw.ticketToken ?? raw.token ?? pickTicketValue(raw, "token");
+  const qrCodeBase64 =
+    raw.qrCodeBase64 ??
+    raw.qrcodeBase64 ??
+    raw.qr_code_base64 ??
+    raw.qrCode ??
+    raw.qrcode ??
+    pickTicketValue(raw, "qrCodeBase64") ??
+    pickTicketValue(raw, "qrcodeBase64") ??
+    pickTicketValue(raw, "qrCode") ??
+    pickTicketValue(raw, "qrcode");
+
   return {
     id,
     name: str(raw.name),
@@ -104,7 +131,10 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
           : raw.presence != null
             ? str(raw.presence)
             : undefined,
-    createdAt: raw.createdAt ?? raw.created_at ?? raw.registeredAt ?? undefined,
+    createdAt: createdAt != null ? str(createdAt) : undefined,
+    ticketId: ticketId != null ? str(ticketId) : undefined,
+    ticketToken: ticketToken != null ? str(ticketToken) : undefined,
+    qrCodeBase64: qrCodeBase64 != null ? str(qrCodeBase64) : undefined,
   };
 }
 

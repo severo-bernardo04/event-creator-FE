@@ -66,10 +66,12 @@ export default function MeusEventosPage() {
     try {
       await cancelRegistration(selectedEventId, selectedParticipantId);
 
-      const data = await apiFetch("/events", { method: "GET" });
-      const all = normalizeEventList(data);
-
-      setMyEvents(buildMyEventRows(all));
+      setMyEvents((currentEvents) =>
+        currentEvents.filter(
+          ({ event, participant }) =>
+            event.id !== selectedEventId || participant.id !== selectedParticipantId,
+        ),
+      );
 
       setCancelModalOpen(false);
       setSelectedEventId(null);
@@ -380,7 +382,7 @@ function EventCard({
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
 
-        {isActive && (
+        {(isActive || isPending) && (
           <button
             onClick={() => onCancelationRequested?.(event.id, participant.id, event.title)}
             className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20"

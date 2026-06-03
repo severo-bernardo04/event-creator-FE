@@ -25,7 +25,7 @@ export default function EventMaterials({ eventId, isApproved }: EventMaterialsPr
     (async () => {
       try {
         const data = await getMaterialsByEventId(eventId);
-        setMaterials(data.filter((m) => m.isApproved));
+        setMaterials(data);
       } catch (err: unknown) {
         setError(getErrorMessage(err));
       } finally {

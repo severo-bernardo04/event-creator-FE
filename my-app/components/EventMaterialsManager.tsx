@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, Upload, Trash2 } from "lucide-react";
-import { uploadMaterial, deleteMaterial, approveMaterial } from "@/lib/eventMaterials";
+import { Upload, Trash2 } from "lucide-react";
+import { uploadMaterial, deleteMaterial } from "@/lib/eventMaterials";
 import { getErrorMessage } from "@/lib/errors";
 import type { EventMaterial, EventMaterialDTO } from "@/types";
 
@@ -70,7 +70,7 @@ export default function EventMaterialsManager({
                 file: selectedFile || undefined,
             });
 
-            onMaterialsChange([...materials, newMaterial]);
+            onMaterialsChange([...materials, { ...newMaterial, isApproved: true }]);
             setForm({ title: "", description: "", fileType: "PDF" });
             setSelectedFile(null);
             setIsOpen(false);
@@ -87,15 +87,6 @@ export default function EventMaterialsManager({
         try {
             await deleteMaterial(eventId, materialId);
             onMaterialsChange(materials.filter((m) => m.id !== materialId));
-        } catch (err: unknown) {
-            setError(getErrorMessage(err));
-        }
-    };
-
-    const handleApprove = async (materialId: number) => {
-        try {
-            const approved = await approveMaterial(eventId, materialId);
-            onMaterialsChange(materials.map((m) => (m.id === materialId ? approved : m)));
         } catch (err: unknown) {
             setError(getErrorMessage(err));
         }
@@ -173,8 +164,6 @@ export default function EventMaterialsManager({
                         />
                     )}
 
-                    {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
-
                     <div className="flex justify-end gap-2">
                         <button
                             onClick={() => setIsOpen(false)}
@@ -193,6 +182,12 @@ export default function EventMaterialsManager({
                 </div>
             )}
 
+            {error && (
+                <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                    <p className="text-xs font-semibold text-red-400">{error}</p>
+                </div>
+            )}
+
             <div className="space-y-2">
                 {materials.map((material) => (
                     <div
@@ -205,14 +200,6 @@ export default function EventMaterialsManager({
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {!material.isApproved && (
-                                <button
-                                    onClick={() => handleApprove(material.id)}
-                                    className="rounded-lg bg-green-500/10 px-2 py-1 text-xs font-semibold text-green-400 hover:bg-green-500/20"
-                                >
-                                    Aprovar
-                                </button>
-                            )}
                             <button
                                 onClick={() => handleDelete(material.id)}
                                 className="rounded-lg bg-red-500/10 p-1 text-red-400 hover:bg-red-500/20"

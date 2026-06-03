@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
+import { cancelRegistration } from "@/lib/cancelRegistration";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
 import {
@@ -138,13 +139,22 @@ export default function EventosPage() {
       const ev = eventList.find((e) => e.id === eventId);
       const participant = ev?.participants.find((p) => p.email === user.email);
       if (!participant?.id) throw new Error("Inscrição não encontrada.");
-      await apiFetch(`/events/${eventId}/participants/${participant.id}`, {
-        method: "DELETE",
-      });
+      await cancelRegistration(eventId, participant.id);
+      setEvents((currentEvents) =>
+        currentEvents.map((currentEvent) =>
+          currentEvent.id === eventId
+            ? {
+                ...currentEvent,
+                participants: currentEvent.participants.filter(
+                  (currentParticipant) => currentParticipant.id !== participant.id,
+                ),
+              }
+            : currentEvent,
+        ),
+      );
       setSuccessMessage("Sua inscrição foi cancelada.");
       setSuccessBanner(true);
       window.setTimeout(() => setSuccessBanner(false), 4000);
-      await loadEvents();
     } catch (err: unknown) {
       alert(getErrorMessage(err));
     } finally {

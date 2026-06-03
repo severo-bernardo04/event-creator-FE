@@ -22,7 +22,9 @@ import EventsChart from "@/components/EventsChart";
 import { CATEGORIES } from "@/lib/categoryMocks";
 import { NavIconDashboard, NavIconCalendar, NavIconPeople, NavIconUser, NavIconBack } from "./components/NavIcons";
 import StatusParticipante from "@/components/StatusParticipante";
-import type { ParticipantStatus } from "@/types";
+import EventMaterialsManager from "@/components/EventMaterialsManager";
+import type { EventMaterial, ParticipantStatus } from "@/types";
+import { getMaterialsByEventId } from "@/lib/eventMaterials";
 
 type Participante = {
   id: number;
@@ -336,6 +338,8 @@ async function rejeitarParticipante(participanteId: number) {
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketMessage, setTicketMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<EventMaterial[]>([]);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
 
   const [form, setForm] = useState({
     id: "",
@@ -539,6 +543,30 @@ async function rejeitarParticipante(participanteId: number) {
       cancelled = true;
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!eventoAtualId) {
+      setMaterials([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setMaterialsLoading(true);
+      try {
+        const data = await getMaterialsByEventId(eventoAtualId);
+        if (!cancelled) setMaterials(data.map((m) => ({ ...m, isApproved: true })));
+      } catch {
+        if (!cancelled) setMaterials([]);
+      } finally {
+        if (!cancelled) setMaterialsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventoAtualId]);
 
   const dashboardStats = useMemo(() => {
     const totalP = eventos.reduce((a, e) => a + e.participantes.length, 0);
@@ -1587,6 +1615,15 @@ async function rejeitarParticipante(participanteId: number) {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="mt-8">
+                <EventMaterialsManager
+                  eventId={eventoAtual.id}
+                  materials={materials}
+                  onMaterialsChange={setMaterials}
+                  isAdmin={canManage}
+                />
               </div>
             </>
           )}

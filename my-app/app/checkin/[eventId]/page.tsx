@@ -1,14 +1,55 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
+import { getParticipantForEmail, isApprovedRegistration } from "@/lib/eventParticipants";
+import { normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function CheckinPage() {
 
     const { user } = useAuth();
     const params = useParams();
     const eventId = params.eventId as string;
+    const [event, setEvent] = useState<ApiEventNorm | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        async function loadEvent() {
+            setLoading(true);
+            setError(null);
+
+            try {
+                const data = await apiFetch<unknown>(`/events/${eventId}`, { method: "GET" });
+                const normalizedEvent = normalizeEventRecord(data as Record<string, unknown>);
+
+                if (!normalizedEvent) {
+                    throw new Error("Evento não encontrado.");
+                }
+
+                setEvent(normalizedEvent);
+            } catch (err: unknown) {
+                setError(getErrorMessage(err));
+                setEvent(null);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (user?.email && eventId) {
+            void loadEvent();
+        } else {
+            setLoading(false);
+        }
+    }, [eventId, user?.email]);
+
+    const participant = event ? getParticipantForEmail(event, user?.email) : null;
+    const isApproved = isApprovedRegistration(participant);
+    const qrCodeBase64 = participant?.qrCodeBase64;
 
     if (!user) {
         return (
@@ -33,21 +74,63 @@ export default function CheckinPage() {
                     Seu QR Code
                 </h1>
                 <p className="mt-1 text-sm text-slate-400">
-                    Evento #{eventId}
+                    {event?.title ?? `Evento #${eventId}`}
                 </p>
 
-                <div className="mt-8 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-left">
-                    <p className="text-sm font-bold text-amber-100">
-                        O QR Code é gerado pela organização do evento.
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-amber-200/80">
-                        Solicite seu QR Code na entrada ou com um administrador. Somente usuários ADMIN podem criar e validar ingressos.
-                    </p>
-                </div>
+                {loading ? (
+                    <div className="mx-auto mt-8 h-[220px] w-[220px] animate-pulse rounded-xl bg-slate-800" />
+                ) : error ? (
+                    <div className="mt-8 rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-left text-sm font-semibold text-red-300">
+                        {error}
+                    </div>
+                ) : !participant ? (
+                    <div className="mt-8 rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-left">
+                        <p className="text-sm font-bold text-red-100">
+                            Inscrição não encontrada.
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-red-200/80">
+                            Use a mesma conta cadastrada no evento para acessar seu QR Code.
+                        </p>
+                    </div>
+                ) : !isApproved ? (
+                    <div className="mt-8 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-left">
+                        <p className="text-sm font-bold text-amber-100">
+                            Sua inscrição ainda não foi aprovada.
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-amber-200/80">
+                            O QR Code fica disponível depois da aprovação da organização.
+                        </p>
+                    </div>
+                ) : qrCodeBase64 ? (
+                    <div className="mt-8 space-y-5">
+                        <div className="mx-auto w-fit rounded-2xl bg-white p-4">
+                            <img
+                                src={`data:image/png;base64,${qrCodeBase64}`}
+                                alt="QR Code do participante"
+                                width={220}
+                                height={220}
+                            />
+                        </div>
+                        {participant.ticketId ? (
+                            <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-xs text-slate-500">
+                                Ticket: <span className="text-slate-300">{participant.ticketId}</span>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : (
+                    <div className="mt-8 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-left">
+                        <p className="text-sm font-bold text-amber-100">
+                            O QR Code ainda não foi gerado.
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-amber-200/80">
+                            Quando um administrador gerar seu QR Code, ele aparecerá aqui automaticamente.
+                        </p>
+                    </div>
+                )}
 
                 <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-left">
-                    <p className="text-sm font-bold text-white">{user.name}</p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
+                    <p className="text-sm font-bold text-white">{participant?.name ?? user.name}</p>
+                    <p className="text-xs text-slate-500">{participant?.email ?? user.email}</p>
                 </div>
 
                 <div className="mt-6">
