@@ -32,8 +32,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setUser(getAuthUser());
-    setMounted(true);
+    queueMicrotask(() => {
+      setUser(getAuthUser());
+      setMounted(true);
+    });
   }, []);
 
   function login(data: LoginResponse) {

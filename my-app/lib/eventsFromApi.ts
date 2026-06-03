@@ -138,6 +138,38 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
   };
 }
 
+function unwrapParticipantPayload(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return [];
+  const o = data as Record<string, unknown>;
+  for (const c of [
+    o.participants,
+    o.participantList,
+    o.inscriptions,
+    o.registrations,
+    o.data,
+    o.content,
+    o.items,
+    o.results,
+    o.records,
+  ]) {
+    if (Array.isArray(c)) return c;
+  }
+  return [];
+}
+
+export function normalizeParticipantList(data: unknown): ApiParticipantNorm[] {
+  const items = unwrapParticipantPayload(data);
+  const out: ApiParticipantNorm[] = [];
+  for (const item of items) {
+    if (item && typeof item === "object") {
+      const participant = mapParticipant(item as Record<string, unknown>);
+      if (participant) out.push(participant);
+    }
+  }
+  return out;
+}
+
 function pickMaxParticipants(raw: Record<string, unknown>): number {
   const v = raw.maxParticipants ?? raw.max_participants ?? raw.maxParticipantsLimit;
   const n = num(v, NaN);

@@ -123,6 +123,14 @@ function deriveMockCreatedAt(participantId: number): string {
   return d.toISOString();
 }
 
+function isParticipantStatus(value: unknown): value is ParticipantStatus {
+  return value === "APPROVED" || value === "PENDING" || value === "REJECTED";
+}
+
+function getApprovedCount(ev: Evento) {
+  return ev.participantes.filter((p) => p.status === "APPROVED").length;
+}
+
 function mapNormToEvento(ev: ApiEventNorm): Evento {
   return {
     id: ev.id,
@@ -133,7 +141,9 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
     local: ev.location ?? "",
     max: ev.maxParticipants,
     participantes: ev.participants.map((p) => {
-      const status = (p.status as ParticipantStatus) ?? deriveMockParticipantStatus(p.id);
+      const status = isParticipantStatus(p.status)
+        ? p.status
+        : deriveMockParticipantStatus(p.id);
       return {
         id: p.id,
         nome: p.name,
@@ -218,10 +228,7 @@ function sortParticipantes<T extends { p: Participante }>(
 
 function getStatus(ev: Evento) {
   const cap = ev.max > 0 ? ev.max : 1;
-
-  const approved = ev.participantes.filter(
-    (p) => p.status === "APPROVED"
-  ).length;
+  const approved = getApprovedCount(ev);
 
   const p = approved / cap;
 
@@ -450,13 +457,13 @@ async function rejeitarParticipante(participanteId: number) {
    *   - EMAIL_ALLOWLIST: approve only if email domain is in allowlist
    *   - CAPACITY: approve in FIFO order until event.max is reached; others remain pending or rejected
    */
-  function applyApprovalRules() {
+  async function applyApprovalRules() {
     if (approvalMode !== "AUTO") return;
     const allowed = parseAllowlist();
+    const operations: { eventId: number; participantId: number; approve: boolean }[] = [];
 
-    // Use local snapshot to avoid stale closures; iterate events and participants
     eventos.forEach((ev) => {
-      const approvedCount = ev.participantes.filter((p) => p.status === "APPROVED").length;
+      const approvedCount = getApprovedCount(ev);
       let capacityLeft = ev.max > 0 ? ev.max - approvedCount : 0;
 
       // pending participants in deterministic order (createdAt || id)
@@ -487,15 +494,24 @@ async function rejeitarParticipante(participanteId: number) {
           }
         }
 
-        try {
-          if (shouldApprove) aprovarParticipante(p.id);
-          else rejeitarParticipante(p.id);
-        } catch (err) {
-          // keep UI stable; set formError to surface to admin
-          setFormError((e) => (String(err) || "Erro ao aplicar regra") ?? e);
-        }
+        operations.push({ eventId: ev.id, participantId: p.id, approve: shouldApprove });
       });
     });
+
+    if (!operations.length) return;
+
+    try {
+      setFormError(null);
+      for (const op of operations) {
+        await apiFetch(
+          `/events/${op.eventId}/participants/${op.participantId}/${op.approve ? "aprovar" : "rejeitar"}`,
+          { method: "PATCH" },
+        );
+      }
+      await recarregarEventos();
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    }
   }
 
   const eventoAtual = useMemo(
@@ -583,7 +599,7 @@ async function rejeitarParticipante(participanteId: number) {
       });
     });
 
-    const ativos = eventos.filter((e) => e.participantes.length < e.max).length;
+    const ativos = eventos.filter((e) => getApprovedCount(e) < e.max).length;
 
     return {
       total: eventos.length,
@@ -773,7 +789,7 @@ async function rejeitarParticipante(participanteId: number) {
                   local,
                   max: String(max),
                   category: form.category || "",
-                  requiresApproval: Boolean(form.private),
+                  private: Boolean(form.private),
                 },
                 eventHistoryFields,
               )
@@ -790,6 +806,7 @@ async function rejeitarParticipante(participanteId: number) {
               majority18: false,
               category: form.category || null,
               private: Boolean(form.private),
+              requiresApproval: Boolean(form.private),
             },
           });
           const n = normalizeEventRecord(updatedRaw as Record<string, unknown>);
@@ -816,6 +833,7 @@ async function rejeitarParticipante(participanteId: number) {
             formData.append("majority18", "false");
             formData.append("category", form.category || "");
             formData.append("requiresApproval", String(Boolean(form.private)));
+            formData.append("private", String(Boolean(form.private)));
 
             if (imageFile) {
               formData.append("image", imageFile);
@@ -931,14 +949,14 @@ async function rejeitarParticipante(participanteId: number) {
 
   const detalhePct = eventoAtual
     ? Math.round(
-        (eventoAtual.participantes.length / (eventoAtual.max > 0 ? eventoAtual.max : 1)) * 100,
+        (getApprovedCount(eventoAtual) / (eventoAtual.max > 0 ? eventoAtual.max : 1)) * 100,
       )
     : 0;
 
   function renderParticipantSortControls() {
     return (
       <div className="flex flex-wrap items-end gap-3">
-        <label className="block min-w-[190px]">
+        <label className="block w-full sm:min-w-[190px] sm:w-auto">
           <span className="mb-1 block text-xs font-bold text-slate-500">Ordenar por</span>
           <select
             value={participantSortBy}
@@ -952,7 +970,7 @@ async function rejeitarParticipante(participanteId: number) {
             ))}
           </select>
         </label>
-        <label className="block min-w-[160px]">
+        <label className="block w-full sm:min-w-[160px] sm:w-auto">
           <span className="mb-1 block text-xs font-bold text-slate-500">Direção</span>
           <select
             value={participantSortDirection}
@@ -972,8 +990,8 @@ async function rejeitarParticipante(participanteId: number) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <aside className="fixed left-0 top-0 z-10 flex h-screen w-[220px] flex-col gap-1 border-r border-slate-800 bg-slate-900 px-4 py-6">
-        <div className="mb-5 flex items-center gap-2.5 px-2 text-[15px] font-extrabold text-white">
+      <aside className="sticky top-0 z-20 flex w-full flex-col gap-3 border-b border-slate-800 bg-slate-900/95 px-4 py-4 backdrop-blur lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-[220px] lg:border-b-0 lg:border-r lg:py-6">
+        <div className="flex items-center gap-2.5 px-2 text-[15px] font-extrabold text-white lg:mb-5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-black text-white">
             E
           </span>
@@ -982,10 +1000,11 @@ async function rejeitarParticipante(participanteId: number) {
           </span>
         </div>
 
+        <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
         <button
           type="button"
           onClick={() => navigate("dashboard")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+          className={`flex shrink-0 cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
             activeNav === 0
               ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -997,7 +1016,7 @@ async function rejeitarParticipante(participanteId: number) {
         <button
           type="button"
           onClick={() => navigate("eventos")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+          className={`flex shrink-0 cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
             activeNav === 1
               ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -1010,7 +1029,7 @@ async function rejeitarParticipante(participanteId: number) {
         <button
           type="button"
           onClick={() => navigate("participantes")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+          className={`flex shrink-0 cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
             activeNav === 2
               ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -1022,7 +1041,7 @@ async function rejeitarParticipante(participanteId: number) {
         <button
           type="button"
           onClick={() => navigate("aprovacoes")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+          className={`flex shrink-0 cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
             activeNav === 3
               ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -1034,7 +1053,7 @@ async function rejeitarParticipante(participanteId: number) {
         <button
           type="button"
           onClick={() => navigate("usuarios")}
-          className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
+          className={`flex shrink-0 cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] transition-colors ${
             activeNav === 4
               ? "bg-slate-800 font-semibold text-white [&_svg]:text-primary"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
@@ -1044,10 +1063,12 @@ async function rejeitarParticipante(participanteId: number) {
           Usuários
         </button>
 
-        <div className="mt-auto border-t border-slate-800 pt-3">
+        </nav>
+
+        <div className="border-t border-slate-800 pt-3 lg:mt-auto">
           <Link
             href="/"
-            className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+            className="flex w-fit cursor-pointer items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 lg:w-full"
           >
             <NavIconBack />
             Voltar ao site
@@ -1055,7 +1076,7 @@ async function rejeitarParticipante(participanteId: number) {
         </div>
       </aside>
 
-      <div className="ml-[220px] min-h-screen bg-slate-950 px-10 py-8">
+      <div className="min-h-screen bg-slate-950 px-4 py-6 sm:px-6 lg:ml-[220px] lg:px-10 lg:py-8">
         {eventsApiError ? (
           <div
             className="mb-6 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200"
@@ -1079,7 +1100,7 @@ async function rejeitarParticipante(participanteId: number) {
           id="page-dashboard"
           className={currentPage === "dashboard" ? "block" : "hidden"}
         >
-          <div className="mb-8 flex items-start justify-between">
+          <div className="mb-8 flex flex-col items-start justify-between gap-3 sm:flex-row">
             <div>
               <h1 className="text-[26px] font-black tracking-tight text-white">
                 Dashboard
@@ -1087,7 +1108,7 @@ async function rejeitarParticipante(participanteId: number) {
               <p className="mt-1 text-[13px] text-slate-500">Visão geral do sistema</p>
             </div>
           </div>
-          <div className="mb-8 grid grid-cols-4 gap-3">
+          <div className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl bg-slate-900 px-5 py-4">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                 Total de eventos
@@ -1120,7 +1141,7 @@ async function rejeitarParticipante(participanteId: number) {
             </div>
           </div>
 
-          <div className="mb-8 grid grid-cols-2 gap-4">
+          <div className="mb-8 grid gap-4 xl:grid-cols-2">
             <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
               <div className="border-b border-slate-800 px-6 py-4">
                 <span className="text-sm font-extrabold text-white">Eventos criados nos últimos 6 meses</span>
@@ -1129,7 +1150,7 @@ async function rejeitarParticipante(participanteId: number) {
                 <EventsChart
                   events={eventos.map((ev) => ({
                     date: ev.data,
-                    participants: ev.participantes.length,
+                    participants: getApprovedCount(ev),
                     title: ev.titulo,
                   }))}
                   months={6}
@@ -1138,7 +1159,7 @@ async function rejeitarParticipante(participanteId: number) {
             </div>
 
             <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-4">
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex flex-col items-start justify-between gap-3 sm:flex-row">
                 <div>
                   <h3 className="text-sm font-extrabold text-white">Regras de aprovação</h3>
                   <p className="mt-1 text-[13px] text-slate-500">Defina se as inscrições são aprovadas manualmente ou automaticamente.</p>
@@ -1189,7 +1210,7 @@ async function rejeitarParticipante(participanteId: number) {
                 <div className="flex gap-2 justify-end">
                   <button
                     type="button"
-                    onClick={() => applyApprovalRules()}
+                    onClick={() => void applyApprovalRules()}
                     disabled={approvalMode !== 'AUTO'}
                     className="cursor-pointer rounded-[8px] border border-primary bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -1213,7 +1234,7 @@ async function rejeitarParticipante(participanteId: number) {
                 Gerenciar →
               </button>
             </div>
-            <table className="w-full border-collapse">
+            <table className="min-w-[760px] w-full border-collapse">
               <thead>
                 <tr>
                   <th className={thClass}>Evento</th>
@@ -1230,11 +1251,7 @@ async function rejeitarParticipante(participanteId: number) {
                     <td className={tdClass}>{fmtDate(ev.data)}</td>
                     <td className={tdClass}>{ev.local}</td>
                     <td className={tdClass}>
-                      {
-                        ev.participantes.filter(
-                          (p) => p.status === "APPROVED"
-                        ).length
-                      }/{ev.max}
+                      {getApprovedCount(ev)}/{ev.max}
                     </td>
                     <td className={tdClass}>
                       <StatusBadge ev={ev} />
@@ -1249,7 +1266,7 @@ async function rejeitarParticipante(participanteId: number) {
 
         {/* EVENTOS LIST */}
         <div id="page-eventos" className={currentPage === "eventos" ? "block" : "hidden"}>
-          <div className="mb-8 flex items-start justify-between">
+          <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row">
             <div>
               <h1 className="text-[26px] font-black tracking-tight text-white">Eventos</h1>
               <p className="mt-1 text-[13px] text-slate-500">
@@ -1270,8 +1287,8 @@ async function rejeitarParticipante(participanteId: number) {
               + Novo evento
             </button>
           </div>
-          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-            <table className="w-full border-collapse">
+          <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+            <table className="min-w-[860px] w-full border-collapse">
               <thead>
                 <tr>
                   <th className={thClass}>Título</th>
@@ -1298,11 +1315,7 @@ async function rejeitarParticipante(participanteId: number) {
                       </td>
                       <td className={tdClass}>{ev.local}</td>
                       <td className={tdClass}>
-                        {
-                        ev.participantes.filter(
-                          (p) => p.status === "APPROVED"
-                        ).length
-                      }/{ev.max}
+                        {getApprovedCount(ev)}/{ev.max}
                       </td>
                       <td className={tdClass}>
                         <StatusBadge ev={ev} />
@@ -1362,7 +1375,7 @@ async function rejeitarParticipante(participanteId: number) {
 
           <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="min-w-[980px] w-full border-collapse">
                 <thead>
                   <tr>
                     <th className={thClass}>Nome</th>
@@ -1446,7 +1459,7 @@ async function rejeitarParticipante(participanteId: number) {
           </button>
           {eventoAtual && (
             <>
-              <div className="mb-8 flex items-start justify-between">
+              <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row">
                 <div>
                   <h1 className="text-[26px] font-black tracking-tight text-white">
                     {eventoAtual.titulo}
@@ -1475,7 +1488,7 @@ async function rejeitarParticipante(participanteId: number) {
                   </button>
                 </div>
               </div>
-              <div className="mb-8 grid grid-cols-2 gap-5">
+              <div className="mb-8 grid gap-5 md:grid-cols-2">
                 <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
                   <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                     Informações
@@ -1511,7 +1524,7 @@ async function rejeitarParticipante(participanteId: number) {
                   </h3>
                   <div className="mb-1">
                     <span className="text-[32px] font-black text-white">
-                      {eventoAtual.participantes.length}
+                      {getApprovedCount(eventoAtual)}
                     </span>
                     <span className="ml-1 text-base text-slate-500">/ {eventoAtual.max}</span>
                   </div>
@@ -1533,11 +1546,11 @@ async function rejeitarParticipante(participanteId: number) {
                       }`}
                     />
                   </div>
-                  <div className="mt-2.5 flex items-center justify-between">
+                  <div className="mt-2.5 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
                     <span className="text-xs text-slate-500">
                       {detalhePct >= 100
                         ? "Evento lotado"
-                        : `${eventoAtual.max - eventoAtual.participantes.length} vagas restantes (${detalhePct}% preenchido)`}
+                        : `${Math.max(0, eventoAtual.max - getApprovedCount(eventoAtual))} vagas restantes (${detalhePct}% preenchido)`}
                     </span>
                     <span>
                       <StatusBadge ev={eventoAtual} />
@@ -1557,7 +1570,8 @@ async function rejeitarParticipante(participanteId: number) {
                   </div>
                   {renderParticipantSortControls()}
                 </div>
-                <table className="w-full border-collapse">
+                <div className="overflow-x-auto">
+                <table className="min-w-[980px] w-full border-collapse">
                   <thead>
                     <tr>
                       <th className={thClass}>Nome</th>
@@ -1615,6 +1629,7 @@ async function rejeitarParticipante(participanteId: number) {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               <div className="mt-8">
@@ -1644,7 +1659,7 @@ async function rejeitarParticipante(participanteId: number) {
       </p>
     </div>
     <div className="flex flex-wrap items-end gap-3">
-      <label className="block min-w-[170px]">
+      <label className="block w-full sm:min-w-[170px] sm:w-auto">
         <span className="mb-1 block text-xs font-bold text-slate-500">Filtro</span>
         <select
           value={aprovacoesFilter}
@@ -1716,7 +1731,7 @@ async function rejeitarParticipante(participanteId: number) {
 
         {/* USUÁRIOS */}
         <div id="page-usuarios" className={currentPage === "usuarios" ? "block" : "hidden"}>
-          <div className="mb-8 flex items-start justify-between">
+          <div className="mb-8 flex flex-col items-start justify-between gap-3 sm:flex-row">
             <div>
               <h1 className="text-[26px] font-black tracking-tight text-white">Usuários</h1>
               <p className="mt-1 text-[13px] text-slate-500">
@@ -1724,8 +1739,8 @@ async function rejeitarParticipante(participanteId: number) {
               </p>
             </div>
           </div>
-          <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-            <table className="w-full border-collapse">
+          <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
+            <table className="min-w-[640px] w-full border-collapse">
               <thead>
                 <tr>
                   <th className={thClass}>Nome</th>
@@ -1755,7 +1770,7 @@ async function rejeitarParticipante(participanteId: number) {
         }`}
         role="presentation"
       >
-        <div className="max-h-[90vh] w-full max-w-[520px] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900">
+        <div className="mx-4 max-h-[90vh] w-full max-w-[520px] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900">
           <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
             <span className="text-base font-extrabold text-white">{modalEventoTitulo}</span>
             <button
@@ -1829,7 +1844,7 @@ async function rejeitarParticipante(participanteId: number) {
               ) : null}
               {imageError ? <p className="mt-2 text-xs font-semibold text-red-300">{imageError}</p> : null}
             </div>
-            <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="mb-4 grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                   Data *
@@ -1853,7 +1868,7 @@ async function rejeitarParticipante(participanteId: number) {
                 />
               </div>
             </div>
-            <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="mb-4 grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                   Local *

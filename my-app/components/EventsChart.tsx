@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   LabelList,
 } from "recharts";
+import type { TooltipProps } from "recharts";
 
 type EventWithDate = {
   date: string;
@@ -43,7 +44,11 @@ function monthLabel(key: string) {
   return `${m}/${y}`;
 }
 
-function TooltipContent({ active, payload, label }: any) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload as AggregatedMonth;
   return (

@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { cancelRegistration } from "@/lib/cancelRegistration";
 import { getErrorMessage } from "@/lib/errors";
 import type { ApiEventNorm } from "@/lib/eventsFromApi";
-import { normalizeEventRecord } from "@/lib/eventsFromApi";
+import { normalizeEventRecord, normalizeParticipantList } from "@/lib/eventsFromApi";
 import { getCategoryForEvent } from "@/lib/categoryMocks";
 import { useAuth } from "@/context/AuthContext";
+import EventMaterials from "@/app/components/EventMaterials";
 import {
   canViewPrivateEventInfo,
   getParticipantForEmail,
@@ -16,10 +18,19 @@ import {
   isApprovedRegistration,
   isPendingRegistration,
 } from "@/lib/eventParticipants";
+import {
+  checkEventRegistration,
+  createEventRegistration,
+  forgetEventRegistration,
+  getRememberedEventRegistration,
+  isAlreadyRegisteredError,
+  rememberEventRegistration,
+} from "@/lib/eventRegistration";
 
 type EventByIdRaw = unknown;
 
 type EventDetails = ApiEventNorm;
+type RegistrationStatusHint = "PENDING" | "APPROVED" | "REJECTED" | null;
 
 function eventCoverStyle(imageUrl?: string | null) {
   if (!imageUrl) return undefined;
@@ -35,11 +46,25 @@ function infoCardClass() {
 export default function EventoDetalhesPage() {
   const { user } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const registeredFromLink = searchParams.get("registered") === "1";
+  const statusFromLink = searchParams.get("status");
+  const initialStatusHint: RegistrationStatusHint =
+    statusFromLink === "PENDING" || statusFromLink === "APPROVED" || statusFromLink === "REJECTED"
+      ? statusFromLink
+      : null;
+  const rememberedStatus =
+    typeof window !== "undefined"
+      ? getRememberedEventRegistration(id, user?.email)
+      : null;
 
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [registrationKnown, setRegistrationKnown] = useState(Boolean(registeredFromLink || rememberedStatus));
+  const [registrationStatusHint, setRegistrationStatusHint] =
+    useState<RegistrationStatusHint>(initialStatusHint ?? rememberedStatus);
 
   useEffect(() => {
     async function load() {
@@ -50,7 +75,32 @@ export default function EventoDetalhesPage() {
         const data = await apiFetch<EventByIdRaw>(`/events/${id}`, { method: "GET" });
         const norm = normalizeEventRecord(data as Record<string, unknown>);
         if (!norm) throw new Error("Evento não encontrado.");
-        setEvent(norm);
+        const participants = await apiFetch<unknown>(`/events/${id}/participants`, {
+          method: "GET",
+        })
+          .then(normalizeParticipantList)
+          .catch(() => []);
+        const eventWithParticipants = participants.length
+          ? { ...norm, participants }
+          : norm;
+        setEvent(eventWithParticipants);
+
+        if (user?.email) {
+          const participant = getParticipantForEmail(eventWithParticipants, user.email);
+          if (participant) {
+            setRegistrationKnown(true);
+            setRegistrationStatusHint(getParticipantStatus(participant));
+            rememberEventRegistration(id, user.email, getParticipantStatus(participant));
+          } else {
+            const cached = getRememberedEventRegistration(id, user.email);
+            const checked = await checkEventRegistration(id, user.email).catch(() => Boolean(registeredFromLink || cached));
+            setRegistrationKnown(checked);
+            if (checked) setRegistrationStatusHint((current) => current ?? cached ?? "PENDING");
+          }
+        } else {
+          setRegistrationKnown(registeredFromLink);
+          setRegistrationStatusHint(initialStatusHint);
+        }
       } catch (err: unknown) {
         setError(getErrorMessage(err));
       } finally {
@@ -59,7 +109,7 @@ export default function EventoDetalhesPage() {
     }
 
     if (id) void load();
-  }, [id]);
+  }, [id, user?.email, registeredFromLink, initialStatusHint]);
 
   function fmtDate(d: string) {
     const [y, m, dy] = d.split("-");
@@ -72,13 +122,20 @@ export default function EventoDetalhesPage() {
   }
 
   const currentParticipant = event ? getParticipantForEmail(event, user?.email) : null;
-  const hasRegistration = Boolean(currentParticipant);
-  const isApproved = isApprovedRegistration(currentParticipant);
-  const isPending = isPendingRegistration(currentParticipant);
-  const isRejected = getParticipantStatus(currentParticipant) === "REJECTED";
-  const full = Boolean(event && event.participants.length >= event.maxParticipants);
-  const canViewDetails = event ? canViewPrivateEventInfo(event, currentParticipant) : false;
+  const currentStatus = getParticipantStatus(currentParticipant) ?? registrationStatusHint;
+  const hasRegistration = Boolean(currentParticipant) || registrationKnown;
+  const isApproved = currentParticipant
+    ? isApprovedRegistration(currentParticipant)
+    : currentStatus === "APPROVED";
+  const isPending = currentParticipant
+    ? isPendingRegistration(currentParticipant)
+    : currentStatus === "PENDING" || (registrationKnown && !currentStatus);
+  const isRejected = currentStatus === "REJECTED";
   const approvedCount = event?.participants.filter((participant) => participant.status === "APPROVED").length ?? 0;
+  const full = Boolean(event && approvedCount >= event.maxParticipants);
+  const canViewDetails = event
+    ? canViewPrivateEventInfo(event, currentParticipant) || (hasRegistration && !isRejected)
+    : false;
   const capacityPercent = event
     ? Math.min(100, Math.round((approvedCount / Math.max(event.maxParticipants, 1)) * 100))
     : 0;
@@ -91,14 +148,15 @@ export default function EventoDetalhesPage() {
     : "Inscrição aberta";
   const statusDescription = hasRegistration
     ? isApproved
-      ? "Sua vaga foi aprovada. O check-in fica disponível pelo QR Code."
+      ? "Sua inscrição está ativa. Acesse o check-in pelo QR Code."
       : isPending
-      ? "A organização precisa aprovar sua inscrição antes de liberar as informações privadas."
+      ? "Sua inscrição está registrada. Você pode ver as informações do evento e acompanhar o check-in."
       : "Entre em contato com a organização para mais informações."
     : "Inscreva-se para participar deste evento.";
 
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [canceling, setCanceling] = useState(false);
   const [successBanner, setSuccessBanner] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -111,20 +169,26 @@ export default function EventoDetalhesPage() {
     setFormError(null);
     setSubmitting(true);
     try {
-      const alreadyRegistered = await apiFetch<{ emailInscrito?: boolean }>(
-        `/events/${id}/participants/check-email?email=${encodeURIComponent(user.email!)}`,
-        { method: "GET" },
-      ).catch(() => ({ emailInscrito: false }));
+      const alreadyRegistered = await checkEventRegistration(id, user.email).catch(() => false);
 
-      if (alreadyRegistered.emailInscrito) {
-        setFormError("Você já está inscrito neste evento.");
+      if (alreadyRegistered) {
+        setRegistrationKnown(true);
+        setRegistrationStatusHint("PENDING");
+        rememberEventRegistration(id, user.email, "PENDING");
+        setSuccessMessage("Você já está inscrito neste evento.");
+        setSuccessBanner(true);
+        window.setTimeout(() => setSuccessBanner(false), 4000);
         return;
       }
 
-      // POST to create participant using server-side authenticated user (no userId query param)
-      await apiFetch(`/events/${id}/participants`, {
-        method: "POST",
-      });
+      try {
+        await createEventRegistration(id, user);
+      } catch (err: unknown) {
+        if (!isAlreadyRegisteredError(err)) throw err;
+        setRegistrationKnown(true);
+        setRegistrationStatusHint("PENDING");
+        rememberEventRegistration(id, user.email, "PENDING");
+      }
 
       // reload event
       const raw = await apiFetch<unknown>(`/events/${id}`, { method: "GET" });
@@ -132,6 +196,9 @@ export default function EventoDetalhesPage() {
       setEvent(norm);
 
       const part = norm?.participants?.find((p) => p.email === user.email);
+      setRegistrationKnown(true);
+      setRegistrationStatusHint(getParticipantStatus(part) ?? "PENDING");
+      rememberEventRegistration(id, user.email, getParticipantStatus(part) ?? "PENDING");
       if (part) {
         if (part.status === "PENDING") {
           setSuccessMessage("Inscrição realizada — Aguardando aprovação do administrador.");
@@ -149,6 +216,41 @@ export default function EventoDetalhesPage() {
       setFormError(getErrorMessage(err));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function cancelCurrentRegistration() {
+    if (!event || !currentParticipant?.id) {
+      setFormError("Não foi possível localizar sua inscrição para cancelar.");
+      return;
+    }
+
+    if (!confirm("Tem certeza que deseja cancelar sua inscrição?")) return;
+
+    setCanceling(true);
+    setFormError(null);
+    try {
+      await cancelRegistration(event.id, currentParticipant.id);
+      setEvent((currentEvent) =>
+        currentEvent
+          ? {
+              ...currentEvent,
+              participants: currentEvent.participants.filter(
+                (participant) => participant.id !== currentParticipant.id,
+              ),
+            }
+          : currentEvent,
+      );
+      setRegistrationKnown(false);
+      setRegistrationStatusHint(null);
+      forgetEventRegistration(event.id, user?.email);
+      setSuccessMessage("Sua inscrição foi cancelada.");
+      setSuccessBanner(true);
+      window.setTimeout(() => setSuccessBanner(false), 4000);
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err));
+    } finally {
+      setCanceling(false);
     }
   }
 
@@ -218,7 +320,7 @@ export default function EventoDetalhesPage() {
                     </h1>
                     <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-400 sm:text-base">
                       {!canViewDetails
-                        ? "Informações privadas — sua inscrição precisa ser aprovada para ver os detalhes."
+	                        ? "Informações privadas — faça sua inscrição para ver os detalhes."
                         : event.description?.trim() || "Sem descrição."}
                     </p>
                   </div>
@@ -267,9 +369,21 @@ export default function EventoDetalhesPage() {
                 <p className="text-sm font-bold text-white">Sobre o evento</p>
                 <p className="mt-3 text-sm leading-7 text-slate-400">
                   {!canViewDetails
-                    ? "Este é um evento privado. As informações completas ficam disponíveis somente depois que sua inscrição for aprovada pela organização."
+                    ? "Este é um evento privado. As informações completas ficam disponíveis somente para usuários inscritos."
                     : event.description?.trim() || "Sem descrição."}
                 </p>
+              </section>
+
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
+                <p className="text-sm font-bold text-white">
+                  Área exclusiva para participantes
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Acesse materiais relacionados ao evento dentro da plataforma.
+                </p>
+                <div className="mt-5">
+                  <EventMaterials eventId={event.id} isApproved={hasRegistration && !isRejected} />
+                </div>
               </section>
             </main>
 
@@ -281,50 +395,48 @@ export default function EventoDetalhesPage() {
                 <h2 className="mt-2 text-xl font-black text-white">{statusTitle}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-slate-400">{statusDescription}</p>
 
-                {hasRegistration ? (
-                  isApproved ? (
-                    <Link
-                      href={`/checkin/${event.id}`}
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110"
-                    >
-                      Check-in (QR)
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-slate-800/60 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed"
-                      title={
-                        isPending
-                          ? "Sua inscrição está pendente — aguarde aprovação."
-                          : "Inscrição não aprovada."
-                      }
-                    >
-                      {isPending
-                        ? "Inscrição pendente"
-                        : isRejected
-                        ? "Inscrição não aprovada"
-                        : "Aprovação necessária"}
-                    </button>
-                  )
-                ) : (
-                  <>
-                    {formError ? (
-                      <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">{formError}</p>
-                    ) : null}
-                    {successBanner ? (
-                      <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100">{successMessage}</div>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => void enrollNow()}
-                      disabled={full || submitting}
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {full ? "Lotado" : submitting ? "Inscrevendo…" : "Inscrever-se"}
-                    </button>
-                  </>
-                )}
+	                {formError ? (
+	                  <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">{formError}</p>
+	                ) : null}
+	                {successBanner ? (
+	                  <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100">{successMessage}</div>
+	                ) : null}
+
+	                {hasRegistration && !isRejected ? (
+	                  <div className="mt-4 space-y-2">
+	                    <Link
+	                      href={`/checkin/${event.id}`}
+	                      className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110"
+	                    >
+	                      Check-in (QR)
+	                    </Link>
+	                    <button
+	                      type="button"
+	                      onClick={() => void cancelCurrentRegistration()}
+	                      disabled={canceling}
+	                      className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+	                    >
+	                      {canceling ? "Cancelando..." : "Cancelar inscrição"}
+	                    </button>
+	                  </div>
+	                ) : hasRegistration ? (
+	                  <button
+	                    type="button"
+	                    disabled
+	                    className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center rounded-xl bg-slate-800/60 px-4 py-3 text-sm font-bold text-slate-400"
+	                  >
+	                    Inscrição não aprovada
+	                  </button>
+	                ) : (
+	                  <button
+	                    type="button"
+	                    onClick={() => void enrollNow()}
+	                    disabled={full || submitting}
+	                    className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+	                  >
+	                    {full ? "Lotado" : submitting ? "Inscrevendo..." : "Inscrever-se"}
+	                  </button>
+	                )}
               </section>
 
               <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-5">

@@ -3,8 +3,12 @@
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { getParticipantForEmail, isApprovedRegistration } from "@/lib/eventParticipants";
-import { normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
+import { getParticipantForEmail } from "@/lib/eventParticipants";
+import {
+    normalizeEventRecord,
+    normalizeParticipantList,
+    type ApiEventNorm,
+} from "@/lib/eventsFromApi";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -31,7 +35,17 @@ export default function CheckinPage() {
                     throw new Error("Evento não encontrado.");
                 }
 
-                setEvent(normalizedEvent);
+                const participants = await apiFetch<unknown>(`/events/${eventId}/participants`, {
+                    method: "GET",
+                })
+                    .then(normalizeParticipantList)
+                    .catch(() => []);
+
+                setEvent(
+                    participants.length
+                        ? { ...normalizedEvent, participants }
+                        : normalizedEvent,
+                );
             } catch (err: unknown) {
                 setError(getErrorMessage(err));
                 setEvent(null);
@@ -48,7 +62,6 @@ export default function CheckinPage() {
     }, [eventId, user?.email]);
 
     const participant = event ? getParticipantForEmail(event, user?.email) : null;
-    const isApproved = isApprovedRegistration(participant);
     const qrCodeBase64 = participant?.qrCodeBase64;
 
     if (!user) {
@@ -90,15 +103,6 @@ export default function CheckinPage() {
                         </p>
                         <p className="mt-2 text-sm leading-6 text-red-200/80">
                             Use a mesma conta cadastrada no evento para acessar seu QR Code.
-                        </p>
-                    </div>
-                ) : !isApproved ? (
-                    <div className="mt-8 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-left">
-                        <p className="text-sm font-bold text-amber-100">
-                            Sua inscrição ainda não foi aprovada.
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-amber-200/80">
-                            O QR Code fica disponível depois da aprovação da organização.
                         </p>
                     </div>
                 ) : qrCodeBase64 ? (

@@ -18,6 +18,10 @@ import {
   isPendingRegistration,
 } from "@/lib/eventParticipants";
 import { cancelRegistration } from "@/lib/cancelRegistration";
+import {
+  forgetEventRegistration,
+  rememberEventRegistration,
+} from "@/lib/eventRegistration";
 import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
 
 type MyEventRow = {
@@ -43,12 +47,13 @@ export default function MeusEventosPage() {
   const [cancelingSubmitting, setCancelingSubmitting] = useState(false);
 
   const buildMyEventRows = useCallback(
-    (events: ApiEventNorm[]) =>
-      events.flatMap((event) => {
-        const participant = getParticipantForEmail(event, user?.email);
-        if (!participant || !isActiveRegistration(participant)) return [];
-        return [{ event, participant }];
-      }),
+	    (events: ApiEventNorm[]) =>
+	      events.flatMap((event) => {
+	        const participant = getParticipantForEmail(event, user?.email);
+	        if (!participant || !isActiveRegistration(participant)) return [];
+	        rememberEventRegistration(event.id, user?.email, participant.status);
+	        return [{ event, participant }];
+	      }),
     [user?.email],
   );
 
@@ -64,9 +69,10 @@ export default function MeusEventosPage() {
 
     setCancelingSubmitting(true);
     try {
-      await cancelRegistration(selectedEventId, selectedParticipantId);
+	      await cancelRegistration(selectedEventId, selectedParticipantId);
+	      forgetEventRegistration(selectedEventId, user?.email);
 
-      setMyEvents((currentEvents) =>
+	      setMyEvents((currentEvents) =>
         currentEvents.filter(
           ({ event, participant }) =>
             event.id !== selectedEventId || participant.id !== selectedParticipantId,

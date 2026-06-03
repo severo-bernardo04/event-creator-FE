@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
+import {
+  checkEventRegistration,
+  createEventRegistration,
+  forgetEventRegistration,
+  getRegistrationDetailHref,
+  isAlreadyRegisteredError,
+  rememberEventRegistration,
+} from "@/lib/eventRegistration";
 import { useAuth } from "@/context/AuthContext";
 import Carousel from "@/app/components/Carousel";
 import {
@@ -44,25 +52,18 @@ async function submitEnroll(eventId: number) {
   setSubmitting(true);
 
   try {
-    const alreadyRegistered = await apiFetch<{ emailInscrito: boolean }>(
-      `/events/${eventId}/participants/check-email?email=${encodeURIComponent(user.email)}`,
-      { method: "GET" },
-    );
+    const alreadyRegistered = await checkEventRegistration(eventId, user.email);
 
-    if (alreadyRegistered.emailInscrito) {
+    if (alreadyRegistered) {
       setFormError("Você já está inscrito neste evento.");
       return;
     }
 
-    await apiFetch(`/events/${eventId}/participants?userId=${user.userId}`, {
-      method: "POST",
-      json: {
-        name: user.name,
-        email: user.email,
-        phone: "",
-        cpf: user.cpf ?? "",
-      },
-    });
+    try {
+      await createEventRegistration(eventId, user);
+    } catch (err: unknown) {
+      if (!isAlreadyRegisteredError(err)) throw err;
+    }
 
     const data = await apiFetch<unknown>("/events", {
       method: "GET",
@@ -271,10 +272,18 @@ async function submitEnroll(eventId: number) {
                   ))
                 : displayEvents.map((ev) => {
   const participant = getParticipantForEmail(ev, user?.email);
-  const hasRegistration = Boolean(participant);
-  const isApproved = isApprovedRegistration(participant);
-  const isPending = isPendingRegistration(participant);
-  const canViewDetails = canViewPrivateEventInfo(ev, participant);
+	  const hasRegistration = Boolean(participant);
+	  const isApproved = isApprovedRegistration(participant);
+	  const isPending = isPendingRegistration(participant);
+	  const isRejected = participant?.status === "REJECTED";
+	  const registrationStatus = isPending ? "PENDING" : isApproved ? "APPROVED" : isRejected ? "REJECTED" : null;
+	  if (hasRegistration) {
+	    rememberEventRegistration(ev.id, user?.email, registrationStatus);
+	  } else {
+	    forgetEventRegistration(ev.id, user?.email);
+	  }
+	  const eventDetailHref = getRegistrationDetailHref(ev.id, registrationStatus);
+	  const canViewDetails = canViewPrivateEventInfo(ev, participant);
   const description = canViewDetails
     ? ev.description || "Sem descrição."
     : "Informações privadas — aguarde aprovação do administrador.";
@@ -313,7 +322,7 @@ async function submitEnroll(eventId: number) {
 
               {hasRegistration ? (
             <Link
-              href={`/eventos/${ev.id}`}
+              href={eventDetailHref}
               className={`mt-6 inline-flex w-full items-center justify-center rounded-xl border py-3 text-sm font-bold ${
                 isPending
                   ? "border-amber-400/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"

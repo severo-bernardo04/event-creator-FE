@@ -9,6 +9,14 @@ import { cancelRegistration } from "@/lib/cancelRegistration";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
 import {
+  checkEventRegistration,
+  createEventRegistration,
+  forgetEventRegistration,
+  getRegistrationDetailHref,
+  isAlreadyRegisteredError,
+  rememberEventRegistration,
+} from "@/lib/eventRegistration";
+import {
   canViewPrivateEventInfo,
   getParticipantForEmail,
   getParticipantStatus,
@@ -38,6 +46,10 @@ function eventCoverStyle(imageUrl?: string | null) {
   return {
     backgroundImage: `linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.34)), url("${imageUrl.replace(/"/g, "%22")}")`,
   };
+}
+
+function getApprovedCount(ev: ApiEventNorm) {
+  return ev.participants.filter((participant) => participant.status === "APPROVED").length;
 }
 
 export default function EventosPage() {
@@ -85,23 +97,17 @@ export default function EventosPage() {
     setFormError(null);
     setSubmitting(true);
     try {
-      const alreadyRegistered = await apiFetch<{ emailInscrito: boolean }>(
-          `/events/${eventId}/participants/check-email?email=${encodeURIComponent(user.email)}`,
-          { method: "GET" },
-      );
-      if (alreadyRegistered.emailInscrito) {
+      const alreadyRegistered = await checkEventRegistration(eventId, user.email);
+      if (alreadyRegistered) {
         setFormError("Você já está inscrito neste evento.");
+        await loadEvents();
         return;
       }
-      await apiFetch(`/events/${eventId}/participants?userId=${user.userId}`, {
-        method: "POST",
-        json: {
-          name: user.name,
-          email: user.email,
-          phone: "",
-          cpf: user.cpf ?? "",
-        },
-      });
+      try {
+        await createEventRegistration(eventId, user);
+      } catch (err: unknown) {
+        if (!isAlreadyRegisteredError(err)) throw err;
+      }
       setOpenId(null);
       // reload events and fetch single event to inspect participant status
       await loadEvents();
@@ -137,10 +143,11 @@ export default function EventosPage() {
     setSubmitting(true);
     try {
       const ev = eventList.find((e) => e.id === eventId);
-      const participant = ev?.participants.find((p) => p.email === user.email);
-      if (!participant?.id) throw new Error("Inscrição não encontrada.");
-      await cancelRegistration(eventId, participant.id);
-      setEvents((currentEvents) =>
+	      const participant = ev?.participants.find((p) => p.email === user.email);
+	      if (!participant?.id) throw new Error("Inscrição não encontrada.");
+	      await cancelRegistration(eventId, participant.id);
+	      forgetEventRegistration(eventId, user.email);
+	      setEvents((currentEvents) =>
         currentEvents.map((currentEvent) =>
           currentEvent.id === eventId
             ? {
@@ -172,7 +179,7 @@ export default function EventosPage() {
     return false;
   }
 
-  const full = ev.participants.length >= ev.maxParticipants;
+	  const full = getApprovedCount(ev) >= ev.maxParticipants;
 
   const CategoryOk =
     filterCategory === "Todos" ||
@@ -337,13 +344,20 @@ export default function EventosPage() {
           ) : (
               <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {paginated.map((ev) => {
-                  const count = ev.participants.length;
+	                  const count = getApprovedCount(ev);
                   const full = count >= ev.maxParticipants;
                   const participant = getParticipantForEmail(ev, user?.email);
                    const hasRegistration = Boolean(participant);
                    const isApproved = isApprovedRegistration(participant);
                    const isPending = isPendingRegistration(participant);
                    const isRejected = getParticipantStatus(participant) === "REJECTED";
+                   const registrationStatus = isPending ? "PENDING" : isApproved ? "APPROVED" : isRejected ? "REJECTED" : null;
+                   if (hasRegistration) {
+                     rememberEventRegistration(ev.id, user?.email, registrationStatus);
+                   } else {
+                     forgetEventRegistration(ev.id, user?.email);
+                   }
+                   const eventDetailHref = getRegistrationDetailHref(ev.id, registrationStatus);
                    const canViewDetails = canViewPrivateEventInfo(ev, participant);
                    const description = canViewDetails
                      ? ev.description?.trim() || "Sem descrição."
@@ -366,7 +380,7 @@ export default function EventosPage() {
                         </div>
                         <div className="flex flex-1 flex-col p-6">
                           <h2 className="text-lg font-bold text-white">
-                            <Link href={`/eventos/${ev.id}`} className="hover:underline">
+                            <Link href={eventDetailHref} className="hover:underline">
                               {ev.title}
                             </Link>
                           </h2>
@@ -383,12 +397,13 @@ export default function EventosPage() {
                                 {count}/{ev.maxParticipants} inscritos
                               </p>
                           <div className="mt-6 flex flex-wrap gap-2">
-                            {!isAdmin && (
-                              hasRegistration ? (
-                                <button
-                                  type="button"
-                                  disabled={submitting || isRejected}
-                                  onClick={() => handleUnenroll(ev.id)}
+	                            {!isAdmin && (
+	                              hasRegistration ? (
+	                                <>
+		                                <button
+	                                  type="button"
+	                                  disabled={submitting || isRejected}
+	                                  onClick={() => handleUnenroll(ev.id)}
                                   className={`inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold transition disabled:opacity-50 ${
                                     isPending
                                       ? "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-red-500/20 hover:border-red-500 hover:text-red-200"
@@ -397,15 +412,22 @@ export default function EventosPage() {
                                       : "cursor-not-allowed border-red-500/40 bg-red-500/10 text-red-300"
                                   }`}
                                 >
-                                  {submitting
-                                    ? "..."
-                                    : isPending
-                                    ? "Inscrição pendente — Cancelar"
-                                    : isApproved
-                                    ? "Inscrito — Cancelar"
-                                    : "Inscrição não aprovada"}
-                                </button>
-                              ) : (
+	                                  {submitting
+	                                    ? "..."
+	                                    : isPending
+	                                    ? "Inscrição pendente — Cancelar"
+	                                    : isApproved
+	                                    ? "Inscrito — Cancelar"
+	                                    : "Inscrição não aprovada"}
+	                                </button>
+	                                <Link
+		                                  href={eventDetailHref}
+	                                  className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl border border-slate-600 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800"
+	                                >
+		                                  Ver detalhes
+		                                </Link>
+	                                </>
+	                              ) : (
                                 <>
                                   <button
                                     type="button"

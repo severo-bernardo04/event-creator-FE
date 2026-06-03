@@ -38,7 +38,7 @@ export default function EventMaterials({ eventId, isApproved }: EventMaterialsPr
     return (
       <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
         <p className="text-sm font-semibold text-amber-100">
-          📌 Os materiais do evento estarão disponíveis após sua inscrição ser aprovada.
+          Os materiais do evento estarão disponíveis após sua inscrição.
         </p>
       </section>
     );
@@ -158,4 +158,3 @@ function MaterialCard({ material }: { material: EventMaterial }) {
     </div>
   );
 }
-

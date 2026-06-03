@@ -75,8 +75,8 @@ export default function EditarEventoPage() {
                     hora: (event.time ?? "").slice(0, 5),
                     local: event.location ?? "",
                     max: String(event.maxParticipants),
-                    category: (event as any).category ?? "",
-                    private: Boolean((event as any).private),
+                    category: event.category ?? "",
+                    private: Boolean(event.private),
                     imageUrl: event.imageUrl ?? null,
                 };
                 setForm(loadedForm);
@@ -148,10 +148,11 @@ export default function EditarEventoPage() {
                     { key: "local", label: "Local" },
                     { key: "max", label: "Máximo de participantes" },
                     { key: "category", label: "Categoria" },
+                    { key: "private", label: "Evento privado" },
                 ];
                 for (const { key, label } of fields) {
-                    const from = (original[key] ?? "").trim();
-                    const to = (form[key] ?? "").trim();
+                    const from = String(original[key] ?? "").trim();
+                    const to = String(form[key] ?? "").trim();
                     if (from !== to) {
                         changes.push({ field: label, from, to });
                     }
@@ -169,6 +170,7 @@ export default function EditarEventoPage() {
             formData.append("majority18", "false");
             formData.append("category", form.category || "");
             formData.append("requiresApproval", String(Boolean(form.private)));
+            formData.append("private", String(Boolean(form.private)));
 
             if (imageFile) {
                 formData.append("image", imageFile);

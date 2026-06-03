@@ -1,6 +1,11 @@
 import { ApiError, apiFetch } from "@/lib/api";
 import { getAuthUser } from "@/lib/auth";
-import { normalizeEventList, normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
+import {
+  normalizeEventList,
+  normalizeEventRecord,
+  normalizeParticipantList,
+  type ApiEventNorm,
+} from "@/lib/eventsFromApi";
 import { isActiveRegistration } from "@/lib/eventParticipants";
 
 function normalizeEventFromResponse(raw: unknown): ApiEventNorm | null {
@@ -32,14 +37,41 @@ function normalizeEventFromResponse(raw: unknown): ApiEventNorm | null {
 
 async function registrationStillActive(eventId: number, participantId: number) {
   const authUser = getAuthUser();
+  const normalizedEmail = authUser?.email.trim().toLowerCase();
+
+  if (normalizedEmail) {
+    try {
+      const checked = await apiFetch<{ emailInscrito?: boolean }>(
+        `/events/${eventId}/participants/check-email?email=${encodeURIComponent(normalizedEmail)}`,
+        { method: "GET" },
+      );
+      if (checked.emailInscrito === false) return false;
+    } catch {
+      // Fallback para as listagens abaixo.
+    }
+  }
+
+  try {
+    const participantsRaw = await apiFetch<unknown>(`/events/${eventId}/participants`, {
+      method: "GET",
+    });
+    const participant = normalizeParticipantList(participantsRaw).find(
+      (currentParticipant) =>
+        currentParticipant.id === participantId ||
+        (!!normalizedEmail && currentParticipant.email.trim().toLowerCase() === normalizedEmail),
+    );
+
+    return isActiveRegistration(participant);
+  } catch {
+    // Fallback para GET /events/{id}.
+  }
+
   const raw = await apiFetch<unknown>(`/events/${eventId}`, { method: "GET" });
   const event = normalizeEventFromResponse(raw);
 
   if (!event) {
     throw new Error("Não foi possível confirmar se a inscrição foi cancelada.");
   }
-
-  const normalizedEmail = authUser?.email.trim().toLowerCase();
 
   const participant = event.participants.find(
     (currentParticipant) =>
@@ -54,6 +86,10 @@ export async function cancelRegistration(eventId: number, participantId: number)
   let lastError: unknown = null;
 
   const cancelAttempts: Array<() => Promise<void>> = [
+    () =>
+      apiFetch<void>(`/events/${eventId}/participants/cancel`, {
+        method: "DELETE",
+      }),
     () =>
       apiFetch<void>(`/events/${eventId}/participants/${participantId}`, {
         method: "DELETE",
