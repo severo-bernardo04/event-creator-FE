@@ -16,9 +16,6 @@ import {
   isApprovedRegistration,
   isPendingRegistration,
 } from "@/lib/eventParticipants";
-import { cancelRegistration } from "@/lib/cancelRegistration";
-import EventMaterials from "@/app/components/EventMaterials";
-import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
 
 type EventByIdRaw = unknown;
 
@@ -105,17 +102,6 @@ export default function EventoDetalhesPage() {
   const [successBanner, setSuccessBanner] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [cancelModalOpen, setCancelModalOpen] = useState(false);
-
-  function isEventStarted(date: string, time: string | null) {
-    try {
-      const timeStr = time ? time.padEnd(8, ":00") : "00:00:00";
-      const eventDateTime = new Date(`${date}T${timeStr}`);
-      return eventDateTime < new Date();
-    } catch {
-      return false;
-    }
-  }
 
   async function enrollNow() {
     if (!user) {
@@ -161,34 +147,6 @@ export default function EventoDetalhesPage() {
       window.setTimeout(() => setSuccessBanner(false), 4000);
     } catch (err: unknown) {
       setFormError(getErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function cancelCurrentRegistration() {
-    if (!event || !currentParticipant?.id) {
-      throw new Error("Inscrição não encontrada.");
-    }
-
-    setSubmitting(true);
-    try {
-      await cancelRegistration(event.id, currentParticipant.id);
-
-      setSuccessMessage("Inscrição cancelada com sucesso.");
-      setSuccessBanner(true);
-      window.setTimeout(() => setSuccessBanner(false), 4000);
-
-      const raw = await apiFetch<unknown>(`/events/${id}`, {
-        method: "GET",
-      });
-
-      const norm = normalizeEventRecord(raw as Record<string, unknown>);
-      setEvent(norm);
-      setCancelModalOpen(false);
-    } catch (err: unknown) {
-      setFormError(getErrorMessage(err));
-      throw err;
     } finally {
       setSubmitting(false);
     }
@@ -315,8 +273,6 @@ export default function EventoDetalhesPage() {
               </section>
             </main>
 
-            <EventMaterials eventId={event.id} isApproved={isApproved} />
-
             <aside className="space-y-4 lg:sticky lg:top-6">
               <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/20">
                 <p className="text-xs font-bold uppercase tracking-widest text-secondary">
@@ -327,81 +283,43 @@ export default function EventoDetalhesPage() {
 
                 {hasRegistration ? (
                   isApproved ? (
-                    <>
-                      <Link
-                        href={`/checkin/${event.id}`}
-                        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110"
-                      >
-                        Check-in (QR)
-                      </Link>
-
-                      <button
-                        type="button"
-                        onClick={() => setCancelModalOpen(true)}
-                        disabled={submitting}
-                        className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20 disabled:opacity-50"
-                      >
-                        Cancelar Inscrição
-                      </button>
-
-                      <CancelRegistrationModal
-                        isOpen={cancelModalOpen}
-                        eventTitle={event.title}
-                        isLoading={submitting}
-                        canCancel={!isEventStarted(event.date, event.time)}
-                        onConfirm={cancelCurrentRegistration}
-                        onCancel={() => setCancelModalOpen(false)}
-                      />
-                    </>
+                    <Link
+                      href={`/checkin/${event.id}`}
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110"
+                    >
+                      Check-in (QR)
+                    </Link>
                   ) : (
-                    <>
-                      <button
-                        type="button"
-                        disabled
-                        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-slate-800/60 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed"
-                        title={isPending ? "Sua inscrição está pendente — aguarde aprovação." : "Inscrição não aprovada."}
-                      >
-                        {isPending ? "Inscrição pendente" : isRejected ? "Inscrição não aprovada" : "Aprovação necessária"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setCancelModalOpen(true)}
-                        disabled={submitting}
-                        className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20 disabled:opacity-50"
-                      >
-                        Cancelar Inscrição
-                      </button>
-
-                      <CancelRegistrationModal
-                        isOpen={cancelModalOpen}
-                        eventTitle={event.title}
-                        isLoading={submitting}
-                        canCancel={!isEventStarted(event.date, event.time)}
-                        onConfirm={cancelCurrentRegistration}
-                        onCancel={() => setCancelModalOpen(false)}
-                      />
-                    </>
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-slate-800/60 px-4 py-3 text-sm font-bold text-slate-400 cursor-not-allowed"
+                      title={
+                        isPending
+                          ? "Sua inscrição está pendente — aguarde aprovação."
+                          : "Inscrição não aprovada."
+                      }
+                    >
+                      {isPending
+                        ? "Inscrição pendente"
+                        : isRejected
+                        ? "Inscrição não aprovada"
+                        : "Aprovação necessária"}
+                    </button>
                   )
                 ) : (
                   <>
                     {formError ? (
-                      <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
-                        {formError}
-                      </p>
+                      <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">{formError}</p>
                     ) : null}
-
                     {successBanner ? (
-                      <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100">
-                        {successMessage}
-                      </div>
+                      <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100">{successMessage}</div>
                     ) : null}
-
                     <button
                       type="button"
                       onClick={() => void enrollNow()}
                       disabled={full || submitting}
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {full ? "Lotado" : submitting ? "Inscrevendo…" : "Inscrever-se"}
                     </button>

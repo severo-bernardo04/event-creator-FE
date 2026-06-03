@@ -23,6 +23,7 @@ type EventForm = {
     max: string;
     category?: string;
     private?: boolean;
+    imageUrl?: string | null;
 };
 
 export default function EditarEventoPage() {
@@ -46,6 +47,9 @@ export default function EditarEventoPage() {
         category: "",
     });
     const [initialForm, setInitialForm] = useState<EventForm | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageError, setImageError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!Number.isFinite(eventId)) {
@@ -73,6 +77,7 @@ export default function EditarEventoPage() {
                     max: String(event.maxParticipants),
                     category: (event as any).category ?? "",
                     private: Boolean((event as any).private),
+                    imageUrl: event.imageUrl ?? null,
                 };
                 setForm(loadedForm);
                 setInitialForm(loadedForm);
@@ -153,20 +158,26 @@ export default function EditarEventoPage() {
                 }
             }
 
+            const formData = new FormData();
+
+            formData.append("title", titulo);
+            formData.append("description", desc || "");
+            formData.append("date", data);
+            formData.append("time", timeForApi);
+            formData.append("location", local);
+            formData.append("maxParticipants", String(max));
+            formData.append("majority18", "false");
+            formData.append("category", form.category || "");
+            formData.append("requiresApproval", String(Boolean(form.private)));
+
+            if (imageFile) {
+                formData.append("image", imageFile);
+            }
+
             await apiFetch(`/events/${eventId}`, {
-                method: "PUT",
-                json: {
-                    title: titulo,
-                    description: desc || null,
-                    date: data,
-                    time: timeForApi,
-                    location: local,
-                    maxParticipants: max,
-                    majority18: false,
-                    category: form.category || null,
-                    private: Boolean(form.private),
-                },
-            });
+                method: "PATCH",
+                body: formData,
+});
             addEventHistory(
                 eventId,
                 user ? `${user.name} (${user.email})` : "Administrador",
@@ -242,6 +253,56 @@ export default function EditarEventoPage() {
                                 <div className="mb-4">
                                     <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
                                         Descrição
+                                        <div className="mb-4">
+    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+        Imagem do evento
+    </label>
+
+    {imagePreview || form.imageUrl ? (
+        <img
+            src={imagePreview || form.imageUrl || ""}
+            alt="Imagem atual do evento"
+            className="mb-3 h-40 w-full rounded-xl object-cover"
+        />
+    ) : null}
+
+    <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(e) => {
+            const file = e.target.files?.[0];
+            setImageError(null);
+
+            if (!file) return;
+
+            const allowed = ["image/jpeg", "image/png", "image/webp"];
+
+            if (!allowed.includes(file.type)) {
+                setImageError("Formato inválido. Use JPEG, PNG ou WEBP.");
+                setImageFile(null);
+                setImagePreview(null);
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                setImageError("A imagem deve ter no máximo 5MB.");
+                setImageFile(null);
+                setImagePreview(null);
+                return;
+            }
+
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+        }}
+        className={inputClass}
+    />
+
+    {imageError ? (
+        <p className="mt-2 text-xs font-semibold text-red-300">
+            {imageError}
+        </p>
+    ) : null}
+</div>
                                     </label>
                                     <textarea
                                         value={form.desc}
