@@ -11,9 +11,11 @@ import { normalizeEventList, normalizeEventRecord, type ApiEventNorm } from "@/l
 import {
   checkEventRegistration,
   createEventRegistration,
+  EVENT_REGISTRATION_CHANGED,
   forgetEventRegistration,
   getRegistrationDetailHref,
   isAlreadyRegisteredError,
+  notifyEventRegistrationChanged,
   rememberEventRegistration,
 } from "@/lib/eventRegistration";
 import {
@@ -84,6 +86,20 @@ export default function EventosPage() {
     void loadEvents();
   }, [loadEvents]);
 
+  useEffect(() => {
+    const refresh = () => {
+      void loadEvents();
+    };
+
+    window.addEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+    window.addEventListener("focus", refresh);
+
+    return () => {
+      window.removeEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [loadEvents]);
+
   function openEnroll(ev: ApiEventNorm) {
     setFormError(null);
     setOpenId(ev.id);
@@ -111,6 +127,7 @@ export default function EventosPage() {
       setOpenId(null);
       // reload events and fetch single event to inspect participant status
       await loadEvents();
+      notifyEventRegistrationChanged(eventId);
       try {
         const raw = await apiFetch<unknown>(`/events/${eventId}`, { method: "GET" });
         const norm = normalizeEventRecord(raw as Record<string, unknown>);
@@ -147,6 +164,7 @@ export default function EventosPage() {
 	      if (!participant?.id) throw new Error("Inscrição não encontrada.");
 	      await cancelRegistration(eventId, participant.id);
 	      forgetEventRegistration(eventId, user.email);
+	      notifyEventRegistrationChanged(eventId);
 	      setEvents((currentEvents) =>
         currentEvents.map((currentEvent) =>
           currentEvent.id === eventId

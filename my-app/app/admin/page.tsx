@@ -571,7 +571,7 @@ async function rejeitarParticipante(participanteId: number) {
       setMaterialsLoading(true);
       try {
         const data = await getMaterialsByEventId(eventoAtualId);
-        if (!cancelled) setMaterials(data.map((m) => ({ ...m, isApproved: true })));
+        if (!cancelled) setMaterials(data);
       } catch {
         if (!cancelled) setMaterials([]);
       } finally {

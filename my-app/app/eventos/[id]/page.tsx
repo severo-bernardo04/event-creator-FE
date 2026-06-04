@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { cancelRegistration } from "@/lib/cancelRegistration";
 import { getErrorMessage } from "@/lib/errors";
 import type { ApiEventNorm } from "@/lib/eventsFromApi";
-import { normalizeEventRecord, normalizeParticipantList } from "@/lib/eventsFromApi";
+import { normalizeEventList, normalizeEventRecord, normalizeParticipantList } from "@/lib/eventsFromApi";
 import { getCategoryForEvent } from "@/lib/categoryMocks";
 import { useAuth } from "@/context/AuthContext";
 import EventMaterials from "@/app/components/EventMaterials";
@@ -21,9 +21,11 @@ import {
 import {
   checkEventRegistration,
   createEventRegistration,
+  EVENT_REGISTRATION_CHANGED,
   forgetEventRegistration,
   getRememberedEventRegistration,
   isAlreadyRegisteredError,
+  notifyEventRegistrationChanged,
   rememberEventRegistration,
 } from "@/lib/eventRegistration";
 
@@ -41,6 +43,31 @@ function eventCoverStyle(imageUrl?: string | null) {
 
 function infoCardClass() {
   return "rounded-xl border border-slate-800 bg-slate-950/35 p-4";
+}
+
+async function loadEventWithParticipants(id: string): Promise<EventDetails> {
+  const data = await apiFetch<EventByIdRaw>(`/events/${id}`, { method: "GET" });
+  const norm = normalizeEventRecord(data as Record<string, unknown>);
+  if (!norm) throw new Error("Evento não encontrado.");
+
+  const participants = await apiFetch<unknown>(`/events/${id}/participants`, {
+    method: "GET",
+  })
+    .then(normalizeParticipantList)
+    .catch(() => []);
+
+  if (participants.length) {
+    return { ...norm, participants };
+  }
+
+  const events = await apiFetch<unknown>("/events", { method: "GET" })
+    .then(normalizeEventList)
+    .catch(() => []);
+  const fromList = events.find((currentEvent) => String(currentEvent.id) === String(id));
+
+  return fromList && fromList.participants.length
+    ? { ...norm, participants: fromList.participants }
+    : norm;
 }
 
 export default function EventoDetalhesPage() {
@@ -72,17 +99,7 @@ export default function EventoDetalhesPage() {
       setError(null);
       setEvent(null);
       try {
-        const data = await apiFetch<EventByIdRaw>(`/events/${id}`, { method: "GET" });
-        const norm = normalizeEventRecord(data as Record<string, unknown>);
-        if (!norm) throw new Error("Evento não encontrado.");
-        const participants = await apiFetch<unknown>(`/events/${id}/participants`, {
-          method: "GET",
-        })
-          .then(normalizeParticipantList)
-          .catch(() => []);
-        const eventWithParticipants = participants.length
-          ? { ...norm, participants }
-          : norm;
+        const eventWithParticipants = await loadEventWithParticipants(id);
         setEvent(eventWithParticipants);
 
         if (user?.email) {
@@ -110,6 +127,38 @@ export default function EventoDetalhesPage() {
 
     if (id) void load();
   }, [id, user?.email, registeredFromLink, initialStatusHint]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!id) return;
+      void loadEventWithParticipants(id)
+        .then((updatedEvent) => {
+          setEvent(updatedEvent);
+          if (!user?.email) return;
+
+          const participant = getParticipantForEmail(updatedEvent, user.email);
+          if (participant) {
+            const status = getParticipantStatus(participant);
+            setRegistrationKnown(true);
+            setRegistrationStatusHint(status);
+            rememberEventRegistration(id, user.email, status);
+          } else {
+            setRegistrationKnown(false);
+            setRegistrationStatusHint(null);
+            forgetEventRegistration(id, user.email);
+          }
+        })
+        .catch((err: unknown) => setError(getErrorMessage(err)));
+    };
+
+    window.addEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+    window.addEventListener("focus", refresh);
+
+    return () => {
+      window.removeEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [id, user?.email]);
 
   function fmtDate(d: string) {
     const [y, m, dy] = d.split("-");
@@ -169,12 +218,24 @@ export default function EventoDetalhesPage() {
     setFormError(null);
     setSubmitting(true);
     try {
+      if (hasRegistration) {
+        setSuccessMessage("Você já está inscrito neste evento.");
+        setSuccessBanner(true);
+        window.setTimeout(() => setSuccessBanner(false), 4000);
+        return;
+      }
+
       const alreadyRegistered = await checkEventRegistration(id, user.email).catch(() => false);
 
       if (alreadyRegistered) {
         setRegistrationKnown(true);
-        setRegistrationStatusHint("PENDING");
-        rememberEventRegistration(id, user.email, "PENDING");
+        setRegistrationStatusHint((current) => current ?? "PENDING");
+        const updatedEvent = await loadEventWithParticipants(id);
+        const participant = getParticipantForEmail(updatedEvent, user.email);
+        const status = getParticipantStatus(participant) ?? currentStatus ?? "PENDING";
+        setEvent(updatedEvent);
+        setRegistrationStatusHint(status);
+        rememberEventRegistration(id, user.email, status);
         setSuccessMessage("Você já está inscrito neste evento.");
         setSuccessBanner(true);
         window.setTimeout(() => setSuccessBanner(false), 4000);
@@ -190,12 +251,11 @@ export default function EventoDetalhesPage() {
         rememberEventRegistration(id, user.email, "PENDING");
       }
 
-      // reload event
-      const raw = await apiFetch<unknown>(`/events/${id}`, { method: "GET" });
-      const norm = normalizeEventRecord(raw as Record<string, unknown>);
-      setEvent(norm);
+      const updatedEvent = await loadEventWithParticipants(id);
+      setEvent(updatedEvent);
+      notifyEventRegistrationChanged(id);
 
-      const part = norm?.participants?.find((p) => p.email === user.email);
+      const part = getParticipantForEmail(updatedEvent, user.email);
       setRegistrationKnown(true);
       setRegistrationStatusHint(getParticipantStatus(part) ?? "PENDING");
       rememberEventRegistration(id, user.email, getParticipantStatus(part) ?? "PENDING");
@@ -244,6 +304,7 @@ export default function EventoDetalhesPage() {
       setRegistrationKnown(false);
       setRegistrationStatusHint(null);
       forgetEventRegistration(event.id, user?.email);
+      notifyEventRegistrationChanged(event.id);
       setSuccessMessage("Sua inscrição foi cancelada.");
       setSuccessBanner(true);
       window.setTimeout(() => setSuccessBanner(false), 4000);
@@ -382,7 +443,7 @@ export default function EventoDetalhesPage() {
                   Acesse materiais relacionados ao evento dentro da plataforma.
                 </p>
                 <div className="mt-5">
-                  <EventMaterials eventId={event.id} isApproved={hasRegistration && !isRejected} />
+                  <EventMaterials eventId={event.id} isApproved={hasRegistration && isApproved} />
                 </div>
               </section>
             </main>

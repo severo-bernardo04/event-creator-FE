@@ -1,4 +1,4 @@
-import { ApiError, apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { getAuthUser } from "@/lib/auth";
 import {
   normalizeEventList,
@@ -46,6 +46,7 @@ async function registrationStillActive(eventId: number, participantId: number) {
         { method: "GET" },
       );
       if (checked.emailInscrito === false) return false;
+      if (checked.emailInscrito === true) return true;
     } catch {
       // Fallback para as listagens abaixo.
     }
@@ -83,40 +84,12 @@ async function registrationStillActive(eventId: number, participantId: number) {
 }
 
 export async function cancelRegistration(eventId: number, participantId: number) {
-  let lastError: unknown = null;
+  await apiFetch<void>(`/events/${eventId}/participants/cancel`, {
+    method: "DELETE",
+  });
 
-  const cancelAttempts: Array<() => Promise<void>> = [
-    () =>
-      apiFetch<void>(`/events/${eventId}/participants/cancel`, {
-        method: "DELETE",
-      }),
-    () =>
-      apiFetch<void>(`/events/${eventId}/participants/${participantId}`, {
-        method: "DELETE",
-      }),
-    () =>
-      apiFetch<void>(`/events/${eventId}/participants/cancel?participantId=${participantId}`, {
-        method: "DELETE",
-      }),
-  ];
-
-  for (const attemptCancel of cancelAttempts) {
-    try {
-      await attemptCancel();
-
-      if (!(await registrationStillActive(eventId, participantId))) {
-        return;
-      }
-    } catch (err) {
-      lastError = err;
-      if (!(err instanceof ApiError) || ![403, 404, 405].includes(err.status)) {
-        throw err;
-      }
-    }
-  }
-
-  if (lastError instanceof Error) {
-    throw lastError;
+  if (!(await registrationStillActive(eventId, participantId))) {
+    return;
   }
 
   throw new Error("A API respondeu, mas a inscrição continua ativa no servidor.");

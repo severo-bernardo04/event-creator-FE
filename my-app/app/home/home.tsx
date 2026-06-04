@@ -1,15 +1,17 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 import {
   checkEventRegistration,
   createEventRegistration,
+  EVENT_REGISTRATION_CHANGED,
   forgetEventRegistration,
   getRegistrationDetailHref,
   isAlreadyRegisteredError,
+  notifyEventRegistrationChanged,
   rememberEventRegistration,
 } from "@/lib/eventRegistration";
 import { useAuth } from "@/context/AuthContext";
@@ -41,6 +43,11 @@ export function Home() {
   const [page, setPage] = useState(1);
   const perPage = 6;
 
+  const loadEvents = useCallback(async () => {
+    const data = await apiFetch<unknown>("/events", { method: "GET" });
+    setEvents(normalizeEventList(data));
+  }, []);
+
 
 async function submitEnroll(eventId: number) {
   if (!user) {
@@ -65,11 +72,8 @@ async function submitEnroll(eventId: number) {
       if (!isAlreadyRegisteredError(err)) throw err;
     }
 
-    const data = await apiFetch<unknown>("/events", {
-      method: "GET",
-    });
-
-    setEvents(normalizeEventList(data));
+    await loadEvents();
+    notifyEventRegistrationChanged(eventId);
 
     setOpenId(null);
   } catch (err: unknown) {
@@ -83,15 +87,28 @@ async function submitEnroll(eventId: number) {
   useEffect(() => {
     (async () => {
       try {
-        const data = await apiFetch<unknown>("/events", { method: "GET" });
-        setEvents(normalizeEventList(data));
+        await loadEvents();
       } catch (err: unknown) {
         setError(getErrorMessage(err));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [loadEvents]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadEvents().catch((err: unknown) => setError(getErrorMessage(err)));
+    };
+
+    window.addEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+    window.addEventListener("focus", refresh);
+
+    return () => {
+      window.removeEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [loadEvents]);
   useEffect(() => {
   setPage(1);
 }, [searchTerm, activeCategory]);

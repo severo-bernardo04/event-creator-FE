@@ -4,6 +4,10 @@ import type { AuthUser } from "@/types";
 export type RegistrationStatusHint = "PENDING" | "APPROVED" | "REJECTED";
 
 export type RegistrationCheck = {
+  data?: RegistrationCheck;
+  result?: RegistrationCheck;
+  registration?: RegistrationCheck;
+  participant?: RegistrationCheck;
   emailInscrito?: boolean;
   inscrito?: boolean;
   registered?: boolean;
@@ -13,6 +17,7 @@ export type RegistrationCheck = {
 };
 
 const REGISTRATION_CACHE_PREFIX = "event_registration";
+export const EVENT_REGISTRATION_CHANGED = "event-registration-changed";
 
 function registrationCacheKey(eventId: number | string, email: string) {
   return `${REGISTRATION_CACHE_PREFIX}:${eventId}:${email.trim().toLowerCase()}`;
@@ -26,6 +31,11 @@ function pickBoolean(value: unknown) {
     if (["false", "nao", "não", "no", "0"].includes(normalized)) return false;
   }
   return false;
+}
+
+function pickActiveStatus(status: unknown) {
+  const normalized = typeof status === "string" ? status.trim().toUpperCase() : "";
+  return normalized === "PENDING" || normalized === "APPROVED";
 }
 
 export function isAlreadyRegisteredError(err: unknown) {
@@ -79,6 +89,15 @@ export function getRememberedEventRegistration(
     : null;
 }
 
+export function notifyEventRegistrationChanged(eventId?: number | string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(EVENT_REGISTRATION_CHANGED, {
+      detail: eventId == null ? null : { eventId: String(eventId) },
+    }),
+  );
+}
+
 export async function checkEventRegistration(eventId: number | string, email: string) {
   const data = await apiFetch<RegistrationCheck | boolean | string>(
     `/events/${eventId}/participants/check-email?email=${encodeURIComponent(email)}`,
@@ -88,13 +107,34 @@ export async function checkEventRegistration(eventId: number | string, email: st
   if (pickBoolean(data)) return true;
   if (!data || typeof data !== "object") return false;
 
-  return (
+  const nested =
+    data.data ??
+    data.result ??
+    data.registration ??
+    data.participant;
+
+  const directCheck =
     pickBoolean(data.emailInscrito) ||
     pickBoolean(data.inscrito) ||
     pickBoolean(data.registered) ||
     pickBoolean(data.isRegistered) ||
-    pickBoolean(data.exists)
-  );
+    pickBoolean(data.exists) ||
+    pickActiveStatus(data.status);
+
+  if (directCheck) return true;
+
+  if (nested && typeof nested === "object") {
+    return (
+      pickBoolean(nested.emailInscrito) ||
+      pickBoolean(nested.inscrito) ||
+      pickBoolean(nested.registered) ||
+      pickBoolean(nested.isRegistered) ||
+      pickBoolean(nested.exists) ||
+      pickActiveStatus(nested.status)
+    );
+  }
+
+  return false;
 }
 
 export async function createEventRegistration(eventId: number | string, user: AuthUser) {

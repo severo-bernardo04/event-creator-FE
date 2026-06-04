@@ -97,9 +97,16 @@ function pickTicketValue(raw: Record<string, unknown>, key: string): unknown {
   return undefined;
 }
 
+function pickNestedRecord(raw: Record<string, unknown>, key: string): Record<string, unknown> | null {
+  const value = raw[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
 
 function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null {
-  const id = num(raw.id, NaN);
+  const user = pickNestedRecord(raw, "user") ?? pickNestedRecord(raw, "usuario");
+  const id = num(raw.id ?? raw.participantId ?? raw.inscriptionId ?? raw.registrationId, NaN);
   if (!Number.isFinite(id)) return null;
   const createdAt = raw.createdAt ?? raw.created_at ?? raw.registeredAt;
   const ticketId = raw.ticketId ?? raw.ticket_id ?? pickTicketValue(raw, "ticketId") ?? pickTicketValue(raw, "id");
@@ -117,9 +124,9 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
 
   return {
     id,
-    name: str(raw.name),
-    email: str(raw.email),
-    phone: str(raw.phone ?? raw.telefone),
+    name: str(raw.name ?? raw.nome ?? user?.name ?? user?.nome),
+    email: str(raw.email ?? user?.email),
+    phone: str(raw.phone ?? raw.telefone ?? user?.phone ?? user?.telefone),
     status: normalizeParticipantStatus(
     raw.status ?? raw.approvalStatus ?? raw.state
 ),

@@ -19,7 +19,9 @@ import {
 } from "@/lib/eventParticipants";
 import { cancelRegistration } from "@/lib/cancelRegistration";
 import {
+  EVENT_REGISTRATION_CHANGED,
   forgetEventRegistration,
+  notifyEventRegistrationChanged,
   rememberEventRegistration,
 } from "@/lib/eventRegistration";
 import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
@@ -64,6 +66,21 @@ export default function MeusEventosPage() {
     setCancelModalOpen(true);
   };
 
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch("/events", { method: "GET" });
+      const all = normalizeEventList(data);
+
+      setMyEvents(buildMyEventRows(all));
+      setError(null);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [buildMyEventRows]);
+
   const handleConfirmCancel = async () => {
     if (!selectedEventId || !selectedParticipantId) return;
 
@@ -71,6 +88,7 @@ export default function MeusEventosPage() {
     try {
 	      await cancelRegistration(selectedEventId, selectedParticipantId);
 	      forgetEventRegistration(selectedEventId, user?.email);
+	      notifyEventRegistrationChanged(selectedEventId);
 
 	      setMyEvents((currentEvents) =>
         currentEvents.filter(
@@ -91,25 +109,28 @@ export default function MeusEventosPage() {
   };
 
   useEffect(() => {
-    async function loadEvents() {
-      try {
-        const data = await apiFetch("/events", { method: "GET" });
-        const all = normalizeEventList(data);
-
-        setMyEvents(buildMyEventRows(all));
-      } catch (err: unknown) {
-        setError(getErrorMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    }
-
     if (user?.email) {
       void loadEvents();
     } else {
       setLoading(false);
     }
-  }, [buildMyEventRows, user?.email]);
+  }, [loadEvents, user?.email]);
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    const refresh = () => {
+      void loadEvents();
+    };
+
+    window.addEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+    window.addEventListener("focus", refresh);
+
+    return () => {
+      window.removeEventListener(EVENT_REGISTRATION_CHANGED, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [loadEvents, user?.email]);
 
   const pendingEvents = useMemo(
     () =>
