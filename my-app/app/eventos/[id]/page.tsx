@@ -11,6 +11,7 @@ import { normalizeEventList, normalizeEventRecord, normalizeParticipantList } fr
 import { getCategoryForEvent } from "@/lib/categoryMocks";
 import { useAuth } from "@/context/AuthContext";
 import EventMaterials from "@/app/components/EventMaterials";
+import EventNews from "@/app/components/EventNews";
 import {
   canViewPrivateEventInfo,
   getParticipantForEmail,
@@ -440,8 +441,11 @@ export default function EventoDetalhesPage() {
                   Área exclusiva para participantes
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Acesse materiais relacionados ao evento dentro da plataforma.
+                  Acesse noticias, avisos e materiais relacionados ao evento dentro da plataforma.
                 </p>
+                <div className="mt-5">
+                  <EventNews eventId={event.id} isApproved={hasRegistration && isApproved} />
+                </div>
                 <div className="mt-5">
                   <EventMaterials eventId={event.id} isApproved={hasRegistration && isApproved} />
                 </div>

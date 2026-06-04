@@ -22,6 +22,7 @@ type EventWithDate = {
 type Props = {
   events: EventWithDate[];
   months?: number;
+  height?: number;
 };
 
 type AggregatedMonth = {
@@ -74,7 +75,7 @@ function TooltipContent({
   );
 }
 
-export default function EventsChart({ events, months = 6 }: Props) {
+export default function EventsChart({ events, months = 6, height = 320 }: Props) {
   const now = new Date();
   const keys: string[] = [];
   for (let i = months - 1; i >= 0; i--) {
@@ -104,7 +105,7 @@ export default function EventsChart({ events, months = 6 }: Props) {
   const data = keys.map((k) => counts[k]);
 
   return (
-    <div className="w-full rounded-[20px] bg-slate-950/80 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.2)]" style={{ height: 320 }}>
+    <div className="w-full rounded-[20px] bg-slate-950/80 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.2)]" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 24, right: 20, left: 0, bottom: 12 }}>
           <defs>
