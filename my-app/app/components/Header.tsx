@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useBackToTop } from "../hooks/backToTop";
 import { useAuth } from "@/context/AuthContext";
+import NotificationCenter from "@/app/components/NotificationCenter";
 
 const Header = () => {
   const router = useRouter();
@@ -94,89 +95,92 @@ const Header = () => {
               </Link>
             </>
           ) : (
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((o) => !o)}
-                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-left text-sm font-bold text-white hover:border-slate-500 hover:bg-slate-800"
-                aria-expanded={menuOpen}
-                aria-haspopup="menu"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/25 text-sm font-black text-primary ring-1 ring-primary/30">
-                  {initial}
-                </span>
-                <span className="hidden max-w-[140px] truncate sm:inline">
-                  {user.name || user.email}
-                </span>
-                <svg
-                  className={`h-4 w-4 shrink-0 text-slate-400 transition ${menuOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
+            <>
+              <NotificationCenter placement="inline" />
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-left text-sm font-bold text-white hover:border-slate-500 hover:bg-slate-800"
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {menuOpen ? (
-                <div
-                  className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 py-2 shadow-xl"
-                  role="menu"
-                >
-                  <div className="border-b border-slate-800 px-4 py-3">
-                    <p className="truncate text-sm font-bold text-white">
-                      {user.name || "Usuário"}
-                    </p>
-                    <p className="truncate text-xs text-slate-500">{user.email}</p>
-                    <p className="mt-2">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${
-                          isAdmin
-                            ? "bg-amber-500/15 text-amber-300 ring-amber-500/25"
-                            : "bg-slate-500/15 text-slate-300 ring-slate-500/20"
-                        }`}
-                      >
-                        {isAdmin ? "Organizador" : "Participante"}
-                      </span>
-                    </p>
-                  </div>
-                  <Link
-                    href="/eventos"
-                    role="menuitem"
-                    className="block px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-                    onClick={() => setMenuOpen(false)}
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/25 text-sm font-black text-primary ring-1 ring-primary/30">
+                    {initial}
+                  </span>
+                  <span className="hidden max-w-[140px] truncate sm:inline">
+                    {user.name || user.email}
+                  </span>
+                  <svg
+                    className={`h-4 w-4 shrink-0 text-slate-400 transition ${menuOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
                   >
-                    Ver eventos
-                  </Link>
-                  <Link
-                      href="/perfil"
-                      role="menuitem"
-                      className="block px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-                      onClick={() => setMenuOpen(false)}
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {menuOpen ? (
+                  <div
+                    className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 py-2 shadow-xl"
+                    role="menu"
                   >
-                    Meu perfil
-                  </Link>
-                  {isAdmin ? (
+                    <div className="border-b border-slate-800 px-4 py-3">
+                      <p className="truncate text-sm font-bold text-white">
+                        {user.name || "Usuário"}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{user.email}</p>
+                      <p className="mt-2">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${
+                            isAdmin
+                              ? "bg-amber-500/15 text-amber-300 ring-amber-500/25"
+                              : "bg-slate-500/15 text-slate-300 ring-slate-500/20"
+                          }`}
+                        >
+                          {isAdmin ? "Organizador" : "Participante"}
+                        </span>
+                      </p>
+                    </div>
                     <Link
-                      href="/admin"
+                      href="/eventos"
                       role="menuitem"
                       className="block px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
                       onClick={() => setMenuOpen(false)}
                     >
-                      Meu painel
+                      Ver eventos
                     </Link>
-                  ) : null}
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-400 hover:bg-slate-800"
-                    onClick={() => void handleLogout()}
-                  >
-                    Sair
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                    <Link
+                        href="/perfil"
+                        role="menuitem"
+                        className="block px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                        onClick={() => setMenuOpen(false)}
+                    >
+                      Meu perfil
+                    </Link>
+                    {isAdmin ? (
+                      <Link
+                        href="/admin"
+                        role="menuitem"
+                        className="block px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Meu painel
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full px-4 py-2.5 text-left text-sm font-bold text-red-400 hover:bg-slate-800"
+                      onClick={() => void handleLogout()}
+                    >
+                      Sair
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       </div>

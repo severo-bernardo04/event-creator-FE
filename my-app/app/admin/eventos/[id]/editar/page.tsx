@@ -9,6 +9,7 @@ import { addEventHistory, type EventHistoryFieldChange } from "@/lib/eventHistor
 import { getErrorMessage } from "@/lib/errors";
 import { coerceTime, normalizeEventRecord } from "@/lib/eventsFromApi";
 import { CATEGORIES } from "@/lib/categoryMocks";
+import { notifyEventUpdated } from "@/lib/notifications";
 
 const inputClass =
     "w-full rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -157,6 +158,13 @@ export default function EditarEventoPage() {
                         changes.push({ field: label, from, to });
                     }
                 }
+                if (imageFile) {
+                    changes.push({
+                        field: "Imagem",
+                        from: original.imageUrl ? "Imagem atual" : "—",
+                        to: imageFile.name,
+                    });
+                }
             }
 
             const formData = new FormData();
@@ -176,15 +184,32 @@ export default function EditarEventoPage() {
                 formData.append("image", imageFile);
             }
 
-            await apiFetch(`/events/${eventId}`, {
+            const updatedRaw = await apiFetch<unknown>(`/events/${eventId}`, {
                 method: "PATCH",
                 body: formData,
 });
+            const updatedEvent = normalizeEventRecord(updatedRaw as Record<string, unknown>);
             addEventHistory(
                 eventId,
                 user ? `${user.name} (${user.email})` : "Administrador",
                 changes,
             );
+            await notifyEventUpdated(eventId, titulo, changes);
+            if (updatedEvent) {
+                const updatedForm: EventForm = {
+                    id: String(updatedEvent.id),
+                    titulo: updatedEvent.title,
+                    desc: updatedEvent.description ?? "",
+                    data: updatedEvent.date,
+                    hora: (updatedEvent.time ?? "").slice(0, 5),
+                    local: updatedEvent.location ?? "",
+                    max: String(updatedEvent.maxParticipants),
+                    category: updatedEvent.category ?? "",
+                    private: Boolean(updatedEvent.private),
+                    imageUrl: updatedEvent.imageUrl ?? null,
+                };
+                setInitialForm(updatedForm);
+            }
             router.push("/admin");
         } catch (err: unknown) {
             setFormError(getErrorMessage(err));

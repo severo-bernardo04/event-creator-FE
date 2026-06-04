@@ -25,6 +25,7 @@ import StatusParticipante from "@/components/StatusParticipante";
 import EventMaterialsManager from "@/components/EventMaterialsManager";
 import type { EventMaterial, ParticipantStatus } from "@/types";
 import { getMaterialsByEventId } from "@/lib/eventMaterials";
+import { createEventNotification, notifyEventUpdated } from "@/lib/notifications";
 
 type Participante = {
   id: number;
@@ -47,6 +48,7 @@ type Evento = {
   participantes: Participante[];
   category?: string | null;
   private?: boolean;
+  imageUrl?: string | null;
 };
 
 type PageId =
@@ -70,6 +72,7 @@ type EventHistorySnapshot = {
   max: string;
   category: string;
   private: boolean;
+  imageUrl: string;
 };
 
 type TicketResponse = {
@@ -77,6 +80,17 @@ type TicketResponse = {
   eventId: number;
   token: string;
   qrCodeBase64: string;
+};
+
+type AdminUser = {
+  id: number;
+  name: string;
+  email: string;
+  cpf?: string | null;
+  dataNascimento?: string | null;
+  role: string;
+  phone?: string | null;
+  address?: string | null;
 };
 
 const eventHistoryFields: EventHistoryFieldDefinition<EventHistorySnapshot>[] = [
@@ -88,6 +102,7 @@ const eventHistoryFields: EventHistoryFieldDefinition<EventHistorySnapshot>[] = 
   { key: "max", label: "Máx. participantes" },
   { key: "category", label: "Categoria" },
   { key: "private", label: "Evento privado" },
+  { key: "imageUrl", label: "Imagem" },
 ];
 
 const participantStatusLabels: Record<ParticipantStatus, string> = {
@@ -156,6 +171,7 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
     }),
     category: ev.category ?? undefined,
     private: Boolean(ev.private),
+    imageUrl: ev.imageUrl ?? null,
   };
   }
 
@@ -325,6 +341,9 @@ async function rejeitarParticipante(participanteId: number) {
   const [sessionRole, setSessionRole] = useState<string | null>(null);
   const [sessionHint, setSessionHint] = useState<string | null>(null);
   const [eventsApiError, setEventsApiError] = useState<string | null>(null);
+  const [usersApiError, setUsersApiError] = useState<string | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [updatingUserRoleId, setUpdatingUserRoleId] = useState<number | null>(null);
   /** CRUD de eventos exige sessão HTTP com role ADMIN (igual ao EventsController). */
   const canManage = sessionRole === "ADMIN";
   const canManageHint =
@@ -347,6 +366,10 @@ async function rejeitarParticipante(participanteId: number) {
   const [formError, setFormError] = useState<string | null>(null);
   const [materials, setMaterials] = useState<EventMaterial[]>([]);
   const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [notificationTitle, setNotificationTitle] = useState("");
+  const [notificationContent, setNotificationContent] = useState("");
+  const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
+  const [notificationSubmitting, setNotificationSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     id: "",
@@ -535,9 +558,28 @@ async function rejeitarParticipante(participanteId: number) {
         if (u && role) {
           setAuthUser({ ...u, role });
         }
+
+        if (role === "ADMIN") {
+          try {
+            const users = await apiFetch<AdminUser[]>("/users", { method: "GET" });
+            if (!cancelled) {
+              setAdminUsers(users);
+              setUsersApiError(null);
+            }
+          } catch (err: unknown) {
+            if (!cancelled) {
+              setAdminUsers([]);
+              setUsersApiError(getErrorMessage(err));
+            }
+          }
+        } else {
+          setAdminUsers([]);
+          setUsersApiError("Apenas administradores podem listar usuários.");
+        }
       } catch {
         if (cancelled) return;
         setSessionRole(null);
+        setAdminUsers([]);
         setSessionHint(
           "Sessão não encontrada. Faça login (de preferência com usuário ADMIN) em /login para criar ou editar eventos.",
         );
@@ -582,6 +624,16 @@ async function rejeitarParticipante(participanteId: number) {
     return () => {
       cancelled = true;
     };
+  }, [eventoAtualId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setNotificationTitle("");
+      setNotificationContent("");
+      setNotificationStatus(null);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [eventoAtualId]);
 
   const dashboardStats = useMemo(() => {
@@ -780,6 +832,7 @@ async function rejeitarParticipante(participanteId: number) {
                   max: String(originalEvent.max),
                   category: originalEvent.category ?? "",
                   private: Boolean(originalEvent.private),
+                  imageUrl: originalEvent.imageUrl ?? "",
                 },
                 {
                   titulo,
@@ -790,24 +843,29 @@ async function rejeitarParticipante(participanteId: number) {
                   max: String(max),
                   category: form.category || "",
                   private: Boolean(form.private),
+                  imageUrl: imageFile ? imageFile.name : originalEvent.imageUrl ?? "",
                 },
                 eventHistoryFields,
               )
             : [];
+          const formData = new FormData();
+          formData.append("title", titulo);
+          formData.append("description", desc || "");
+          formData.append("date", data);
+          formData.append("time", timeForApi);
+          formData.append("location", local);
+          formData.append("maxParticipants", String(max));
+          formData.append("majority18", "false");
+          formData.append("category", form.category || "");
+          formData.append("requiresApproval", String(Boolean(form.private)));
+
+          if (imageFile) {
+            formData.append("image", imageFile);
+          }
+
           const updatedRaw = await apiFetch<unknown>(`/events/${idNum}`, {
-            method: "PUT",
-            json: {
-              title: titulo,
-              description: desc || null,
-              date: data,
-              time: timeForApi,
-              location: local,
-              maxParticipants: max,
-              majority18: false,
-              category: form.category || null,
-              private: Boolean(form.private),
-              requiresApproval: Boolean(form.private),
-            },
+            method: "PATCH",
+            body: formData,
           });
           const n = normalizeEventRecord(updatedRaw as Record<string, unknown>);
           if (!n) {
@@ -820,6 +878,7 @@ async function rejeitarParticipante(participanteId: number) {
             user ? `${user.name} (${user.email})` : "Administrador",
             changes,
           );
+          await notifyEventUpdated(idNum, titulo, changes);
           setEventos((prev) => prev.map((e) => (e.id === idNum ? mapped : e)));
         } else {
               const formData = new FormData();
@@ -929,6 +988,61 @@ async function rejeitarParticipante(participanteId: number) {
 
   function excluirEventoAtual() {
     if (eventoAtualId != null) pedirExclusaoEvento(eventoAtualId);
+  }
+
+  async function enviarNotificacaoEvento() {
+    if (!eventoAtual) return;
+
+    const titulo = notificationTitle.trim();
+    const conteudo = notificationContent.trim();
+
+    if (!titulo || !conteudo) {
+      setNotificationStatus("Preencha o titulo e a mensagem da notificacao.");
+      return;
+    }
+
+    if (!canManage) {
+      setNotificationStatus("Para enviar notificacoes, faca login com um usuario ADMIN.");
+      return;
+    }
+
+    setNotificationSubmitting(true);
+    setNotificationStatus(null);
+    try {
+      await createEventNotification(eventoAtual.id, titulo, conteudo);
+      setNotificationTitle("");
+      setNotificationContent("");
+      setNotificationStatus("Notificacao enviada aos participantes inscritos.");
+    } catch (err: unknown) {
+      setNotificationStatus(getErrorMessage(err));
+    } finally {
+      setNotificationSubmitting(false);
+    }
+  }
+
+  async function alterarPapelUsuario(userId: number, role: "ADMIN" | "USER") {
+    setUpdatingUserRoleId(userId);
+    setUsersApiError(null);
+    try {
+      const updated = await apiFetch<AdminUser>(`/users/${userId}/role`, {
+        method: "PATCH",
+        json: { role },
+      });
+      setAdminUsers((currentUsers) =>
+        currentUsers.map((currentUser) =>
+          currentUser.id === userId ? updated : currentUser,
+        ),
+      );
+
+      if (user?.userId === userId) {
+        setAuthUser({ ...user, role: updated.role });
+        setSessionRole(updated.role);
+      }
+    } catch (err: unknown) {
+      setUsersApiError(getErrorMessage(err));
+    } finally {
+      setUpdatingUserRoleId(null);
+    }
   }
 
   const navIdx: Record<string, number> = {
@@ -1132,11 +1246,11 @@ async function rejeitarParticipante(participanteId: number) {
             </div>
             <div className="rounded-xl bg-slate-900 px-5 py-4">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                Usuários (painel)
+                Usuários
               </p>
-              <p className="text-[28px] font-black text-slate-400">—</p>
+              <p className="text-[28px] font-black text-white">{adminUsers.length}</p>
               <p className="mt-1 text-[11.5px] text-slate-500">
-                A API não expõe listagem de usuários; use o banco ou Postman para auditoria.
+                cadastrados na plataforma
               </p>
             </div>
           </div>
@@ -1558,6 +1672,58 @@ async function rejeitarParticipante(participanteId: number) {
                   </div>
                 </div>
               </div>
+              <div className="mb-8 rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                      Enviar notificacao
+                    </h3>
+                    <p className="mt-1 text-[13px] text-slate-400">
+                      A mensagem sera enviada aos usuarios inscritos neste evento.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-[minmax(180px,280px)_1fr_auto] md:items-start">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-slate-400">
+                      Titulo
+                    </span>
+                    <input
+                      value={notificationTitle}
+                      onChange={(event) => setNotificationTitle(event.target.value)}
+                      maxLength={120}
+                      className="w-full rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="Ex: Aviso importante"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-slate-400">
+                      Mensagem
+                    </span>
+                    <textarea
+                      value={notificationContent}
+                      onChange={(event) => setNotificationContent(event.target.value)}
+                      rows={3}
+                      maxLength={500}
+                      className="w-full resize-none rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="Digite o aviso que os participantes devem receber."
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void enviarNotificacaoEvento()}
+                    disabled={notificationSubmitting}
+                    className="mt-6 rounded-xl bg-secondary px-4 py-2.5 text-sm font-black text-slate-950 shadow-md hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 md:mt-[23px]"
+                  >
+                    {notificationSubmitting ? "Enviando..." : "Enviar"}
+                  </button>
+                </div>
+                {notificationStatus ? (
+                  <p className="mt-3 rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-[13px] font-semibold text-slate-300">
+                    {notificationStatus}
+                  </p>
+                ) : null}
+              </div>
               <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-4">
                   <div>
@@ -1747,15 +1913,62 @@ async function rejeitarParticipante(participanteId: number) {
                   <th className={thClass}>E-mail</th>
                   <th className={thClass}>Papel</th>
                   <th className={thClass}>Status</th>
+                  <th className={thClass}>Ação</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td colSpan={4} className="px-5 py-12 text-center text-sm text-slate-500">
-                    Não há endpoint público para listar usuários. O painel usa apenas dados de
-                    eventos e inscrições vindos de <span className="font-mono text-slate-400">GET /events</span>.
-                  </td>
-                </tr>
+                {usersApiError ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-sm text-red-300">
+                      {usersApiError}
+                    </td>
+                  </tr>
+                ) : !adminUsers.length ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-sm text-slate-500">
+                      Nenhum usuário cadastrado.
+                    </td>
+                  </tr>
+                ) : (
+                  adminUsers.map((adminUser) => (
+                    <tr key={adminUser.id} className="group hover:[&>td]:bg-slate-900/60">
+                      <td className={`${tdClass} font-semibold text-white`}>{adminUser.name}</td>
+                      <td className={`${tdClass} text-slate-500`}>{adminUser.email}</td>
+                      <td className={tdClass}>
+                        <span
+                          className={
+                            adminUser.role === "ADMIN"
+                              ? "rounded-full border border-secondary/30 bg-secondary/10 px-2.5 py-1 text-xs font-bold text-secondary"
+                              : "rounded-full border border-slate-700 bg-slate-800/60 px-2.5 py-1 text-xs font-bold text-slate-300"
+                          }
+                        >
+                          {adminUser.role === "ADMIN" ? "Administrador" : "Usuário"}
+                        </span>
+                      </td>
+                      <td className={tdClass}>
+                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-300">
+                          Ativo
+                        </span>
+                      </td>
+                      <td className={tdClass}>
+                        <select
+                          value={adminUser.role === "ADMIN" ? "ADMIN" : "USER"}
+                          disabled={updatingUserRoleId === adminUser.id}
+                          onChange={(event) =>
+                            void alterarPapelUsuario(
+                              adminUser.id,
+                              event.target.value === "ADMIN" ? "ADMIN" : "USER",
+                            )
+                          }
+                          className="rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="USER">Usuário</option>
+                          <option value="ADMIN">Administrador</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
