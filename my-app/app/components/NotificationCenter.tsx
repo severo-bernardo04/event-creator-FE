@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/api";
+import { API_BASE_URL, apiFetch } from "@/lib/api";
 import { normalizeEventList } from "@/lib/eventsFromApi";
 import { getParticipantForEmail, isActiveRegistration } from "@/lib/eventParticipants";
 
@@ -34,7 +34,6 @@ type NotificationCenterProps = {
   placement?: "fixed" | "inline";
 };
 
-const API_BASE_URL = "http://localhost:8080";
 const MAX_ITEMS = 30;
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 

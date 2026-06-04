@@ -32,7 +32,7 @@ export default function MeusEventosPage() {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, []);
 
     useEffect(() => {
         if (user) void loadMyEvents();

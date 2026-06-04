@@ -17,7 +17,7 @@ export function getErrorMessage(err: unknown): string {
       if (err.trim().startsWith("<!DOCTYPE") || err.trim().toLowerCase().startsWith("<html") || /<\/html>/.test(err)) return fallback;
       return err;
     }
-  } catch (e) {
+  } catch {
     // ignore and fallback
   }
   return fallback;

@@ -71,7 +71,8 @@ async function parseJsonSafe(res: Response) {
   }
 }
 
-const BASE_URL = "http://localhost:8080";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8080";
 
 type ApiFetchOptions = RequestInit & {
   json?: unknown;
@@ -116,7 +117,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const { headers, body } = buildApiRequest(init);
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
     body,

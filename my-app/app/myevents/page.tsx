@@ -38,6 +38,7 @@ function isEventFinished(date: string) {
 
 export default function MeusEventosPage() {
   const { user } = useAuth();
+  const userEmail = user?.email;
 
   const [myEvents, setMyEvents] = useState<MyEventRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,14 +50,13 @@ export default function MeusEventosPage() {
   const [cancelingSubmitting, setCancelingSubmitting] = useState(false);
 
   const buildMyEventRows = useCallback(
-	    (events: ApiEventNorm[]) =>
-	      events.flatMap((event) => {
-	        const participant = getParticipantForEmail(event, user?.email);
-	        if (!participant || !isActiveRegistration(participant)) return [];
-	        rememberEventRegistration(event.id, user?.email, participant.status);
-	        return [{ event, participant }];
-	      }),
-    [user?.email],
+    (events: ApiEventNorm[]) =>
+      events.flatMap((event) => {
+        const participant = getParticipantForEmail(event, userEmail);
+        if (!participant || !isActiveRegistration(participant)) return [];
+        return [{ event, participant }];
+      }),
+    [userEmail],
   );
 
   const handleCancelRequest = (eventId: number, participantId: number, eventTitle: string) => {
@@ -86,11 +86,11 @@ export default function MeusEventosPage() {
 
     setCancelingSubmitting(true);
     try {
-	      await cancelRegistration(selectedEventId, selectedParticipantId);
-	      forgetEventRegistration(selectedEventId, user?.email);
-	      notifyEventRegistrationChanged(selectedEventId);
+      await cancelRegistration(selectedEventId, selectedParticipantId);
+      forgetEventRegistration(selectedEventId, userEmail);
+      notifyEventRegistrationChanged(selectedEventId);
 
-	      setMyEvents((currentEvents) =>
+      setMyEvents((currentEvents) =>
         currentEvents.filter(
           ({ event, participant }) =>
             event.id !== selectedEventId || participant.id !== selectedParticipantId,
@@ -109,15 +109,23 @@ export default function MeusEventosPage() {
   };
 
   useEffect(() => {
-    if (user?.email) {
+    if (userEmail) {
       void loadEvents();
     } else {
       setLoading(false);
     }
-  }, [loadEvents, user?.email]);
+  }, [loadEvents, userEmail]);
 
   useEffect(() => {
-    if (!user?.email) return;
+    if (!userEmail) return;
+
+    myEvents.forEach(({ event, participant }) => {
+      rememberEventRegistration(event.id, userEmail, participant.status);
+    });
+  }, [myEvents, userEmail]);
+
+  useEffect(() => {
+    if (!userEmail) return;
 
     const refresh = () => {
       void loadEvents();
@@ -130,7 +138,7 @@ export default function MeusEventosPage() {
       window.removeEventListener(EVENT_REGISTRATION_CHANGED, refresh);
       window.removeEventListener("focus", refresh);
     };
-  }, [loadEvents, user?.email]);
+  }, [loadEvents, userEmail]);
 
   const pendingEvents = useMemo(
     () =>

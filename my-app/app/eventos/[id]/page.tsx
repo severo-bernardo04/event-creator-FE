@@ -43,7 +43,7 @@ function eventCoverStyle(imageUrl?: string | null) {
 }
 
 function infoCardClass() {
-  return "rounded-xl border border-slate-800 bg-slate-950/35 p-4";
+  return "min-w-0 rounded-xl border border-slate-800 bg-slate-950/35 p-4";
 }
 
 async function loadEventWithParticipants(id: string): Promise<EventDetails> {
@@ -200,7 +200,7 @@ export default function EventoDetalhesPage() {
     ? isApproved
       ? "Sua inscrição está ativa. Acesse o check-in pelo QR Code."
       : isPending
-      ? "Sua inscrição está registrada. Você pode ver as informações do evento e acompanhar o check-in."
+      ? "Sua inscrição está pendente. O QR Code será liberado somente após aprovação."
       : "Entre em contato com a organização para mais informações."
     : "Inscreva-se para participar deste evento.";
 
@@ -319,22 +319,22 @@ export default function EventoDetalhesPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="border-b border-slate-800 bg-slate-900/40">
-        <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5 lg:px-8">
           <Link
             href="/eventos"
-            className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+            className="shrink-0 rounded-xl border border-slate-600 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800 sm:px-4 sm:py-2.5"
           >
             Voltar
           </Link>
           {event ? (
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-400">
+            <span className="min-w-0 truncate rounded-full border border-slate-700 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-400">
               Evento #{event.id}
             </span>
           ) : null}
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1180px] px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
         {loading ? (
           <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
             <div className="animate-pulse rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
@@ -353,34 +353,34 @@ export default function EventoDetalhesPage() {
             <p className="text-red-300">{error}</p>
           </div>
         ) : event ? (
-          <div className="grid gap-6 lg:grid-cols-[1fr_340px] lg:items-start">
-            <main className="space-y-6">
+          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start xl:gap-6">
+            <main className="min-w-0 space-y-5 sm:space-y-6">
               <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/45">
                 <div
-                  className={`relative aspect-[16/7] min-h-[220px] w-full bg-cover bg-center ${
+                  className={`relative aspect-[4/3] min-h-[180px] w-full bg-cover bg-center sm:aspect-[16/8] sm:min-h-[220px] lg:aspect-[16/7] ${
                     event.imageUrl
                       ? "bg-slate-900"
                       : "bg-gradient-to-br from-primary/35 via-slate-900 to-secondary/15"
                   }`}
                   style={eventCoverStyle(event.imageUrl)}
                 >
-                  <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
+                  <span className="absolute left-3 top-3 max-w-[calc(100%-5.5rem)] truncate rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary sm:left-4 sm:top-4">
                     {event.category ? event.category : getCategoryForEvent(event.id)}
                   </span>
-                  <span className="absolute right-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                  <span className="absolute right-3 top-3 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-white sm:right-4 sm:top-4">
                     {event.majority18 ? "+18" : "Livre"}
                   </span>
                 </div>
 
-                <div className="p-6">
-                  <div>
+                <div className="p-4 sm:p-6">
+                  <div className="min-w-0">
                     <p className="text-sm font-bold uppercase tracking-widest text-secondary">
                       Detalhes do evento
                     </p>
-                    <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                    <h1 className="mt-2 break-words text-2xl font-black tracking-tight text-white sm:text-4xl">
                       {event.title}
                     </h1>
-                    <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-400 sm:text-base">
+                    <p className="mt-3 max-w-3xl break-words text-sm leading-relaxed text-slate-400 sm:text-base">
                       {!canViewDetails
 	                        ? "Informações privadas — faça sua inscrição para ver os detalhes."
                         : event.description?.trim() || "Sem descrição."}
@@ -392,10 +392,10 @@ export default function EventoDetalhesPage() {
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                         Data
                       </p>
-                      <p className="mt-2 text-base font-black text-white">
+                      <p className="mt-2 break-words text-base font-black text-white">
                         {fmtDate(event.date)}
                       </p>
-                      <p className="mt-1 text-sm text-slate-400">
+                      <p className="mt-1 break-words text-sm text-slate-400">
                         {timeShort(event.time)}
                       </p>
                     </div>
@@ -404,10 +404,10 @@ export default function EventoDetalhesPage() {
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                         Local
                       </p>
-                      <p className="mt-2 text-base font-black text-white">
+                      <p className="mt-2 break-words text-base font-black text-white">
                         {canViewDetails ? event.location || "A definir" : "Após aprovação"}
                       </p>
-                      <p className="mt-1 text-sm text-slate-400">
+                      <p className="mt-1 break-words text-sm text-slate-400">
                         {canViewDetails ? "Informação liberada" : "Evento privado"}
                       </p>
                     </div>
@@ -416,7 +416,7 @@ export default function EventoDetalhesPage() {
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                         Vagas
                       </p>
-                      <p className="mt-2 text-base font-black text-white">
+                      <p className="mt-2 break-words text-base font-black text-white">
                         {approvedCount}/{event.maxParticipants}
                       </p>
                       <p className="mt-1 text-sm text-slate-400">
@@ -427,20 +427,20 @@ export default function EventoDetalhesPage() {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
+              <section className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
                 <p className="text-sm font-bold text-white">Sobre o evento</p>
-                <p className="mt-3 text-sm leading-7 text-slate-400">
+                <p className="mt-3 break-words text-sm leading-7 text-slate-400">
                   {!canViewDetails
                     ? "Este é um evento privado. As informações completas ficam disponíveis somente para usuários inscritos."
                     : event.description?.trim() || "Sem descrição."}
                 </p>
               </section>
 
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
+              <section className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
                 <p className="text-sm font-bold text-white">
                   Área exclusiva para participantes
                 </p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
+                <p className="mt-2 break-words text-sm leading-6 text-slate-400">
                   Acesse noticias, avisos e materiais relacionados ao evento dentro da plataforma.
                 </p>
                 <div className="mt-5">
@@ -452,13 +452,13 @@ export default function EventoDetalhesPage() {
               </section>
             </main>
 
-            <aside className="space-y-4 lg:sticky lg:top-6">
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/20">
+            <aside className="min-w-0 space-y-4 lg:sticky lg:top-6">
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl shadow-black/20 sm:p-6">
                 <p className="text-xs font-bold uppercase tracking-widest text-secondary">
                   Sua participação
                 </p>
-                <h2 className="mt-2 text-xl font-black text-white">{statusTitle}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">{statusDescription}</p>
+                <h2 className="mt-2 break-words text-xl font-black text-white">{statusTitle}</h2>
+                <p className="mt-2 break-words text-sm leading-relaxed text-slate-400">{statusDescription}</p>
 
 	                {formError ? (
 	                  <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">{formError}</p>
@@ -467,7 +467,7 @@ export default function EventoDetalhesPage() {
 	                  <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100">{successMessage}</div>
 	                ) : null}
 
-	                {hasRegistration && !isRejected ? (
+	                {hasRegistration && isApproved ? (
 	                  <div className="mt-4 space-y-2">
 	                    <Link
 	                      href={`/checkin/${event.id}`}
@@ -482,6 +482,20 @@ export default function EventoDetalhesPage() {
 	                      className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
 	                    >
 	                      {canceling ? "Cancelando..." : "Cancelar inscrição"}
+	                    </button>
+	                  </div>
+	                ) : hasRegistration && isPending ? (
+	                  <div className="mt-4 space-y-2">
+	                    <div className="inline-flex w-full items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-200">
+	                      Inscrição pendente
+	                    </div>
+	                    <button
+	                      type="button"
+	                      onClick={() => void cancelCurrentRegistration()}
+	                      disabled={canceling}
+	                      className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+	                    >
+	                      {canceling ? "Cancelando..." : "Cancelar envio de inscrição"}
 	                    </button>
 	                  </div>
 	                ) : hasRegistration ? (
@@ -504,7 +518,7 @@ export default function EventoDetalhesPage() {
 	                )}
               </section>
 
-              <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-5">
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-bold text-white">Ocupação</span>
                   <span className="text-slate-400">{capacityPercent}%</span>

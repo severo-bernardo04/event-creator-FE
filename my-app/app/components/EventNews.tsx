@@ -84,9 +84,9 @@ export default function EventNews({ eventId, isApproved }: EventNewsProps) {
 
   if (!isApproved) {
     return (
-      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
-        <p className="text-sm font-semibold text-amber-100">
-          Noticias e avisos internos ficam disponiveis apos a aprovacao da inscricao.
+      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-6">
+        <p className="break-words text-sm font-semibold text-amber-100">
+          Notícias e avisos internos ficam disponíveis após a aprovação da inscrição.
         </p>
       </section>
     );
@@ -94,10 +94,10 @@ export default function EventNews({ eventId, isApproved }: EventNewsProps) {
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
         <div className="flex items-center justify-center gap-2 py-8">
           <LoaderCircle className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-slate-400">Carregando noticias e avisos...</span>
+          <span className="text-sm text-slate-400">Carregando notícias e avisos...</span>
         </div>
       </section>
     );
@@ -105,46 +105,46 @@ export default function EventNews({ eventId, isApproved }: EventNewsProps) {
 
   if (error) {
     return (
-      <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
-        <p className="text-sm text-red-300">{error}</p>
+      <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 sm:p-6">
+        <p className="break-words text-sm text-red-300">{error}</p>
       </section>
     );
   }
 
   if (!notices.length) {
     return (
-      <section className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/30 p-8 text-center">
+      <section className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/30 p-5 text-center sm:p-8">
         <Newspaper className="mx-auto h-10 w-10 text-slate-600" />
-        <p className="mt-3 text-sm text-slate-400">
-          Ainda nao ha noticias ou avisos publicados para este evento.
+        <p className="mt-3 break-words text-sm text-slate-400">
+          Ainda não há notícias ou avisos publicados para este evento.
         </p>
       </section>
     );
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
+    <section className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-white">Noticias e avisos</h2>
-          <p className="mt-1 text-sm text-slate-500">Comunicados internos publicados pela organizacao.</p>
+        <div className="min-w-0">
+          <h2 className="break-words text-lg font-bold text-white">Notícias e avisos</h2>
+          <p className="mt-1 break-words text-sm text-slate-500">Comunicados internos publicados pela organização.</p>
         </div>
-        <Megaphone className="h-5 w-5 text-secondary" />
+        <Megaphone className="h-5 w-5 shrink-0 text-secondary" />
       </div>
 
       <div className="space-y-3">
         {notices.map((notice) => (
-          <article key={notice.id} className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+          <article key={notice.id} className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/45 p-3 sm:p-4">
             <div className="flex flex-wrap items-center gap-2">
               {notice.id === latestNoticeId ? (
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-black uppercase text-slate-950">
                   Novo
                 </span>
               ) : null}
-              <time className="text-xs font-semibold text-slate-500">{formatDateTime(notice.createdAt)}</time>
+              <time className="break-words text-xs font-semibold text-slate-500">{formatDateTime(notice.createdAt)}</time>
             </div>
-            <h3 className="mt-2 text-base font-bold text-white">{notice.titulo}</h3>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-300">{notice.conteudo}</p>
+            <h3 className="mt-2 break-words text-base font-bold text-white">{notice.titulo}</h3>
+            <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-slate-300">{notice.conteudo}</p>
           </article>
         ))}
       </div>

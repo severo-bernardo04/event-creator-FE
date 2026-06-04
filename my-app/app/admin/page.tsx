@@ -420,6 +420,7 @@ async function rejeitarParticipante(participanteId: number) {
       });
 
       setTicket(data);
+      setTicketMessage("QR Code gerado e liberado para o participante aprovado.");
     } catch (err: unknown) {
       setTicketError(getErrorMessage(err));
     } finally {
@@ -803,27 +804,26 @@ async function rejeitarParticipante(participanteId: number) {
           await notifyEventUpdated(idNum, titulo, changes);
           setEventos((prev) => prev.map((e) => (e.id === idNum ? mapped : e)));
         } else {
-              const formData = new FormData();
+          const formData = new FormData();
 
-            formData.append("title", titulo);
-            formData.append("description", desc || "");
-            formData.append("date", data);
-            formData.append("time", timeForApi);
-            formData.append("location", local);
-            formData.append("maxParticipants", String(max));
-            formData.append("majority18", "false");
-            formData.append("category", form.category || "");
-            formData.append("requiresApproval", String(Boolean(form.private)));
-            formData.append("private", String(Boolean(form.private)));
+          formData.append("title", titulo);
+          formData.append("description", desc || "");
+          formData.append("date", data);
+          formData.append("time", timeForApi);
+          formData.append("location", local);
+          formData.append("maxParticipants", String(max));
+          formData.append("majority18", "false");
+          formData.append("category", form.category || "");
+          formData.append("requiresApproval", String(Boolean(form.private)));
 
-            if (imageFile) {
-              formData.append("image", imageFile);
-            }
+          if (imageFile) {
+            formData.append("image", imageFile);
+          }
 
-            const createdRaw = await apiFetch<unknown>("/events", {
-              method: "POST",
-              body: formData,
-});
+          const createdRaw = await apiFetch<unknown>("/events", {
+            method: "POST",
+            body: formData,
+          });
           const n = normalizeEventRecord(createdRaw as Record<string, unknown>);
           if (!n) {
             setFormError("Resposta inválida do servidor ao criar o evento.");
@@ -902,10 +902,6 @@ async function rejeitarParticipante(participanteId: number) {
       pendingActionRef.current = null;
     }
     closeModalConfirm();
-  }
-
-  function editarEventoAtual() {
-    if (eventoAtualId != null) openModalEvento(eventoAtualId);
   }
 
   function excluirEventoAtual() {
@@ -1660,12 +1656,18 @@ async function rejeitarParticipante(participanteId: number) {
               </div>
 
               <div className="mt-8">
-                <EventMaterialsManager
-                  eventId={eventoAtual.id}
-                  materials={materials}
-                  onMaterialsChange={setMaterials}
-                  isAdmin={canManage}
-                />
+                {materialsLoading ? (
+                  <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5 text-sm text-slate-400">
+                    Carregando materiais do evento...
+                  </div>
+                ) : (
+                  <EventMaterialsManager
+                    eventId={eventoAtual.id}
+                    materials={materials}
+                    onMaterialsChange={setMaterials}
+                    isAdmin={canManage}
+                  />
+                )}
               </div>
             </>
           )}

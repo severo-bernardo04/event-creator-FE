@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, Image, File, Link as LinkIcon, Download, LoaderCircle } from "lucide-react";
+import { FileText, Image as ImageIcon, File, Link as LinkIcon, Download, LoaderCircle } from "lucide-react";
 import { getMaterialsByEventId } from "@/lib/eventMaterials";
 import { getErrorMessage } from "@/lib/errors";
 import type { EventMaterial } from "@/types";
@@ -36,8 +36,8 @@ export default function EventMaterials({ eventId, isApproved }: EventMaterialsPr
 
   if (!isApproved) {
     return (
-      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
-        <p className="text-sm font-semibold text-amber-100">
+      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-6">
+        <p className="break-words text-sm font-semibold text-amber-100">
           Os materiais do evento estarão disponíveis após sua inscrição.
         </p>
       </section>
@@ -46,7 +46,7 @@ export default function EventMaterials({ eventId, isApproved }: EventMaterialsPr
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
         <div className="flex items-center justify-center gap-2 py-8">
           <LoaderCircle className="h-5 w-5 animate-spin text-primary" />
           <span className="text-sm text-slate-400">Carregando materiais...</span>
@@ -57,17 +57,17 @@ export default function EventMaterials({ eventId, isApproved }: EventMaterialsPr
 
   if (error) {
     return (
-      <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
-        <p className="text-sm text-red-300">{error}</p>
+      <section className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 sm:p-6">
+        <p className="break-words text-sm text-red-300">{error}</p>
       </section>
     );
   }
 
   if (!materials.length) {
     return (
-      <section className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/30 p-8 text-center">
+      <section className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/30 p-5 text-center sm:p-8">
         <FileText className="mx-auto h-10 w-10 text-slate-600" />
-        <p className="mt-3 text-sm text-slate-400">
+        <p className="mt-3 break-words text-sm text-slate-400">
           O organizador ainda não disponibilizou materiais para este evento.
         </p>
       </section>
@@ -75,8 +75,8 @@ export default function EventMaterials({ eventId, isApproved }: EventMaterialsPr
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-6">
-      <h2 className="mb-4 text-lg font-bold text-white">📚 Materiais do Evento</h2>
+    <section className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
+      <h2 className="mb-4 break-words text-lg font-bold text-white">Materiais do Evento</h2>
 
       <div className="space-y-3">
         {materials.map((material) => (
@@ -92,7 +92,7 @@ function MaterialCard({ material }: { material: EventMaterial }) {
     material.fileType === "PDF" ? (
       <FileText className="h-5 w-5 text-red-400" />
     ) : material.fileType === "IMAGE" ? (
-      <Image className="h-5 w-5 text-blue-400" />
+      <ImageIcon className="h-5 w-5 text-blue-400" />
     ) : material.fileType === "DOCUMENT" ? (
       <File className="h-5 w-5 text-orange-400" />
     ) : (
@@ -118,18 +118,18 @@ function MaterialCard({ material }: { material: EventMaterial }) {
   };
 
   return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4 transition hover:bg-slate-950/70">
+    <div className="flex min-w-0 items-start justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3 transition hover:bg-slate-950/70 sm:gap-4 sm:p-4">
       <div className="flex min-w-0 flex-1 gap-3">
         <div className="shrink-0 pt-0.5">{icon}</div>
 
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-white">{material.title}</h3>
+          <h3 className="break-words font-semibold text-white">{material.title}</h3>
 
           {material.description && (
-            <p className="mt-1 line-clamp-2 text-sm text-slate-400">{material.description}</p>
+            <p className="mt-1 line-clamp-2 break-words text-sm text-slate-400">{material.description}</p>
           )}
 
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
             <span>{formatFileSize(material.fileSize)}</span>
             <span>•</span>
             <span>
@@ -141,7 +141,7 @@ function MaterialCard({ material }: { material: EventMaterial }) {
             {material.uploadedBy && (
               <>
                 <span>•</span>
-                <span>por {material.uploadedBy}</span>
+                <span className="break-words">por {material.uploadedBy}</span>
               </>
             )}
           </div>

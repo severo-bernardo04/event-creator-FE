@@ -100,6 +100,17 @@ export default function EventosPage() {
     };
   }, [loadEvents]);
 
+  useEffect(() => {
+    if (!user?.email) return;
+
+    events.forEach((ev) => {
+      const participant = getParticipantForEmail(ev, user.email);
+      if (!participant) return;
+
+      rememberEventRegistration(ev.id, user.email, getParticipantStatus(participant));
+    });
+  }, [events, user?.email]);
+
   function openEnroll(ev: ApiEventNorm) {
     setFormError(null);
     setOpenId(ev.id);
@@ -157,15 +168,16 @@ export default function EventosPage() {
 
   async function handleUnenroll(eventId: number) {
     if (!user || !confirm("Tem certeza que deseja cancelar sua inscrição?")) return;
+    setFormError(null);
     setSubmitting(true);
     try {
       const ev = eventList.find((e) => e.id === eventId);
-	      const participant = ev?.participants.find((p) => p.email === user.email);
-	      if (!participant?.id) throw new Error("Inscrição não encontrada.");
-	      await cancelRegistration(eventId, participant.id);
-	      forgetEventRegistration(eventId, user.email);
-	      notifyEventRegistrationChanged(eventId);
-	      setEvents((currentEvents) =>
+      const participant = ev?.participants.find((p) => p.email === user.email);
+      if (!participant?.id) throw new Error("Inscrição não encontrada.");
+      await cancelRegistration(eventId, participant.id);
+      forgetEventRegistration(eventId, user.email);
+      notifyEventRegistrationChanged(eventId);
+      setEvents((currentEvents) =>
         currentEvents.map((currentEvent) =>
           currentEvent.id === eventId
             ? {
@@ -181,7 +193,7 @@ export default function EventosPage() {
       setSuccessBanner(true);
       window.setTimeout(() => setSuccessBanner(false), 4000);
     } catch (err: unknown) {
-      alert(getErrorMessage(err));
+      setFormError(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -261,6 +273,12 @@ export default function EventosPage() {
           {successBanner ? (
               <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100">
                 {successMessage}
+              </div>
+          ) : null}
+
+          {formError ? (
+              <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+                {formError}
               </div>
           ) : null}
 
@@ -362,25 +380,20 @@ export default function EventosPage() {
           ) : (
               <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {paginated.map((ev) => {
-	                  const count = getApprovedCount(ev);
+                  const count = getApprovedCount(ev);
                   const full = count >= ev.maxParticipants;
                   const participant = getParticipantForEmail(ev, user?.email);
-                   const hasRegistration = Boolean(participant);
-                   const isApproved = isApprovedRegistration(participant);
-                   const isPending = isPendingRegistration(participant);
-                   const isRejected = getParticipantStatus(participant) === "REJECTED";
-                   const registrationStatus = isPending ? "PENDING" : isApproved ? "APPROVED" : isRejected ? "REJECTED" : null;
-                   if (hasRegistration) {
-                     rememberEventRegistration(ev.id, user?.email, registrationStatus);
-                   } else {
-                     forgetEventRegistration(ev.id, user?.email);
-                   }
-                   const eventDetailHref = getRegistrationDetailHref(ev.id, registrationStatus);
-                   const canViewDetails = canViewPrivateEventInfo(ev, participant);
-                   const description = canViewDetails
-                     ? ev.description?.trim() || "Sem descrição."
-                     : "Informações privadas — aguarde aprovação do administrador.";
-                   const location = canViewDetails ? ev.location : null;
+                  const hasRegistration = Boolean(participant);
+                  const isApproved = isApprovedRegistration(participant);
+                  const isPending = isPendingRegistration(participant);
+                  const isRejected = getParticipantStatus(participant) === "REJECTED";
+                  const registrationStatus = isPending ? "PENDING" : isApproved ? "APPROVED" : isRejected ? "REJECTED" : null;
+                  const eventDetailHref = getRegistrationDetailHref(ev.id, registrationStatus);
+                  const canViewDetails = canViewPrivateEventInfo(ev, participant);
+                  const description = canViewDetails
+                    ? ev.description?.trim() || "Sem descrição."
+                    : "Informações privadas — aguarde aprovação do administrador.";
+                  const location = canViewDetails ? ev.location : null;
 
                   return (
                       <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">

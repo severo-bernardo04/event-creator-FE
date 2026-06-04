@@ -3,7 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { getParticipantForEmail } from "@/lib/eventParticipants";
+import { getParticipantForEmail, isApprovedRegistration, isPendingRegistration } from "@/lib/eventParticipants";
 import { checkEventRegistration } from "@/lib/eventRegistration";
 import {
     normalizeEventList,
@@ -28,6 +28,7 @@ export default function CheckinPage() {
     const eventId = params.eventId as string;
     const [event, setEvent] = useState<ApiEventNorm | null>(null);
     const [ticket, setTicket] = useState<TicketResponse | null>(null);
+    const [ticketError, setTicketError] = useState<string | null>(null);
     const [registrationConfirmed, setRegistrationConfirmed] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,8 @@ export default function CheckinPage() {
             setError(null);
 
             try {
+                setTicket(null);
+                setTicketError(null);
                 const data = await apiFetch<unknown>(`/events/${eventId}`, { method: "GET" });
                 const normalizedEvent = normalizeEventRecord(data as Record<string, unknown>);
 
@@ -69,7 +72,10 @@ export default function CheckinPage() {
                     setEvent(eventWithParticipants);
                     await apiFetch<TicketResponse>(`/tickets/events/${eventId}/me`, { method: "GET" })
                         .then(setTicket)
-                        .catch(() => setTicket(null));
+                        .catch((err: unknown) => {
+                            setTicket(null);
+                            setTicketError(getErrorMessage(err));
+                        });
                     return;
                 }
 
@@ -89,7 +95,10 @@ export default function CheckinPage() {
                     });
                     await apiFetch<TicketResponse>(`/tickets/events/${eventId}/me`, { method: "GET" })
                         .then(setTicket)
-                        .catch(() => setTicket(null));
+                        .catch((err: unknown) => {
+                            setTicket(null);
+                            setTicketError(getErrorMessage(err));
+                        });
                     return;
                 }
 
@@ -99,12 +108,16 @@ export default function CheckinPage() {
                 if (checked) {
                     await apiFetch<TicketResponse>(`/tickets/events/${eventId}/me`, { method: "GET" })
                         .then(setTicket)
-                        .catch(() => setTicket(null));
+                        .catch((err: unknown) => {
+                            setTicket(null);
+                            setTicketError(getErrorMessage(err));
+                        });
                 }
             } catch (err: unknown) {
                 setError(getErrorMessage(err));
                 setEvent(null);
                 setTicket(null);
+                setTicketError(null);
                 setRegistrationConfirmed(false);
             } finally {
                 setLoading(false);
@@ -115,7 +128,9 @@ export default function CheckinPage() {
     }, [eventId, user?.email]);
 
     const participant = event ? getParticipantForEmail(event, user?.email) : null;
-    const qrCodeBase64 = ticket?.qrCodeBase64 ?? participant?.qrCodeBase64;
+    const isApproved = isApprovedRegistration(participant);
+    const isPending = isPendingRegistration(participant);
+    const qrCodeBase64 = isApproved ? ticket?.qrCodeBase64 ?? participant?.qrCodeBase64 : undefined;
 
     if (!user) {
         return (
@@ -158,6 +173,24 @@ export default function CheckinPage() {
                             Use a mesma conta cadastrada no evento para acessar seu QR Code.
                         </p>
                     </div>
+                ) : participant && isPending ? (
+                    <div className="mt-8 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-left">
+                        <p className="text-sm font-bold text-amber-100">
+                            Inscrição pendente.
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-amber-200/80">
+                            O QR Code será liberado somente após a aprovação da sua inscrição.
+                        </p>
+                    </div>
+                ) : participant && !isApproved ? (
+                    <div className="mt-8 rounded-xl border border-red-500/25 bg-red-500/10 p-4 text-left">
+                        <p className="text-sm font-bold text-red-100">
+                            Inscrição não aprovada.
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-red-200/80">
+                            O QR Code não está disponível para esta inscrição.
+                        </p>
+                    </div>
                 ) : participant && qrCodeBase64 ? (
                     <div className="mt-8 space-y-5">
                         <div className="mx-auto w-fit rounded-2xl bg-white p-4">
@@ -180,7 +213,7 @@ export default function CheckinPage() {
                             O QR Code ainda não foi gerado.
                         </p>
                         <p className="mt-2 text-sm leading-6 text-amber-200/80">
-                            Sua inscrição foi encontrada, mas a API ainda não retornou um QR Code para este participante.
+                            {ticketError ?? "Sua inscrição foi encontrada, mas a API ainda não retornou um QR Code para este participante."}
                         </p>
                     </div>
                 )}

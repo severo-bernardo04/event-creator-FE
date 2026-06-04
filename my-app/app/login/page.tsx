@@ -175,12 +175,14 @@ function LoginForm() {
                   <input type="checkbox" className="h-4 w-4 accent-secondary" />
                   Lembrar de mim
                 </label>
-                <a
-                  href="#"
-                  className="font-medium text-secondary hover:text-yellow-300"
+                <button
+                  type="button"
+                  disabled
+                  className="cursor-not-allowed font-medium text-slate-500"
+                  title="Recuperação de senha ainda não disponível"
                 >
                   Esqueci minha senha
-                </a>
+                </button>
               </div>
 
               <button

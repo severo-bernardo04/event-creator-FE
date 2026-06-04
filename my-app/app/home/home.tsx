@@ -8,7 +8,6 @@ import {
   checkEventRegistration,
   createEventRegistration,
   EVENT_REGISTRATION_CHANGED,
-  forgetEventRegistration,
   getRegistrationDetailHref,
   isAlreadyRegisteredError,
   notifyEventRegistrationChanged,
@@ -109,6 +108,17 @@ async function submitEnroll(eventId: number) {
       window.removeEventListener("focus", refresh);
     };
   }, [loadEvents]);
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    events.forEach((ev) => {
+      const participant = getParticipantForEmail(ev, user.email);
+      if (!participant) return;
+
+      rememberEventRegistration(ev.id, user.email, participant.status);
+    });
+  }, [events, user?.email]);
   useEffect(() => {
   setPage(1);
 }, [searchTerm, activeCategory]);
@@ -288,23 +298,18 @@ async function submitEnroll(eventId: number) {
                     </article>
                   ))
                 : displayEvents.map((ev) => {
-  const participant = getParticipantForEmail(ev, user?.email);
-	  const hasRegistration = Boolean(participant);
-	  const isApproved = isApprovedRegistration(participant);
-	  const isPending = isPendingRegistration(participant);
-	  const isRejected = participant?.status === "REJECTED";
-	  const registrationStatus = isPending ? "PENDING" : isApproved ? "APPROVED" : isRejected ? "REJECTED" : null;
-	  if (hasRegistration) {
-	    rememberEventRegistration(ev.id, user?.email, registrationStatus);
-	  } else {
-	    forgetEventRegistration(ev.id, user?.email);
-	  }
-	  const eventDetailHref = getRegistrationDetailHref(ev.id, registrationStatus);
-	  const canViewDetails = canViewPrivateEventInfo(ev, participant);
-  const description = canViewDetails
-    ? ev.description || "Sem descrição."
-    : "Informações privadas — aguarde aprovação do administrador.";
-  const location = canViewDetails ? ev.location || "Local a definir" : "Local liberado após aprovação";
+                  const participant = getParticipantForEmail(ev, user?.email);
+                  const hasRegistration = Boolean(participant);
+                  const isApproved = isApprovedRegistration(participant);
+                  const isPending = isPendingRegistration(participant);
+                  const isRejected = participant?.status === "REJECTED";
+                  const registrationStatus = isPending ? "PENDING" : isApproved ? "APPROVED" : isRejected ? "REJECTED" : null;
+                  const eventDetailHref = getRegistrationDetailHref(ev.id, registrationStatus);
+                  const canViewDetails = canViewPrivateEventInfo(ev, participant);
+                  const description = canViewDetails
+                    ? ev.description || "Sem descrição."
+                    : "Informações privadas — aguarde aprovação do administrador.";
+                  const location = canViewDetails ? ev.location || "Local a definir" : "Local liberado após aprovação";
 
         return (
           <article
@@ -519,12 +524,12 @@ async function submitEnroll(eventId: number) {
           </span>
 
           <div className="flex gap-6">
-            <a href="#" className="hover:text-slate-300">
+            <span className="cursor-not-allowed text-slate-600" aria-disabled="true">
               Privacidade
-            </a>
-            <a href="#" className="hover:text-slate-300">
+            </span>
+            <span className="cursor-not-allowed text-slate-600" aria-disabled="true">
               Termos
-            </a>
+            </span>
           </div>
         </div>
       </footer>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, Image, File, Link as LinkIcon, Download, LoaderCircle } from "lucide-react";
+import { FileText, Image as ImageIcon, File, Link as LinkIcon, Download, LoaderCircle } from "lucide-react";
 import { getMaterialsByEventId } from "@/lib/eventMaterials";
 import { getErrorMessage } from "@/lib/errors";
 import type { EventMaterial } from "@/types";
@@ -92,7 +92,7 @@ function MaterialCard({ material }: { material: EventMaterial }) {
         material.fileType === "PDF" ? (
             <FileText className="h-5 w-5 text-red-400" />
         ) : material.fileType === "IMAGE" ? (
-            <Image className="h-5 w-5 text-blue-400" />
+            <ImageIcon className="h-5 w-5 text-blue-400" />
         ) : material.fileType === "DOCUMENT" ? (
             <File className="h-5 w-5 text-orange-400" />
         ) : (
