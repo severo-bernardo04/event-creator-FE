@@ -12,6 +12,8 @@ import { getCategoryForEvent } from "@/lib/categoryMocks";
 import { useAuth } from "@/context/AuthContext";
 import EventMaterials from "@/app/components/EventMaterials";
 import EventNews from "@/app/components/EventNews";
+import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
+import { canCancelRegistration } from "@/lib/eventDatetime";
 import {
   canViewPrivateEventInfo,
   getParticipantForEmail,
@@ -207,6 +209,7 @@ export default function EventoDetalhesPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [successBanner, setSuccessBanner] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -285,8 +288,6 @@ export default function EventoDetalhesPage() {
       setFormError("Não foi possível localizar sua inscrição para cancelar.");
       return;
     }
-
-    if (!confirm("Tem certeza que deseja cancelar sua inscrição?")) return;
 
     setCanceling(true);
     setFormError(null);
@@ -436,6 +437,57 @@ export default function EventoDetalhesPage() {
                 </p>
               </section>
 
+              {canViewDetails && event.speakers.length ? (
+                <section className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
+                  <p className="text-sm font-bold text-white">Palestrantes</p>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    {event.speakers.map((speaker, index) => (
+                      <article
+                        key={`${speaker.id ?? speaker.name}-${index}`}
+                        className="rounded-xl border border-slate-800 bg-slate-950/45 p-4"
+                      >
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                          Palestrante {index + 1}
+                        </p>
+                        <h2 className="mt-1 break-words text-lg font-black text-white">
+                          {speaker.name}
+                        </h2>
+                        {speaker.topics.length ? (
+                          <div className="mt-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-secondary">
+                              Temas apresentados
+                            </p>
+                            <p className="mt-1 break-words text-sm leading-6 text-slate-300">
+                              {speaker.topics.join(", ")}
+                            </p>
+                          </div>
+                        ) : null}
+                        {speaker.bio ? (
+                          <div className="mt-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                              Mini biografia
+                            </p>
+                            <p className="mt-1 break-words text-sm leading-6 text-slate-400">
+                              {speaker.bio}
+                            </p>
+                          </div>
+                        ) : null}
+                        {speaker.agenda ? (
+                          <div className="mt-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                              Agenda individual
+                            </p>
+                            <p className="mt-1 break-words text-sm leading-6 text-slate-400">
+                              {speaker.agenda}
+                            </p>
+                          </div>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
               <section className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/45 p-4 sm:p-6">
                 <p className="text-sm font-bold text-white">
                   Área exclusiva para participantes
@@ -477,7 +529,7 @@ export default function EventoDetalhesPage() {
 	                    </Link>
 	                    <button
 	                      type="button"
-	                      onClick={() => void cancelCurrentRegistration()}
+		                      onClick={() => setCancelModalOpen(true)}
 	                      disabled={canceling}
 	                      className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
 	                    >
@@ -491,7 +543,7 @@ export default function EventoDetalhesPage() {
 	                    </div>
 	                    <button
 	                      type="button"
-	                      onClick={() => void cancelCurrentRegistration()}
+	                      onClick={() => setCancelModalOpen(true)}
 	                      disabled={canceling}
 	                      className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
 	                    >
@@ -540,6 +592,17 @@ export default function EventoDetalhesPage() {
             </aside>
           </div>
         ) : null}
+        <CancelRegistrationModal
+          isOpen={cancelModalOpen}
+          eventTitle={event?.title ?? "este evento"}
+          isLoading={canceling}
+          canCancel={event ? canCancelRegistration(event.date, event.time) : true}
+          onConfirm={async () => {
+            await cancelCurrentRegistration();
+            setCancelModalOpen(false);
+          }}
+          onCancel={() => setCancelModalOpen(false)}
+        />
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { cancelRegistration } from "@/lib/cancelRegistration";
 import { getErrorMessage } from "@/lib/errors";
+import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
+import { canCancelRegistration } from "@/lib/eventDatetime";
 import { normalizeEventList, normalizeEventRecord, type ApiEventNorm } from "@/lib/eventsFromApi";
 import {
   checkEventRegistration,
@@ -67,6 +69,7 @@ export default function EventosPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [filterCategory, setFilterCategory] = useState("Todos");
   const [filterStatus, setFilterStatus] = useState("Todos");
+  const [cancelEventId, setCancelEventId] = useState<number | null>(null);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -167,7 +170,7 @@ export default function EventosPage() {
   }
 
   async function handleUnenroll(eventId: number) {
-    if (!user || !confirm("Tem certeza que deseja cancelar sua inscrição?")) return;
+    if (!user) return;
     setFormError(null);
     setSubmitting(true);
     try {
@@ -191,6 +194,7 @@ export default function EventosPage() {
       );
       setSuccessMessage("Sua inscrição foi cancelada.");
       setSuccessBanner(true);
+      setCancelEventId(null);
       window.setTimeout(() => setSuccessBanner(false), 4000);
     } catch (err: unknown) {
       setFormError(getErrorMessage(err));
@@ -200,6 +204,9 @@ export default function EventosPage() {
   }
 
   const eventList = Array.isArray(events) ? events : [];
+  const cancelEvent = cancelEventId != null
+    ? eventList.find((eventItem) => eventItem.id === cancelEventId) ?? null
+    : null;
 
   const filtered = eventList.filter((ev) => {
   const eventDate = new Date(`${ev.date}T${ev.time || "00:00"}`);
@@ -395,7 +402,8 @@ export default function EventosPage() {
                     ? ev.description?.trim() || "Sem descrição."
                     : "Informações privadas — aguarde aprovação do administrador.";
                   const location = canViewDetails ? ev.location : null;
-                  const mainSpeaker = ev.speakers[0];
+                  const visibleSpeakers = ev.speakers.slice(0, 2);
+                  const hiddenSpeakersCount = Math.max(0, ev.speakers.length - visibleSpeakers.length);
 
                   return (
                       <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
@@ -420,15 +428,37 @@ export default function EventosPage() {
                           <p className="mt-2 line-clamp-2 text-sm text-slate-400">
                             {description}
                           </p>
-                          {mainSpeaker ? (
-                            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2">
-                              <p className="text-xs font-bold uppercase tracking-wide text-secondary">
-                                {mainSpeaker.name}
-                              </p>
-                              {mainSpeaker.bio ? (
-                                <p className="mt-1 line-clamp-2 text-sm text-slate-400">
-                                  {mainSpeaker.bio}
-                                </p>
+                          {visibleSpeakers.length ? (
+                            <div className="mt-4 space-y-2">
+                              {visibleSpeakers.map((speaker, index) => (
+                                <div key={`${speaker.id ?? speaker.name}-${index}`} className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3">
+                                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                    Palestrante {index + 1}
+                                  </p>
+                                  <p className="mt-1 text-sm font-extrabold text-white">
+                                    {speaker.name}
+                                  </p>
+                                  {speaker.topics?.length ? (
+                                    <p className="mt-1 line-clamp-2 text-xs text-secondary">
+                                      Temas: {speaker.topics.join(", ")}
+                                    </p>
+                                  ) : null}
+                                  {speaker.bio ? (
+                                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">
+                                      {speaker.bio}
+                                    </p>
+                                  ) : null}
+                                  {speaker.agenda ? (
+                                    <p className="mt-2 line-clamp-2 text-xs text-slate-500">
+                                      Agenda: {speaker.agenda}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ))}
+                              {hiddenSpeakersCount ? (
+                                <Link href={eventDetailHref} className="block text-xs font-bold text-secondary hover:underline">
+                                  +{hiddenSpeakersCount} palestrante{hiddenSpeakersCount === 1 ? "" : "s"}
+                                </Link>
                               ) : null}
                             </div>
                           ) : null}
@@ -451,7 +481,7 @@ export default function EventosPage() {
 		                                <button
 	                                  type="button"
 	                                  disabled={submitting || isRejected}
-	                                  onClick={() => handleUnenroll(ev.id)}
+	                                  onClick={() => setCancelEventId(ev.id)}
                                   className={`inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold transition disabled:opacity-50 ${
                                     isPending
                                       ? "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-red-500/20 hover:border-red-500 hover:text-red-200"
@@ -533,6 +563,17 @@ export default function EventosPage() {
       </div>
   )}
 
+
+        <CancelRegistrationModal
+          isOpen={cancelEvent != null}
+          eventTitle={cancelEvent?.title ?? "este evento"}
+          isLoading={submitting}
+          canCancel={cancelEvent ? canCancelRegistration(cancelEvent.date, cancelEvent.time) : true}
+          onConfirm={async () => {
+            if (cancelEvent) await handleUnenroll(cancelEvent.id);
+          }}
+          onCancel={() => setCancelEventId(null)}
+        />
 
         {openId !== null ? (
             <div

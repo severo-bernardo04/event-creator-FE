@@ -121,3 +121,26 @@ a:focus {
   border-radius: 9999px;
   transition: width 0.3s ease;
 }
+
+.admin-page-panel {
+  animation: adminPageEnter 220ms ease-out both;
+}
+
+@keyframes adminPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-panel {
+    animation: none;
+  }
+}

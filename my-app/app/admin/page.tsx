@@ -25,7 +25,14 @@ import StatusParticipante from "@/components/StatusParticipante";
 import EventMaterialsManager from "@/components/EventMaterialsManager";
 import type { EventMaterial, ParticipantStatus } from "@/types";
 import { getMaterialsByEventId } from "@/lib/eventMaterials";
-import { createEventNotification, notifyEventUpdated } from "@/lib/notifications";
+import {
+  createEventNotification,
+  deleteEventNotification,
+  listEventNotifications,
+  notifyEventUpdated,
+  updateEventNotification,
+  type EventNotification,
+} from "@/lib/notifications";
 
 type Participante = {
   id: number;
@@ -122,7 +129,7 @@ const participantStatusLabels: Record<ParticipantStatus, string> = {
 const participantSortOptions: { value: ParticipantSortField; label: string }[] = [
   { value: "nome", label: "Nome" },
   { value: "createdAt", label: "Data de inscrição" },
-  { value: "status", label: "Status de presença" },
+  { value: "status", label: "Status de aprovação" },
 ];
 
 const participantSortDirectionLabels: Record<SortDirection, string> = {
@@ -202,6 +209,16 @@ function fmtInscricaoDate(createdAt?: string) {
   return `${fmtDate(d.toISOString().slice(0, 10))}`;
 }
 
+function fmtDateTime(value?: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
 function getParticipantCreatedAtTime(participant: Participante) {
   if (!participant.createdAt) return null;
   const time = Date.parse(participant.createdAt);
@@ -255,6 +272,14 @@ function sortParticipantes<T extends { p: Participante }>(
   return rows
     .slice()
     .sort((a, b) => compareParticipantes(a.p, b.p, sortBy, direction));
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function getStatus(ev: Evento) {
@@ -335,10 +360,10 @@ export default function AdminPage() {
   setEventos(list.map(mapNormToEvento));
 }
 
-async function aprovarParticipante(participanteId: number) {
-  const evento = eventos.find((ev) =>
-    ev.participantes.some((p) => p.id === participanteId),
-  );
+async function aprovarParticipante(participanteId: number, eventoId?: number) {
+  const evento = eventoId != null
+    ? eventos.find((ev) => ev.id === eventoId)
+    : eventos.find((ev) => ev.participantes.some((p) => p.id === participanteId));
   const participante = evento?.participantes.find((p) => p.id === participanteId);
 
   if (!evento) return;
@@ -360,10 +385,10 @@ async function aprovarParticipante(participanteId: number) {
 }
 
 
-async function rejeitarParticipante(participanteId: number) {
-  const evento = eventos.find((ev) =>
-    ev.participantes.some((p) => p.id === participanteId),
-  );
+async function rejeitarParticipante(participanteId: number, eventoId?: number) {
+  const evento = eventoId != null
+    ? eventos.find((ev) => ev.id === eventoId)
+    : eventos.find((ev) => ev.participantes.some((p) => p.id === participanteId));
   const participante = evento?.participantes.find((p) => p.id === participanteId);
 
   if (!evento) return;
@@ -391,6 +416,8 @@ async function rejeitarParticipante(participanteId: number) {
   const [eventsApiError, setEventsApiError] = useState<string | null>(null);
   const [usersApiError, setUsersApiError] = useState<string | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [participantSearch, setParticipantSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
   const [updatingUserRoleId, setUpdatingUserRoleId] = useState<number | null>(null);
   /** CRUD de eventos exige sessão HTTP com role ADMIN (igual ao EventsController). */
   const canManage = sessionRole === "ADMIN";
@@ -418,7 +445,11 @@ async function rejeitarParticipante(participanteId: number) {
   const [notificationContent, setNotificationContent] = useState("");
   const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
   const [notificationSubmitting, setNotificationSubmitting] = useState(false);
+  const [eventNotifications, setEventNotifications] = useState<EventNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [editingNotificationId, setEditingNotificationId] = useState<number | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
+  const [approvalSearch, setApprovalSearch] = useState("");
 
   const [form, setForm] = useState({
     id: "",
@@ -604,9 +635,36 @@ async function rejeitarParticipante(participanteId: number) {
       setNotificationTitle("");
       setNotificationContent("");
       setNotificationStatus(null);
+      setEditingNotificationId(null);
     }, 0);
 
     return () => window.clearTimeout(timer);
+  }, [eventoAtualId]);
+
+  useEffect(() => {
+    if (!eventoAtualId) {
+      setEventNotifications([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setNotificationsLoading(true);
+      setNotificationStatus(null);
+      try {
+        const notices = await listEventNotifications(eventoAtualId);
+        if (!cancelled) setEventNotifications(notices);
+      } catch (err: unknown) {
+        if (!cancelled) setNotificationStatus(getErrorMessage(err));
+      } finally {
+        if (!cancelled) setNotificationsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [eventoAtualId]);
 
   const dashboardStats = useMemo(() => {
@@ -636,8 +694,8 @@ async function rejeitarParticipante(participanteId: number) {
     };
   }, [eventos]);
 
-  type AprovalFilter = "TODOS" | "PENDENTES" | "APROVADOS" | "REJEITADOS";
-  const [aprovacoesFilter, setAprovacoesFilter] = useState<AprovalFilter>("PENDENTES");
+  type ApprovalFilter = "TODOS" | "PENDENTES" | "APROVADOS" | "REJEITADOS";
+  const [aprovacoesFilter, setAprovacoesFilter] = useState<ApprovalFilter>("TODOS");
   const [participantSortBy, setParticipantSortBy] = useState<ParticipantSortField>("nome");
   const [participantSortDirection, setParticipantSortDirection] = useState<SortDirection>("asc");
 
@@ -646,31 +704,69 @@ async function rejeitarParticipante(participanteId: number) {
     eventos.forEach((ev) =>
       ev.participantes.forEach((p) => rows.push({ p, titulo: ev.titulo, eventoId: ev.id })),
     );
-    return sortParticipantes(rows, participantSortBy, participantSortDirection);
-  }, [eventos, participantSortBy, participantSortDirection]);
+    const term = normalizeSearch(participantSearch);
+    const filtered = !term
+      ? rows
+      : rows.filter(({ p, titulo }) =>
+          normalizeSearch(
+            `${p.nome} ${p.email} ${p.telefone} ${titulo} ${participantStatusLabels[p.status]} ${p.presenca ?? ""}`,
+          ).includes(term),
+        );
+
+    return sortParticipantes(filtered, participantSortBy, participantSortDirection);
+  }, [eventos, participantSearch, participantSortBy, participantSortDirection]);
 
   const eventoAtualParticipantes = useMemo(() => {
     if (!eventoAtual) return [];
+    const participantesFiltrados =
+      aprovacoesFilter === "TODOS"
+        ? eventoAtual.participantes
+        : aprovacoesFilter === "PENDENTES"
+          ? eventoAtual.participantes.filter((p) => p.status === "PENDING")
+          : aprovacoesFilter === "APROVADOS"
+            ? eventoAtual.participantes.filter((p) => p.status === "APPROVED")
+            : eventoAtual.participantes.filter((p) => p.status === "REJECTED");
+
     return sortParticipantes(
-      eventoAtual.participantes.map((p) => ({ p })),
+      participantesFiltrados.map((p) => ({ p })),
       participantSortBy,
       participantSortDirection,
     ).map(({ p }) => p);
-  }, [eventoAtual, participantSortBy, participantSortDirection]);
+  }, [eventoAtual, aprovacoesFilter, participantSortBy, participantSortDirection]);
 
-  const aprovacoesRows = useMemo(() => {
-    const all = eventos.flatMap((ev) => ev.participantes.map((p) => ({ ev, p })));
-    const filtered =
-      aprovacoesFilter === "TODOS"
-        ? all
-        : aprovacoesFilter === "PENDENTES"
-          ? all.filter(({ p }) => p.status === "PENDING")
-          : aprovacoesFilter === "APROVADOS"
-            ? all.filter(({ p }) => p.status === "APPROVED")
-            : all.filter(({ p }) => p.status === "REJECTED");
+  const filteredAdminUsers = useMemo(() => {
+    const term = normalizeSearch(userSearch);
+    if (!term) return adminUsers;
 
-    return sortParticipantes(filtered, participantSortBy, participantSortDirection);
-  }, [eventos, aprovacoesFilter, participantSortBy, participantSortDirection]);
+    return adminUsers.filter((adminUser) =>
+      normalizeSearch(
+        `${adminUser.name} ${adminUser.email} ${adminUser.role} ${adminUser.cpf ?? ""} ${adminUser.phone ?? ""}`,
+      ).includes(term),
+    );
+  }, [adminUsers, userSearch]);
+
+  const approvalEvents = useMemo(() => {
+    const term = normalizeSearch(approvalSearch);
+    if (!term) return eventos;
+
+    return eventos.filter((ev) =>
+      normalizeSearch(
+        [
+          ev.titulo,
+          ev.local,
+          ev.category ?? "",
+          ev.data,
+          ...ev.participantes.flatMap((p) => [
+            p.nome,
+            p.email,
+            p.telefone,
+            participantStatusLabels[p.status],
+            p.presenca ?? "",
+          ]),
+        ].join(" "),
+      ).includes(term),
+    );
+  }, [approvalSearch, eventos]);
 
   function navigate(page: PageId) {
     setCurrentPage(page);
@@ -690,6 +786,7 @@ async function rejeitarParticipante(participanteId: number) {
     const ev = eventos.find((e) => e.id === id);
     if (!ev) return;
     setEventoAtualId(id);
+    setAprovacoesFilter("TODOS");
     setCurrentPage("evento-detalhe");
   }
 
@@ -986,15 +1083,73 @@ async function rejeitarParticipante(participanteId: number) {
     setNotificationSubmitting(true);
     setNotificationStatus(null);
     try {
-      await createEventNotification(eventoAtual.id, titulo, conteudo);
+      const saved = editingNotificationId
+        ? await updateEventNotification(editingNotificationId, eventoAtual.id, titulo, conteudo)
+        : await createEventNotification(eventoAtual.id, titulo, conteudo);
+      setEventNotifications((current) => {
+        if (editingNotificationId) {
+          return current.map((notice) => (notice.id === saved.id ? saved : notice));
+        }
+
+        return [saved, ...current];
+      });
       setNotificationTitle("");
       setNotificationContent("");
-      setNotificationStatus("Publicacao enviada aos participantes e adicionada ao mural do evento.");
+      setEditingNotificationId(null);
+      setNotificationStatus(
+        editingNotificationId
+          ? "Aviso atualizado no mural do evento."
+          : "Publicacao enviada aos participantes e adicionada ao mural do evento.",
+      );
     } catch (err: unknown) {
       setNotificationStatus(getErrorMessage(err));
     } finally {
       setNotificationSubmitting(false);
     }
+  }
+
+  function editarNotificacaoEvento(notification: EventNotification) {
+    setEditingNotificationId(notification.id);
+    setNotificationTitle(notification.titulo);
+    setNotificationContent(notification.conteudo);
+    setNotificationStatus(null);
+  }
+
+  function cancelarEdicaoNotificacao() {
+    setEditingNotificationId(null);
+    setNotificationTitle("");
+    setNotificationContent("");
+    setNotificationStatus(null);
+  }
+
+  function pedirExclusaoNotificacao(notification: EventNotification) {
+    setConfirmContent({
+      title: "Apagar aviso",
+      text: `Tem certeza que deseja apagar o aviso "${notification.titulo}"?`,
+    });
+
+    pendingActionRef.current = () => {
+      void (async () => {
+        setNotificationSubmitting(true);
+        setNotificationStatus(null);
+        try {
+          await deleteEventNotification(notification.id);
+          setEventNotifications((current) =>
+            current.filter((item) => item.id !== notification.id),
+          );
+          if (editingNotificationId === notification.id) {
+            cancelarEdicaoNotificacao();
+          }
+          setNotificationStatus("Aviso apagado do mural do evento.");
+        } catch (err: unknown) {
+          setNotificationStatus(getErrorMessage(err));
+        } finally {
+          setNotificationSubmitting(false);
+        }
+      })();
+    };
+
+    setModalConfirmOpen(true);
   }
 
   async function alterarPapelUsuario(userId: number, role: "ADMIN" | "USER") {
@@ -1036,6 +1191,10 @@ async function rejeitarParticipante(participanteId: number) {
     return idx === undefined ? -1 : idx;
   }
 
+  function pageClass(page: PageId) {
+    return currentPage === page ? "admin-page-panel block" : "hidden";
+  }
+
   const activeNav = navActiveIndex();
 
   const detalhePct = eventoAtual
@@ -1043,6 +1202,33 @@ async function rejeitarParticipante(participanteId: number) {
         (getApprovedCount(eventoAtual) / (eventoAtual.max > 0 ? eventoAtual.max : 1)) * 100,
       )
     : 0;
+
+  function renderApprovalFilterControl() {
+    return (
+      <label className="block w-full sm:min-w-[170px] sm:w-auto">
+        <span className="mb-1 block text-xs font-bold text-slate-500">Filtro</span>
+        <select
+          value={aprovacoesFilter}
+          onChange={(e) => {
+            setAprovacoesFilter(e.target.value as ApprovalFilter);
+            setApprovalStatus(null);
+          }}
+          className={inputClass}
+        >
+          {[
+            { value: "TODOS", label: "Todos" },
+            { value: "PENDENTES", label: "Pendentes" },
+            { value: "APROVADOS", label: "Aprovados" },
+            { value: "REJEITADOS", label: "Rejeitados" },
+          ].map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
 
   function renderParticipantSortControls() {
     return (
@@ -1189,7 +1375,7 @@ async function rejeitarParticipante(participanteId: number) {
         {/* DASHBOARD */}
         <div
           id="page-dashboard"
-          className={currentPage === "dashboard" ? "block" : "hidden"}
+          className={pageClass("dashboard")}
         >
           <div className="mb-8 flex flex-col items-start justify-between gap-3 sm:flex-row">
             <div>
@@ -1295,7 +1481,7 @@ async function rejeitarParticipante(participanteId: number) {
         </div>
 
         {/* EVENTOS LIST */}
-        <div id="page-eventos" className={currentPage === "eventos" ? "block" : "hidden"}>
+        <div id="page-eventos" className={pageClass("eventos")}>
           <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row">
             <div>
               <h1 className="text-[26px] font-black tracking-tight text-white">Eventos</h1>
@@ -1391,7 +1577,7 @@ async function rejeitarParticipante(participanteId: number) {
         {/* PARTICIPANTES */}
         <div
           id="page-participantes"
-          className={currentPage === "participantes" ? "block" : "hidden"}
+          className={pageClass("participantes")}
         >
           <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -1400,7 +1586,18 @@ async function rejeitarParticipante(participanteId: number) {
                 Todas as inscrições realizadas na plataforma
               </p>
             </div>
-            {renderParticipantSortControls()}
+            <div className="flex w-full flex-wrap items-end gap-3 lg:w-auto">
+              <label className="block w-full sm:min-w-[260px] sm:w-auto">
+                <span className="mb-1 block text-xs font-bold text-slate-500">Pesquisar</span>
+                <input
+                  value={participantSearch}
+                  onChange={(e) => setParticipantSearch(e.target.value)}
+                  className={inputClass}
+                  placeholder="Nome, e-mail, evento ou status"
+                />
+              </label>
+              {renderParticipantSortControls()}
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
@@ -1466,12 +1663,12 @@ async function rejeitarParticipante(participanteId: number) {
         {/* EVENTO DETALHE */}
         <div
           id="page-evento-detalhe"
-          className={currentPage === "evento-detalhe" ? "block" : "hidden"}
+          className={pageClass("evento-detalhe")}
         >
           <button
             type="button"
             onClick={() => navigate("eventos")}
-            className="mb-6 inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] text-slate-500 hover:text-white"
+            className="mb-6 inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-sm font-semibold text-slate-500 hover:text-white"
           >
             <svg
               className="h-4 w-4"
@@ -1491,75 +1688,76 @@ async function rejeitarParticipante(participanteId: number) {
             <>
               <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row">
                 <div>
-                  <h1 className="text-[26px] font-black tracking-tight text-white">
+                  <h1 className="text-[30px] font-black tracking-tight text-white">
                     {eventoAtual.titulo}
                   </h1>
-                  <p className="mt-1 text-[13px] text-slate-500">{eventoAtual.local}</p>
+                  <p className="mt-1 text-base text-slate-500">{eventoAtual.local}</p>
                 </div>
                 <div className="flex gap-2">
                   <Link
                       href={`/admin/eventos/${eventoAtualId}/editar`}
-                      className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                      className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
                   >
                     Editar
                   </Link>
                   <Link
                       href={`/admin/eventos/${eventoAtualId}/historico`}
-                      className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                      className="cursor-pointer rounded-lg border border-slate-600 bg-transparent px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
                   >
                     Histórico
                   </Link>
                   <button
                     type="button"
                     onClick={excluirEventoAtual}
-                    className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/20"
+                    className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/20"
                   >
                     Excluir
                   </button>
                 </div>
               </div>
-              <div className="mb-8 grid gap-5 md:grid-cols-2">
-                <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
-                  <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                    Informações
-                  </h3>
-                  <div className="mb-3 last:mb-0">
-                    <p className="mb-0.5 text-[11.5px] text-slate-500">Descrição</p>
-                    <p className="text-[13.5px] font-medium text-slate-200">
-                      {eventoAtual.desc || "—"}
-                    </p>
-                  </div>
-                  <div className="mb-3 last:mb-0">
-                    <p className="mb-0.5 text-[11.5px] text-slate-500">Data</p>
-                    <p className="text-[13.5px] font-medium text-slate-200">
-                      {fmtDate(eventoAtual.data)}
-                    </p>
-                  </div>
-                  <div className="mb-3 last:mb-0">
-                    <p className="mb-0.5 text-[11.5px] text-slate-500">Horário</p>
-                    <p className="text-[13.5px] font-medium text-slate-200">
-                      {eventoAtual.hora}
-                    </p>
-                  </div>
-                  <div className="mb-3 last:mb-0">
-                    <p className="mb-0.5 text-[11.5px] text-slate-500">Local</p>
-                    <p className="text-[13.5px] font-medium text-slate-200">
-                      {eventoAtual.local}
-                    </p>
-                  </div>
+              <div className="mb-6 flex flex-wrap gap-2">
+                <a
+                  href="#evento-inscricoes"
+                  className="rounded-lg border border-secondary/30 bg-secondary/10 px-4 py-2.5 text-sm font-bold text-secondary hover:bg-secondary/20"
+                >
+                  Inscrições
+                </a>
+                <a
+                  href="#evento-comunicados"
+                  className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
+                >
+                  Comunicados
+                </a>
+                <a
+                  href="#evento-materiais"
+                  className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
+                >
+                  Materiais
+                </a>
+              </div>
+              <div className="mb-6 grid gap-3 md:grid-cols-4">
+                <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-5 py-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Data e horário</p>
+                  <p className="mt-2 text-base font-black text-white">{fmtDate(eventoAtual.data)}</p>
+                  <p className="mt-1 text-base text-slate-400">{eventoAtual.hora}</p>
                 </div>
-                <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
-                  <h3 className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                    Vagas
-                  </h3>
-                  <div className="mb-1">
-                    <span className="text-[32px] font-black text-white">
-                      {getApprovedCount(eventoAtual)}
-                    </span>
-                    <span className="ml-1 text-base text-slate-500">/ {eventoAtual.max}</span>
+                <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-5 py-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Local</p>
+                  <p className="mt-2 break-words text-base font-black text-white">{eventoAtual.local || "A definir"}</p>
+                </div>
+                <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-5 py-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Inscrições</p>
+                  <p className="mt-2 text-base font-black text-white">{eventoAtual.participantes.length} total</p>
+                  <p className="mt-1 text-sm text-slate-400">{getApprovedCount(eventoAtual)} aprovadas</p>
+                </div>
+                <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-5 py-4">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Vagas</p>
+                    <StatusBadge ev={eventoAtual} />
                   </div>
+                  <p className="text-base font-black text-white">{getApprovedCount(eventoAtual)} / {eventoAtual.max}</p>
                   <div
-                    className="admin-progress-track"
+                    className="admin-progress-track mt-2"
                     style={
                       {
                         ["--admin-progress-pct" as string]: `${Math.min(detalhePct, 100)}%`,
@@ -1576,82 +1774,183 @@ async function rejeitarParticipante(participanteId: number) {
                       }`}
                     />
                   </div>
-                  <div className="mt-2.5 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-                    <span className="text-xs text-slate-500">
-                      {detalhePct >= 100
-                        ? "Evento lotado"
-                        : `${Math.max(0, eventoAtual.max - getApprovedCount(eventoAtual))} vagas restantes (${detalhePct}% preenchido)`}
-                    </span>
-                    <span>
-                      <StatusBadge ev={eventoAtual} />
-                    </span>
-                  </div>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {detalhePct >= 100
+                      ? "Evento lotado"
+                      : `${Math.max(0, eventoAtual.max - getApprovedCount(eventoAtual))} vagas restantes`}
+                  </p>
                 </div>
               </div>
-              <div className="mb-8 rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
+              <div className="mb-6 rounded-[14px] border border-slate-800 bg-slate-900/50 px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Descrição</p>
+                <p className="mt-2 whitespace-pre-line break-words text-base leading-7 text-slate-300">
+                  {eventoAtual.desc || "Sem descrição cadastrada."}
+                </p>
+              </div>
+              <div id="evento-comunicados" className="mb-8 scroll-mt-6 rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                      Publicar noticia ou aviso
+                    <h3 className="text-xl font-extrabold text-white">
+                      Comunicados do evento
                     </h3>
-                    <p className="mt-1 text-[13px] text-slate-400">
-                      O conteudo sera publicado no mural interno do evento e enviado aos participantes inscritos.
+                    <p className="mt-1 text-base text-slate-400">
+                      Publique, edite ou apague noticias e avisos enviados aos participantes.
                     </p>
                   </div>
                 </div>
-                <div className="grid gap-3 md:grid-cols-[minmax(180px,280px)_1fr_auto] md:items-start">
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-bold text-slate-400">
-                      Titulo
-                    </span>
-                    <input
-                      value={notificationTitle}
-                      onChange={(event) => setNotificationTitle(event.target.value)}
-                      maxLength={120}
-                      className="w-full rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      placeholder="Ex: Mudanca na programacao"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-bold text-slate-400">
-                      Conteudo
-                    </span>
-                    <textarea
-                      value={notificationContent}
-                      onChange={(event) => setNotificationContent(event.target.value)}
-                      rows={3}
-                      maxLength={500}
-                      className="w-full resize-none rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      placeholder="Digite a noticia ou aviso que os participantes devem receber."
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => void enviarNotificacaoEvento()}
-                    disabled={notificationSubmitting}
-                    className="mt-6 rounded-xl bg-secondary px-4 py-2.5 text-sm font-black text-slate-950 shadow-md hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 md:mt-[23px]"
-                  >
-                    {notificationSubmitting ? "Publicando..." : "Publicar"}
-                  </button>
-                </div>
-                {notificationStatus ? (
-                  <p className="mt-3 rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-[13px] font-semibold text-slate-300">
-                    {notificationStatus}
-                  </p>
-                ) : null}
-              </div>
-              <div className="overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-4">
-                  <div>
-                    <span className="text-sm font-extrabold text-white">
-                      Participantes inscritos{" "}
-                      <span className="font-normal text-slate-500">
-                        ({eventoAtual.participantes.length})
-                      </span>
+                <div className="grid gap-5 xl:grid-cols-[minmax(280px,420px)_1fr]">
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+                    <div className="space-y-3">
+                      <label className="block">
+                        <span className="mb-1.5 block text-sm font-bold text-slate-400">
+                          Titulo
+                        </span>
+                        <input
+                          value={notificationTitle}
+                          onChange={(event) => setNotificationTitle(event.target.value)}
+                          maxLength={120}
+                          className="w-full rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          placeholder="Ex: Mudanca na programacao"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-sm font-bold text-slate-400">
+                          Conteudo
+                        </span>
+                        <textarea
+                          value={notificationContent}
+                          onChange={(event) => setNotificationContent(event.target.value)}
+                          rows={5}
+                          maxLength={500}
+                          className="w-full resize-none rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          placeholder="Digite a noticia ou aviso que os participantes devem receber."
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void enviarNotificacaoEvento()}
+                          disabled={notificationSubmitting}
+                          className="rounded-xl bg-secondary px-4 py-2.5 text-base font-black text-slate-950 shadow-md hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {notificationSubmitting
+                            ? editingNotificationId
+                              ? "Salvando..."
+                              : "Publicando..."
+                            : editingNotificationId
+                              ? "Salvar"
+                              : "Publicar"}
+                        </button>
+                        {editingNotificationId ? (
+                          <button
+                            type="button"
+                            onClick={cancelarEdicaoNotificacao}
+                            disabled={notificationSubmitting}
+                            className="rounded-xl border border-slate-700 px-4 py-2.5 text-base font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Cancelar edição
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    {notificationStatus ? (
+                      <p className="mt-3 rounded-[10px] border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm font-semibold text-slate-300">
+                        {notificationStatus}
+                      </p>
+                    ) : null}
+                  </div>
+                <div>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
+                      Avisos publicados
+                    </h4>
+                    <span className="text-sm text-slate-500">
+                      {eventNotifications.length} aviso{eventNotifications.length === 1 ? "" : "s"}
                     </span>
                   </div>
-                  {renderParticipantSortControls()}
+                  {notificationsLoading ? (
+                    <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-5 text-base text-slate-400">
+                      Carregando avisos...
+                    </div>
+                  ) : !eventNotifications.length ? (
+                    <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-4 py-5 text-base text-slate-500">
+                      Nenhum aviso publicado para este evento.
+                    </div>
+                  ) : (
+                    <div className="max-h-[460px] space-y-3 overflow-y-auto pr-1">
+                      {eventNotifications.map((notice) => (
+                        <article
+                          key={notice.id}
+                          className="rounded-xl border border-slate-800 bg-slate-950/55 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="break-words text-base font-extrabold text-white">
+                                {notice.titulo}
+                              </p>
+                              <time className="mt-1 block text-sm text-slate-500">
+                                {fmtDateTime(notice.createdAt)}
+                              </time>
+                            </div>
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => editarNotificacaoEvento(notice)}
+                                disabled={notificationSubmitting}
+                                className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => pedirExclusaoNotificacao(notice)}
+                                disabled={notificationSubmitting}
+                                className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-sm font-bold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Apagar
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-3 whitespace-pre-line break-words text-base leading-7 text-slate-300">
+                            {notice.conteudo}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                </div>
+              </div>
+              <div id="evento-inscricoes" className="scroll-mt-6 overflow-hidden rounded-[14px] border border-slate-800 bg-slate-900/50">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-4">
+                  <div>
+                    <span className="text-xl font-extrabold text-white">
+                      Inscrições do evento{" "}
+                      <span className="font-normal text-slate-500">
+                        ({eventoAtualParticipantes.length} de {eventoAtual.participantes.length})
+                      </span>
+                    </span>
+                    <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-500">
+                      <span>Pendentes: {eventoAtual.participantes.filter((p) => p.status === "PENDING").length}</span>
+                      <span>Aprovados: {eventoAtual.participantes.filter((p) => p.status === "APPROVED").length}</span>
+                      <span>Rejeitados: {eventoAtual.participantes.filter((p) => p.status === "REJECTED").length}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-3">
+                    {renderApprovalFilterControl()}
+                    {renderParticipantSortControls()}
+                  </div>
+                </div>
+                {approvalStatus ? (
+                  <div className="border-b border-slate-800 bg-green-500/10 px-6 py-3 text-base font-semibold text-green-300">
+                    {approvalStatus}
+                  </div>
+                ) : null}
+                {formError ? (
+                  <div className="border-b border-slate-800 bg-red-500/10 px-6 py-3 text-base font-semibold text-red-300">
+                    {formError}
+                  </div>
+                ) : null}
                 <div className="overflow-x-auto">
                 <table className="min-w-[980px] w-full border-collapse">
                   <thead>
@@ -1666,10 +1965,10 @@ async function rejeitarParticipante(participanteId: number) {
                     </tr>
                   </thead>
                   <tbody>
-                    {!eventoAtual.participantes.length ? (
+                    {!eventoAtualParticipantes.length ? (
                       <tr>
-                        <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
-                          Nenhum participante inscrito
+                        <td colSpan={7} className="px-5 py-12 text-center text-base text-slate-500">
+                          Nenhuma inscrição encontrada para este filtro
                         </td>
                       </tr>
                     ) : (
@@ -1685,13 +1984,31 @@ async function rejeitarParticipante(participanteId: number) {
                           <td className={tdClass}>{p.presenca ?? "—"}</td>
                           <td className={tdClass}>
                             <div className="flex flex-wrap gap-2">
+                              {p.status === "PENDING" ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => aprovarParticipante(p.id, eventoAtual.id)}
+                                    className="cursor-pointer rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-1.5 text-sm font-bold text-green-300 hover:bg-green-500/20"
+                                  >
+                                    Aprovar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => rejeitarParticipante(p.id, eventoAtual.id)}
+                                    className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-sm font-bold text-red-300 hover:bg-red-500/20"
+                                  >
+                                    Rejeitar
+                                  </button>
+                                </>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() =>
                                   gerarTicketParticipante(eventoAtual.id, eventoAtual.titulo, p)
                                 }
                                 disabled={p.status !== "APPROVED"}
-                                className="cursor-pointer rounded-lg border border-secondary/30 bg-secondary/10 px-2.5 py-1 text-xs font-bold text-secondary hover:bg-secondary/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="cursor-pointer rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-sm font-bold text-secondary hover:bg-secondary/20 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 Gerar QR
                               </button>
@@ -1700,7 +2017,7 @@ async function rejeitarParticipante(participanteId: number) {
                                 onClick={() =>
                                   pedirRemocaoParticipante(eventoAtual.id, p.id, p.nome)
                                 }
-                                className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/20"
+                                className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-400 hover:bg-red-500/20"
                               >
                                 Remover
                               </button>
@@ -1714,9 +2031,9 @@ async function rejeitarParticipante(participanteId: number) {
                 </div>
               </div>
 
-              <div className="mt-8">
+              <div id="evento-materiais" className="mt-8 scroll-mt-6">
                 {materialsLoading ? (
-                  <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5 text-sm text-slate-400">
+                  <div className="rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5 text-base text-slate-400">
                     Carregando materiais do evento...
                   </div>
                 ) : (
@@ -1735,7 +2052,7 @@ async function rejeitarParticipante(participanteId: number) {
         {/* APROVAÇÕES */}
 <div
   id="page-aprovacoes"
-  className={currentPage === "aprovacoes" ? "block" : "hidden"}
+  className={pageClass("aprovacoes")}
 >
   <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
     <div>
@@ -1743,97 +2060,85 @@ async function rejeitarParticipante(participanteId: number) {
         Aprovações
       </h1>
       <p className="mt-1 text-[13px] text-slate-500">
-        Inscrições filtradas por status de aprovação
+        Escolha um evento para aprovar as inscrições dele
       </p>
     </div>
-    <div className="flex flex-wrap items-end gap-3">
-      <label className="block w-full sm:min-w-[170px] sm:w-auto">
-        <span className="mb-1 block text-xs font-bold text-slate-500">Filtro</span>
-        <select
-          value={aprovacoesFilter}
-          onChange={(e) => {
-            setAprovacoesFilter(e.target.value as AprovalFilter);
-            setApprovalStatus(null);
-          }}
-          className={inputClass}
-        >
-          {[
-            { value: "TODOS", label: "Todos" },
-            { value: "PENDENTES", label: "Pendentes" },
-            { value: "APROVADOS", label: "Aprovados" },
-            { value: "REJEITADOS", label: "Rejeitados" },
-          ].map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {renderParticipantSortControls()}
-    </div>
+    <label className="block w-full sm:w-[340px]">
+      <span className="mb-1 block text-xs font-bold text-slate-500">Pesquisar</span>
+      <input
+        value={approvalSearch}
+        onChange={(e) => setApprovalSearch(e.target.value)}
+        className={inputClass}
+        placeholder="Evento, local, participante ou status"
+      />
+    </label>
   </div>
 
-  {approvalStatus ? (
-    <div className="mb-4 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm font-semibold text-green-300">
-      {approvalStatus}
-    </div>
-  ) : null}
-
-  {formError ? (
-    <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
-      {formError}
-    </div>
-  ) : null}
-
-  <div className="space-y-4">
-    {!aprovacoesRows.length ? (
+  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {!eventos.length ? (
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-500">
-        Nenhuma inscrição encontrada para este filtro
+        Nenhum evento cadastrado
+      </div>
+    ) : !approvalEvents.length ? (
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-500">
+        Nenhum evento encontrado para esta pesquisa
       </div>
     ) : (
-      aprovacoesRows.map(({ ev, p }) => (
+      approvalEvents.map((ev) => {
+        const pending = ev.participantes.filter((p) => p.status === "PENDING").length;
+        const approved = ev.participantes.filter((p) => p.status === "APPROVED").length;
+        const rejected = ev.participantes.filter((p) => p.status === "REJECTED").length;
+        return (
       <div
-        key={`${ev.id}-${p.id}`}
+        key={ev.id}
         className="rounded-xl border border-slate-800 bg-slate-900 p-4"
       >
-        <p className="font-bold text-white">{p.nome}</p>
-
-        <p className="text-sm text-slate-400">
-          Evento: {ev.titulo}
-        </p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <StatusParticipante status={p.status} />
-          <span className="text-xs text-slate-500">
-            Inscrição: {fmtInscricaoDate(p.createdAt)}
-          </span>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-bold text-white">{ev.titulo}</p>
+            <p className="mt-1 text-sm text-slate-400">
+              {fmtDate(ev.data)} | {ev.local}
+            </p>
+          </div>
+          <StatusBadge ev={ev} />
         </div>
 
-        {p.status === "PENDING" && (
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => aprovarParticipante(p.id)}
-              className="rounded-lg bg-green-500 px-3 py-2 text-sm font-bold text-black"
-            >
-              Aprovar
-            </button>
-
-            <button
-              onClick={() => rejeitarParticipante(p.id)}
-              className="rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white"
-            >
-              Rejeitar
-            </button>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-2 text-amber-200">
+            <div className="text-lg font-black">{pending}</div>
+            Pendentes
           </div>
-        )}
+          <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-2 py-2 text-green-200">
+            <div className="text-lg font-black">{approved}</div>
+            Aprovados
+          </div>
+          <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-2 text-red-200">
+            <div className="text-lg font-black">{rejected}</div>
+            Rejeitados
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-xs text-slate-500">
+            {ev.participantes.length} inscrição(ões) neste evento
+          </span>
+          <button
+            type="button"
+            onClick={() => verEvento(ev.id)}
+            className="cursor-pointer rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2 text-xs font-bold text-secondary hover:bg-secondary/20"
+          >
+            Ver inscrições
+          </button>
+        </div>
       </div>
-      ))
+        );
+      })
     )}
   </div>
 </div>
 
         {/* USUÁRIOS */}
-        <div id="page-usuarios" className={currentPage === "usuarios" ? "block" : "hidden"}>
+        <div id="page-usuarios" className={pageClass("usuarios")}>
           <div className="mb-8 flex flex-col items-start justify-between gap-3 sm:flex-row">
             <div>
               <h1 className="text-[26px] font-black tracking-tight text-white">Usuários</h1>
@@ -1841,6 +2146,15 @@ async function rejeitarParticipante(participanteId: number) {
                 Usuários cadastrados na plataforma
               </p>
             </div>
+            <label className="block w-full sm:w-[320px]">
+              <span className="mb-1 block text-xs font-bold text-slate-500">Pesquisar</span>
+              <input
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className={inputClass}
+                placeholder="Nome, e-mail, papel, CPF ou telefone"
+              />
+            </label>
           </div>
           <div className="overflow-x-auto rounded-[14px] border border-slate-800 bg-slate-900/50">
             <table className="min-w-[640px] w-full border-collapse">
@@ -1866,8 +2180,14 @@ async function rejeitarParticipante(participanteId: number) {
                       Nenhum usuário cadastrado.
                     </td>
                   </tr>
+                ) : !filteredAdminUsers.length ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-sm text-slate-500">
+                      Nenhum usuário encontrado para esta pesquisa.
+                    </td>
+                  </tr>
                 ) : (
-                  adminUsers.map((adminUser) => (
+                  filteredAdminUsers.map((adminUser) => (
                     <tr key={adminUser.id} className="group hover:[&>td]:bg-slate-900/60">
                       <td className={`${tdClass} font-semibold text-white`}>{adminUser.name}</td>
                       <td className={`${tdClass} text-slate-500`}>{adminUser.email}</td>

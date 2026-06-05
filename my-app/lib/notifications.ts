@@ -3,6 +3,15 @@ import type { EventHistoryFieldChange } from "@/lib/eventHistory";
 
 type NotificationType = "GENERAL" | "SPECIFIC_EVENT";
 
+export type EventNotification = {
+  id: number;
+  titulo: string;
+  conteudo: string;
+  type: NotificationType;
+  eventId?: number | null;
+  createdAt: string;
+};
+
 type CreateNotificationInput = {
   titulo: string;
   conteudo: string;
@@ -10,8 +19,14 @@ type CreateNotificationInput = {
   eventId?: number | null;
 };
 
+export async function listEventNotifications(eventId: number) {
+  return apiFetch<EventNotification[]>(`/avisos/evento/${eventId}`, {
+    method: "GET",
+  });
+}
+
 export async function createNotification(input: CreateNotificationInput) {
-  return apiFetch("/avisos", {
+  return apiFetch<EventNotification>("/avisos", {
     method: "POST",
     json: input,
   });
@@ -27,6 +42,29 @@ export async function createEventNotification(
     conteudo,
     type: "SPECIFIC_EVENT",
     eventId,
+  });
+}
+
+export async function updateEventNotification(
+  notificationId: number,
+  eventId: number,
+  titulo: string,
+  conteudo: string,
+) {
+  return apiFetch<EventNotification>(`/avisos/${notificationId}`, {
+    method: "PATCH",
+    json: {
+      titulo,
+      conteudo,
+      type: "SPECIFIC_EVENT",
+      eventId,
+    },
+  });
+}
+
+export async function deleteEventNotification(notificationId: number) {
+  return apiFetch<void>(`/avisos/${notificationId}`, {
+    method: "DELETE",
   });
 }
 
