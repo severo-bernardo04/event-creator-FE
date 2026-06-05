@@ -394,6 +394,7 @@ export default function EventosPage() {
                     ? ev.description?.trim() || "Sem descrição."
                     : "Informações privadas — aguarde aprovação do administrador.";
                   const location = canViewDetails ? ev.location : null;
+                  const mainSpeaker = ev.speakers[0];
 
                   return (
                       <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
@@ -418,6 +419,18 @@ export default function EventosPage() {
                           <p className="mt-2 line-clamp-2 text-sm text-slate-400">
                             {description}
                           </p>
+                          {mainSpeaker ? (
+                            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2">
+                              <p className="text-xs font-bold uppercase tracking-wide text-secondary">
+                                {mainSpeaker.name}
+                              </p>
+                              {mainSpeaker.bio ? (
+                                <p className="mt-1 line-clamp-2 text-sm text-slate-400">
+                                  {mainSpeaker.bio}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <p className="mt-3 text-sm text-slate-500">
                             {fmtDate(ev.date)} · {timeShort(ev.time)}
                             {location ? ` · ${location}` : ""}

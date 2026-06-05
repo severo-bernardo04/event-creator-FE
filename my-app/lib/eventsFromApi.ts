@@ -24,6 +24,15 @@ export type ApiEventNorm = {
   category?: string;
   private?: boolean;
   imageUrl?: string | null;
+  speakers: ApiSpeakerNorm[];
+};
+
+export type ApiSpeakerNorm = {
+  id?: number;
+  name: string;
+  bio: string | null;
+  topics: string[];
+  agenda: string | null;
 };
 
 function num(v: unknown, fallback = 0): number {
@@ -33,6 +42,47 @@ function num(v: unknown, fallback = 0): number {
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+function pickStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(str).map((item) => item.trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function mapSpeaker(raw: Record<string, unknown>): ApiSpeakerNorm | null {
+  const name = str(raw.name ?? raw.nome ?? raw.speakerName).trim();
+  if (!name) return null;
+  const id = num(raw.id ?? raw.speakerId, NaN);
+  const bio = raw.bio ?? raw.biography ?? raw.miniBio ?? raw.miniBiography ?? raw.miniBiografia ?? raw.biografia;
+  const topics = raw.topics ?? raw.temas ?? raw.presentedTopics ?? raw.themes;
+  const agenda = raw.agenda ?? raw.schedule ?? raw.individualAgenda ?? raw.agendaIndividual;
+
+  return {
+    id: Number.isFinite(id) ? id : undefined,
+    name,
+    bio: bio == null ? null : str(bio),
+    topics: pickStringArray(topics),
+    agenda: agenda == null ? null : str(agenda),
+  };
+}
+
+function pickSpeakersArray(raw: Record<string, unknown>): unknown {
+  return raw.speakers ?? raw.palestrantes ?? raw.presenters ?? raw.eventSpeakers;
+}
+
+function normalizeSpeakers(raw: Record<string, unknown>): ApiSpeakerNorm[] {
+  const speakersRaw = pickSpeakersArray(raw);
+  if (!Array.isArray(speakersRaw)) return [];
+  return speakersRaw
+    .map((speaker) =>
+      speaker && typeof speaker === "object" ? mapSpeaker(speaker as Record<string, unknown>) : null,
+    )
+    .filter((speaker): speaker is ApiSpeakerNorm => Boolean(speaker));
 }
 
 export function coerceIsoDate(val: unknown): string {
@@ -250,6 +300,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     category: categoryRaw != null ? str(categoryRaw) : undefined,
     private: Boolean(privateRaw),
     imageUrl: raw.imageUrl != null ? str(raw.imageUrl) : null,
+    speakers: normalizeSpeakers(raw),
   };
 }
 

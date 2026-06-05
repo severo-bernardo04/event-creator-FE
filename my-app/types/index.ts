@@ -31,6 +31,15 @@ export type Event = {
   participants: Participant[];
   category?: string | null;
   imageUrl?: string | null;
+  speakers?: Speaker[];
+};
+
+export type Speaker = {
+  id?: number;
+  name: string;
+  bio?: string | null;
+  topics?: string[];
+  agenda?: string | null;
 };
 
 export type EventDTO = {
@@ -42,6 +51,7 @@ export type EventDTO = {
   maxParticipants: number;
   majority18: boolean;
   category?: string | null;
+  speakers?: Speaker[];
 };
 
 export type ParticipantDTO = {

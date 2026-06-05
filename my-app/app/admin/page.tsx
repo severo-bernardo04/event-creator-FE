@@ -49,6 +49,15 @@ type Evento = {
   category?: string | null;
   private?: boolean;
   imageUrl?: string | null;
+  speakers: SpeakerForm[];
+};
+
+type SpeakerForm = {
+  id?: number;
+  name: string;
+  bio: string;
+  topics: string;
+  agenda: string;
 };
 
 type PageId =
@@ -171,6 +180,13 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
     category: ev.category ?? undefined,
     private: Boolean(ev.private),
     imageUrl: ev.imageUrl ?? null,
+    speakers: ev.speakers.map((speaker) => ({
+      id: speaker.id,
+      name: speaker.name,
+      bio: speaker.bio ?? "",
+      topics: speaker.topics.join(", "),
+      agenda: speaker.agenda ?? "",
+    })),
   };
   }
 
@@ -288,6 +304,28 @@ const thClass =
 const tdClass =
   "border-b border-slate-800 px-5 py-3.5 text-[13.5px] text-slate-300 group-last:border-b-0";
 
+const emptySpeakerForm: SpeakerForm = {
+  name: "",
+  bio: "",
+  topics: "",
+  agenda: "",
+};
+
+function serializeSpeakers(speakers: SpeakerForm[]) {
+  return speakers
+    .map((speaker) => ({
+      id: speaker.id,
+      name: speaker.name.trim(),
+      bio: speaker.bio.trim(),
+      topics: speaker.topics
+        .split(/[,;\n]/)
+        .map((topic) => topic.trim())
+        .filter(Boolean),
+      agenda: speaker.agenda.trim(),
+    }))
+    .filter((speaker) => speaker.name);
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -393,6 +431,7 @@ async function rejeitarParticipante(participanteId: number) {
     max: "",
     category: "",
     private: false,
+    speakers: [emptySpeakerForm],
   });
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -675,6 +714,7 @@ async function rejeitarParticipante(participanteId: number) {
         max: String(ev.max),
         category: ev.category ?? "",
         private: Boolean(ev.private ?? false),
+        speakers: ev.speakers.length ? ev.speakers : [emptySpeakerForm],
       });
     } else {
       setModalEventoTitulo("Novo evento");
@@ -688,6 +728,7 @@ async function rejeitarParticipante(participanteId: number) {
         max: "",
         category: "",
         private: false,
+        speakers: [emptySpeakerForm],
       });
     }
     setModalEventoOpen(true);
@@ -749,6 +790,11 @@ async function rejeitarParticipante(participanteId: number) {
       setFormError("Selecione uma categoria.");
       return;
     }
+    const speakers = serializeSpeakers(form.speakers);
+    if (form.speakers.some((speaker) => !speaker.name.trim() && (speaker.bio.trim() || speaker.topics.trim() || speaker.agenda.trim()))) {
+      setFormError("Informe o nome do palestrante ou remova os campos preenchidos.");
+      return;
+    }
     setFormError(null);
     const idStr = form.id;
 
@@ -794,6 +840,7 @@ async function rejeitarParticipante(participanteId: number) {
           formData.append("majority18", "false");
           formData.append("category", form.category || "");
           formData.append("requiresApproval", String(Boolean(form.private)));
+          formData.append("speakers", JSON.stringify(speakers));
 
           if (imageFile) {
             formData.append("image", imageFile);
@@ -828,6 +875,7 @@ async function rejeitarParticipante(participanteId: number) {
           formData.append("majority18", "false");
           formData.append("category", form.category || "");
           formData.append("requiresApproval", String(Boolean(form.private)));
+          formData.append("speakers", JSON.stringify(speakers));
 
           if (imageFile) {
             formData.append("image", imageFile);
@@ -2025,6 +2073,102 @@ async function rejeitarParticipante(participanteId: number) {
                 className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
               />
               <label htmlFor="event-private" className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</label>
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                  Palestrantes
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, speakers: [...f.speakers, { ...emptySpeakerForm }] }))}
+                  className="rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-xs font-bold text-secondary hover:bg-secondary/20"
+                >
+                  Adicionar
+                </button>
+              </div>
+              <div className="space-y-3">
+                {form.speakers.map((speaker, index) => (
+                  <div key={index} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="text-xs font-bold text-slate-400">Palestrante {index + 1}</span>
+                      {form.speakers.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              speakers: f.speakers.filter((_, currentIndex) => currentIndex !== index),
+                            }))
+                          }
+                          className="rounded-lg border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-300 hover:bg-red-500/20"
+                        >
+                          Remover
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        value={speaker.name}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            speakers: f.speakers.map((item, currentIndex) =>
+                              currentIndex === index ? { ...item, name: e.target.value } : item,
+                            ),
+                          }))
+                        }
+                        placeholder="Nome do palestrante"
+                        className={inputClass}
+                      />
+                      <input
+                        type="text"
+                        value={speaker.topics}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            speakers: f.speakers.map((item, currentIndex) =>
+                              currentIndex === index ? { ...item, topics: e.target.value } : item,
+                            ),
+                          }))
+                        }
+                        placeholder="Temas apresentados"
+                        className={inputClass}
+                      />
+                    </div>
+                    <textarea
+                      value={speaker.bio}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          speakers: f.speakers.map((item, currentIndex) =>
+                            currentIndex === index ? { ...item, bio: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                      placeholder="Mini biografia"
+                      rows={2}
+                      className={`${inputClass} mt-3 resize-y`}
+                    />
+                    <textarea
+                      value={speaker.agenda}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          speakers: f.speakers.map((item, currentIndex) =>
+                            currentIndex === index ? { ...item, agenda: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                      placeholder="Agenda individual"
+                      rows={2}
+                      className={`${inputClass} mt-3 resize-y`}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {formError ? (
