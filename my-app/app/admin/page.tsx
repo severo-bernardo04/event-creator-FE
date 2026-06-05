@@ -302,15 +302,21 @@ async function aprovarParticipante(participanteId: number) {
   const evento = eventos.find((ev) =>
     ev.participantes.some((p) => p.id === participanteId),
   );
+  const participante = evento?.participantes.find((p) => p.id === participanteId);
 
   if (!evento) return;
 
   try {
+    setApprovalStatus(null);
+    setFormError(null);
     await apiFetch(`/events/${evento.id}/participants/${participanteId}/aprovar`, {
       method: "PATCH",
     });
 
     await recarregarEventos();
+    setApprovalStatus(
+      `Inscrição aprovada. A confirmação foi enviada por email para ${participante?.email ?? "o participante"}.`,
+    );
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
   }
@@ -321,15 +327,21 @@ async function rejeitarParticipante(participanteId: number) {
   const evento = eventos.find((ev) =>
     ev.participantes.some((p) => p.id === participanteId),
   );
+  const participante = evento?.participantes.find((p) => p.id === participanteId);
 
   if (!evento) return;
 
   try {
+    setApprovalStatus(null);
+    setFormError(null);
     await apiFetch(`/events/${evento.id}/participants/${participanteId}/rejeitar`, {
       method: "PATCH",
     });
 
     await recarregarEventos();
+    setApprovalStatus(
+      `Inscrição rejeitada. O aviso foi enviado por email para ${participante?.email ?? "o participante"}.`,
+    );
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
   }
@@ -369,6 +381,7 @@ async function rejeitarParticipante(participanteId: number) {
   const [notificationContent, setNotificationContent] = useState("");
   const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
   const [notificationSubmitting, setNotificationSubmitting] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     id: "",
@@ -1692,7 +1705,10 @@ async function rejeitarParticipante(participanteId: number) {
         <span className="mb-1 block text-xs font-bold text-slate-500">Filtro</span>
         <select
           value={aprovacoesFilter}
-          onChange={(e) => setAprovacoesFilter(e.target.value as AprovalFilter)}
+          onChange={(e) => {
+            setAprovacoesFilter(e.target.value as AprovalFilter);
+            setApprovalStatus(null);
+          }}
           className={inputClass}
         >
           {[
@@ -1710,6 +1726,18 @@ async function rejeitarParticipante(participanteId: number) {
       {renderParticipantSortControls()}
     </div>
   </div>
+
+  {approvalStatus ? (
+    <div className="mb-4 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm font-semibold text-green-300">
+      {approvalStatus}
+    </div>
+  ) : null}
+
+  {formError ? (
+    <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+      {formError}
+    </div>
+  ) : null}
 
   <div className="space-y-4">
     {!aprovacoesRows.length ? (
