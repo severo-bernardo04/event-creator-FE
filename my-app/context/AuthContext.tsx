@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: string;
         email: string;
         role: string;
+        cpf?: string;
       }>("/users/me", { method: "GET" });
       const refreshed: AuthUser = {
         userId: typeof me.userId === "number" ? me.userId : local.userId,
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: me.email,
         role: me.role,
         token: local.token,
-        cpf: local.cpf,
+        cpf: me.cpf ?? local.cpf,
       };
       setAuthUser(refreshed);
       setUser(refreshed);

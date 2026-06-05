@@ -1,11 +1,24 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type ProfileData = {
+    userId?: number;
+    name: string;
+    email: string;
+    phone?: string;
+    cpf?: string;
+    address?: string;
+    dataNascimento?: string | null;
+    role: string;
+};
 
 export default function PerfilPage() {
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, refreshUser } = useAuth();
 
     const [avatarPreview, setAvatarPreview] = useState<string | null>(() => {
         if (typeof window === "undefined") return null;
@@ -13,6 +26,51 @@ export default function PerfilPage() {
     });
 
     const [avatarError, setAvatarError] = useState<string | null>(null);
+    const [profile, setProfile] = useState<ProfileData | null>(null);
+    const [form, setForm] = useState({
+        name: "",
+        phone: "",
+        address: "",
+        dataNascimento: "",
+    });
+    const [loadingProfile, setLoadingProfile] = useState(true);
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [profileError, setProfileError] = useState<string | null>(null);
+    const [profileMessage, setProfileMessage] = useState<string | null>(null);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (!user) {
+            setLoadingProfile(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            setLoadingProfile(true);
+            setProfileError(null);
+            try {
+                const data = await apiFetch<ProfileData>("/users/me", { method: "GET" });
+                if (cancelled) return;
+                setProfile(data);
+                setForm({
+                    name: data.name ?? "",
+                    phone: data.phone ?? "",
+                    address: data.address ?? "",
+                    dataNascimento: data.dataNascimento ?? "",
+                });
+            } catch (err: unknown) {
+                if (!cancelled) setProfileError(getErrorMessage(err));
+            } finally {
+                if (!cancelled) setLoadingProfile(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user]);
 
     function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
@@ -38,6 +96,63 @@ export default function PerfilPage() {
         reader.readAsDataURL(file);
     }
 
+    async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        const name = form.name.trim();
+        if (!name) {
+            setProfileError("Informe seu nome.");
+            return;
+        }
+
+        setSavingProfile(true);
+        setProfileError(null);
+        setProfileMessage(null);
+        try {
+            const updated = await apiFetch<ProfileData>("/users/me", {
+                method: "PATCH",
+                json: {
+                    name,
+                    phone: form.phone.trim(),
+                    address: form.address.trim(),
+                    dataNascimento: form.dataNascimento || null,
+                },
+            });
+            setProfile(updated);
+            setForm({
+                name: updated.name ?? "",
+                phone: updated.phone ?? "",
+                address: updated.address ?? "",
+                dataNascimento: updated.dataNascimento ?? "",
+            });
+            await refreshUser();
+            setProfileMessage("Perfil atualizado com sucesso.");
+            setEditModalOpen(false);
+        } catch (err: unknown) {
+            setProfileError(getErrorMessage(err));
+        } finally {
+            setSavingProfile(false);
+        }
+    }
+
+    function openEditModal() {
+        setProfileError(null);
+        setProfileMessage(null);
+        setForm({
+            name: profile?.name ?? user?.name ?? "",
+            phone: profile?.phone ?? "",
+            address: profile?.address ?? "",
+            dataNascimento: profile?.dataNascimento ?? "",
+        });
+        setEditModalOpen(true);
+    }
+
+    function closeEditModal() {
+        if (savingProfile) return;
+        setEditModalOpen(false);
+        setProfileError(null);
+    }
+
     if (!user) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-950">
@@ -51,7 +166,8 @@ export default function PerfilPage() {
         );
     }
 
-    const initial = user.name.charAt(0).toUpperCase();
+    const displayName = profile?.name || user.name;
+    const initial = displayName.charAt(0).toUpperCase();
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -85,8 +201,8 @@ export default function PerfilPage() {
                             )}
                         </div>
                         <div>
-                            <p className="text-xl font-bold text-white">{user.name}</p>
-                            <p className="text-sm text-slate-400">{user.email}</p>
+                            <p className="text-xl font-bold text-white">{displayName}</p>
+                            <p className="text-sm text-slate-400">{profile?.email ?? user.email}</p>
                             <span className={`mt-2 inline-flex rounded-full px-3 py-0.5 text-xs font-bold ring-1 ring-inset ${
                                 isAdmin
                                     ? "bg-amber-500/15 text-amber-300 ring-amber-500/25"
@@ -113,20 +229,160 @@ export default function PerfilPage() {
 
                     {/* Dados da conta */}
                     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                            Dados da conta
-                        </p>
-                        {/* TODO: substituir "—" pelos dados reais quando GET /users/me
-                retornar o UserResponseDTO completo */}
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                            <Field label="Nome completo" value={user.name} />
-                            <Field label="E-mail" value={user.email} />
-                            <Field label="Telefone" value="—" />
-                            <Field label="CPF" value="—" />
-                            <Field label="Endereço" value="—" />
-                            <Field label="Data de nascimento" value="—" />
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                                    Dados da conta
+                                </p>
+                                <h2 className="mt-1 text-xl font-black text-white">Informações pessoais</h2>
+                            </div>
+                            {loadingProfile ? (
+                                <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold text-slate-400">
+                                    Carregando...
+                                </span>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={openEditModal}
+                                    className="rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-2.5 text-sm font-bold text-secondary hover:bg-secondary/20"
+                                >
+                                    Editar informações
+                                </button>
+                            )}
+                        </div>
+
+                        {profileError ? (
+                            <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
+                                {profileError}
+                            </p>
+                        ) : null}
+                        {profileMessage ? (
+                            <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200">
+                                {profileMessage}
+                            </p>
+                        ) : null}
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                            <Field label="Nome completo" value={profile?.name ?? user.name} />
+                            <Field label="E-mail" value={profile?.email ?? user.email} />
+                            <Field label="Telefone" value={profile?.phone || "—"} />
+                            <Field label="CPF" value={profile?.cpf || user.cpf || "—"} />
+                            <Field label="Endereço" value={profile?.address || "—"} />
+                            <Field label="Data de nascimento" value={profile?.dataNascimento || "—"} />
                         </div>
                     </div>
+
+                    {editModalOpen ? (
+                        <div
+                            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4"
+                            role="presentation"
+                            onClick={closeEditModal}
+                        >
+                            <form
+                                onSubmit={saveProfile}
+                                className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="perfil-editar-titulo"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-widest text-secondary">
+                                            Perfil
+                                        </p>
+                                        <h2 id="perfil-editar-titulo" className="mt-1 text-xl font-black text-white">
+                                            Editar informações
+                                        </h2>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={closeEditModal}
+                                        disabled={savingProfile}
+                                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        Fechar
+                                    </button>
+                                </div>
+
+                                {profileError ? (
+                                    <p className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
+                                        {profileError}
+                                    </p>
+                                ) : null}
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <label className="block">
+                                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Nome completo
+                                    </span>
+                                    <input
+                                        value={form.name}
+                                        onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                                        disabled={loadingProfile || savingProfile}
+                                        className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                        placeholder="Seu nome"
+                                    />
+                                </label>
+                                <Field label="E-mail" value={profile?.email ?? user.email} />
+                                <label className="block">
+                                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Telefone
+                                    </span>
+                                    <input
+                                        value={form.phone}
+                                        onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                                        disabled={loadingProfile || savingProfile}
+                                        className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                        placeholder="(00) 00000-0000"
+                                    />
+                                </label>
+                                <Field label="CPF" value={profile?.cpf || user.cpf || "—"} />
+                                <label className="block sm:col-span-2">
+                                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Endereço
+                                    </span>
+                                    <input
+                                        value={form.address}
+                                        onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
+                                        disabled={loadingProfile || savingProfile}
+                                        className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                        placeholder="Rua, número, bairro, cidade"
+                                    />
+                                </label>
+                                <label className="block">
+                                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Data de nascimento
+                                    </span>
+                                    <input
+                                        type="date"
+                                        value={form.dataNascimento}
+                                        onChange={(event) => setForm((current) => ({ ...current, dataNascimento: event.target.value }))}
+                                        disabled={loadingProfile || savingProfile}
+                                        className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                    />
+                                </label>
+                            </div>
+                                <div className="mt-6 flex justify-end gap-2 sm:col-span-2">
+                                    <button
+                                        type="button"
+                                        onClick={closeEditModal}
+                                        disabled={savingProfile}
+                                        className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={loadingProfile || savingProfile}
+                                        className="rounded-xl bg-secondary px-4 py-2.5 text-sm font-black text-slate-950 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {savingProfile ? "Salvando..." : "Salvar alterações"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    ) : null}
 
                     {/* Ações */}
                     <div className="flex flex-wrap gap-3">
