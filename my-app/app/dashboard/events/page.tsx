@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import styles from "./Events.module.css";
-import { apiFetch } from "@/lib/api";
+import { fetchAllEvents } from "@/lib/eventRequests";
 import { getErrorMessage } from "@/lib/errors";
-import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
+import type { ApiEventNorm } from "@/lib/eventsFromApi";
 import EventsChart from "@/components/EventsChart";
 
 function fmtDateIso(d: string) {
@@ -20,8 +20,7 @@ const Events = () => {
   useEffect(() => {
     (async () => {
       try {
-        const data = await apiFetch<unknown>("/events", { method: "GET" });
-        setEvents(normalizeEventList(data));
+        setEvents(await fetchAllEvents());
       } catch (err: unknown) {
         setError(getErrorMessage(err));
       } finally {
@@ -44,7 +43,7 @@ const Events = () => {
             participants: event.participants.length,
             title: event.title,
           }))}
-          months={6}
+          months="all"
         />
       )}
       <ul className={styles.grid}>
@@ -69,8 +68,15 @@ const Events = () => {
                 </div>
                 <div className={styles.footer}>
                   <span className={styles.badge}>Evento</span>
-                  <span className={styles.spots}>{remaining > 0 ? `${remaining} / ${event.maxParticipants} vagas restantes` : `Esgotado — ${event.maxParticipants} vagas`}</span>
+                  <span className={styles.spots}>
+                    {remaining > 0
+                      ? `Vagas disponíveis: ${remaining}`
+                      : "Esgotado"}
+                  </span>
                 </div>
+                <span className={styles.capacity}>
+                  {event.participants.length}/{event.maxParticipants} vagas preenchidas
+                </span>
                 <button className={styles.button}>Inscrever-se</button>
               </div>
             </li>

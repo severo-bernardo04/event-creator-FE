@@ -158,6 +158,7 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
   const user = pickNestedRecord(raw, "user") ?? pickNestedRecord(raw, "usuario");
   const id = num(raw.id ?? raw.participantId ?? raw.inscriptionId ?? raw.registrationId, NaN);
   if (!Number.isFinite(id)) return null;
+
   const createdAt = raw.createdAt ?? raw.created_at ?? raw.registeredAt;
   const ticketId = raw.ticketId ?? raw.ticket_id ?? pickTicketValue(raw, "ticketId") ?? pickTicketValue(raw, "id");
   const ticketToken = raw.ticketToken ?? raw.token ?? pickTicketValue(raw, "token");
@@ -171,15 +172,15 @@ function mapParticipant(raw: Record<string, unknown>): ApiParticipantNorm | null
     pickTicketValue(raw, "qrcodeBase64") ??
     pickTicketValue(raw, "qrCode") ??
     pickTicketValue(raw, "qrcode");
+  const rawStatus =
+    raw.status ?? raw.approvalStatus ?? raw.state ?? raw.approval ?? raw.approved ?? raw.aprovado ?? undefined;
 
   return {
     id,
     name: str(raw.name ?? raw.nome ?? user?.name ?? user?.nome),
     email: str(raw.email ?? user?.email),
     phone: str(raw.phone ?? raw.telefone ?? user?.phone ?? user?.telefone),
-    status: normalizeParticipantStatus(
-    raw.status ?? raw.approvalStatus ?? raw.state
-),
+    status: normalizeParticipantStatus(rawStatus),
     presenca:
       raw.presenca != null
         ? str(raw.presenca)
@@ -286,6 +287,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
   raw.isPrivate ??
   raw.privateEvent ??
   raw.is_private;
+  const imageRaw = raw.imageUrl ?? raw.image_url ?? raw.image ?? raw.coverImage ?? raw.cover_image ?? raw.bannerUrl ?? raw.banner_url;
 
   return {
     id,
@@ -299,7 +301,7 @@ export function normalizeEventRecord(raw: Record<string, unknown>): ApiEventNorm
     participants,
     category: categoryRaw != null ? str(categoryRaw) : undefined,
     private: Boolean(privateRaw),
-    imageUrl: raw.imageUrl != null ? str(raw.imageUrl) : null,
+    imageUrl: imageRaw == null ? null : str(imageRaw),
     speakers: normalizeSpeakers(raw),
   };
 }

@@ -382,6 +382,7 @@ export default function EventosPage() {
                 {paginated.map((ev) => {
                   const count = getApprovedCount(ev);
                   const full = count >= ev.maxParticipants;
+                  const availableSpots = Math.max(0, ev.maxParticipants - count);
                   const participant = getParticipantForEmail(ev, user?.email);
                   const hasRegistration = Boolean(participant);
                   const isApproved = isApprovedRegistration(participant);
@@ -440,6 +441,9 @@ export default function EventosPage() {
                               }`}>
                                 {count}/{ev.maxParticipants} inscritos
                               </p>
+                          <p className={`mt-1 text-sm font-bold ${full ? "text-red-400" : "text-emerald-400"}`}>
+                            {full ? "Vagas disponíveis: 0" : `Vagas disponíveis: ${availableSpots}`}
+                          </p>
                           <div className="mt-6 flex flex-wrap gap-2">
 	                            {!isAdmin && (
 	                              hasRegistration ? (

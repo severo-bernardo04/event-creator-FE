@@ -306,6 +306,7 @@ async function submitEnroll(eventId: number) {
                   const registrationStatus = isPending ? "PENDING" : isApproved ? "APPROVED" : isRejected ? "REJECTED" : null;
                   const eventDetailHref = getRegistrationDetailHref(ev.id, registrationStatus);
                   const canViewDetails = canViewPrivateEventInfo(ev, participant);
+                  const availableSpots = Math.max(0, ev.maxParticipants - ev.participants.length);
                   const description = canViewDetails
                     ? ev.description || "Sem descrição."
                     : "Informações privadas — aguarde aprovação do administrador.";
@@ -340,6 +341,10 @@ async function submitEnroll(eventId: number) {
 
               <p className="mt-4 text-sm text-slate-400">
                 {ev.date} · {location}
+              </p>
+
+              <p className="mt-2 text-sm font-bold text-emerald-400">
+                Vagas disponíveis: {availableSpots}
               </p>
 
               {hasRegistration ? (

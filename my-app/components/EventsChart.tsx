@@ -21,7 +21,7 @@ type EventWithDate = {
 
 type Props = {
   events: EventWithDate[];
-  months?: number;
+  months?: number | "all";
   height?: number;
 };
 
@@ -77,11 +77,19 @@ function TooltipContent({
 
 export default function EventsChart({ events, months = 6, height = 320 }: Props) {
   const now = new Date();
-  const keys: string[] = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    keys.push(k);
+  let keys: string[];
+
+  if (months === "all") {
+    keys = Array.from(
+      new Set(events.map((ev) => monthKey(ev.date)).filter((k): k is string => Boolean(k))),
+    ).sort();
+  } else {
+    keys = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      keys.push(k);
+    }
   }
 
   const counts: Record<string, AggregatedMonth> = {};
