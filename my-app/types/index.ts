@@ -5,6 +5,7 @@ export type AuthUser = {
   role: "ADMIN" | "USER" | string;
   token: string;
   cpf?: string;  // opcional para não quebrar quem já tem dados sem cpf
+  dataNascimento?: string | null;
 };
 
 export type ParticipantStatus = "PENDING" | "APPROVED" | "REJECTED";

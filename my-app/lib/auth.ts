@@ -30,6 +30,9 @@ export function getAuthUser(): AuthUser | null {
       email: parsed.email,
       role: parsed.role,
       token,
+      cpf: typeof parsed.cpf === "string" ? parsed.cpf : undefined,
+      dataNascimento:
+          typeof parsed.dataNascimento === "string" ? parsed.dataNascimento : null,
     };
   } catch {
     return null;

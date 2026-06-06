@@ -125,9 +125,15 @@ export async function updateMaterial(eventId: number, materialId: number, materi
     const formData = new FormData();
     formData.append("title", material.title);
     formData.append("description", material.description);
+    formData.append("fileType", material.fileType);
 
     if (material.file) {
         formData.append("file", material.file);
+    }
+
+    if (material.link) {
+        formData.append("link", material.link);
+        formData.append("url", material.link);
     }
 
     const data = await apiFetch<unknown>(`/events/${eventId}/materials/${materialId}`, {

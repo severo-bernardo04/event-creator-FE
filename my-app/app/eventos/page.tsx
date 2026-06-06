@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
+import { getAdultEventRestrictionMessage } from "@/lib/ageRestriction";
 import { cancelRegistration } from "@/lib/cancelRegistration";
 import { getErrorMessage } from "@/lib/errors";
 import CancelRegistrationModal from "@/app/components/CancelRegistrationModal";
@@ -127,6 +128,15 @@ export default function EventosPage() {
     setFormError(null);
     setSubmitting(true);
     try {
+      const eventToEnroll = eventList.find((eventItem) => eventItem.id === eventId);
+      const adultRestriction = eventToEnroll
+        ? getAdultEventRestrictionMessage(eventToEnroll, user)
+        : null;
+      if (adultRestriction) {
+        setFormError(adultRestriction);
+        return;
+      }
+
       const alreadyRegistered = await checkEventRegistration(eventId, user.email);
       if (alreadyRegistered) {
         setFormError("Você já está inscrito neste evento.");
@@ -402,11 +412,23 @@ export default function EventosPage() {
                     ? ev.description?.trim() || "Sem descrição."
                     : "Informações privadas — aguarde aprovação do administrador.";
                   const location = canViewDetails ? ev.location : null;
-                  const visibleSpeakers = ev.speakers.slice(0, 2);
-                  const hiddenSpeakersCount = Math.max(0, ev.speakers.length - visibleSpeakers.length);
+                  const firstSpeaker = ev.speakers[0];
+                  const extraSpeakersCount = Math.max(0, ev.speakers.length - 1);
 
                   return (
-                      <li key={ev.id} className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg hover:border-primary/40 hover:shadow-primary/10">
+                      <li
+                        key={ev.id}
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => router.push(eventDetailHref)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            router.push(eventDetailHref);
+                          }
+                        }}
+                        className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-slate-900/70 hover:shadow-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/60"
+                      >
                         <div
                           className={`relative aspect-[16/10] w-full bg-cover bg-center ${
                             ev.imageUrl
@@ -418,62 +440,54 @@ export default function EventosPage() {
                           <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
                             {ev.category || "Sem categoria"}
                           </span>
+                          {ev.majority18 ? (
+                            <span className="absolute right-4 top-4 rounded-md bg-red-500/90 px-2 py-1 text-xs font-black uppercase tracking-wide text-white">
+                              +18
+                            </span>
+                          ) : null}
                         </div>
-                        <div className="flex flex-1 flex-col p-6">
-                          <h2 className="text-lg font-bold text-white">
-                            <Link href={eventDetailHref} className="hover:underline">
-                              {ev.title}
-                            </Link>
+                        <div className="flex flex-1 flex-col p-5 sm:p-6">
+                          <h2 className="break-words text-lg font-bold text-white transition group-hover:text-secondary">
+                            {ev.title}
                           </h2>
                           <p className="mt-2 line-clamp-2 text-sm text-slate-400">
                             {description}
                           </p>
-                          {visibleSpeakers.length ? (
-                            <div className="mt-4 space-y-2">
-                              {visibleSpeakers.map((speaker, index) => (
-                                <div key={`${speaker.id ?? speaker.name}-${index}`} className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-3">
-                                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                                    Palestrante {index + 1}
-                                  </p>
-                                  <p className="mt-1 text-sm font-extrabold text-white">
-                                    {speaker.name}
-                                  </p>
-                                  {speaker.topics?.length ? (
-                                    <p className="mt-1 line-clamp-2 text-xs text-secondary">
-                                      Temas: {speaker.topics.join(", ")}
-                                    </p>
-                                  ) : null}
-                                  {speaker.bio ? (
-                                    <p className="mt-2 line-clamp-2 text-sm text-slate-400">
-                                      {speaker.bio}
-                                    </p>
-                                  ) : null}
-                                  {speaker.agenda ? (
-                                    <p className="mt-2 line-clamp-2 text-xs text-slate-500">
-                                      Agenda: {speaker.agenda}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              ))}
-                              {hiddenSpeakersCount ? (
-                                <Link href={eventDetailHref} className="block text-xs font-bold text-secondary hover:underline">
-                                  +{hiddenSpeakersCount} palestrante{hiddenSpeakersCount === 1 ? "" : "s"}
-                                </Link>
+
+                          {firstSpeaker ? (
+                            <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2.5">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                Palestrante
+                              </p>
+                              <p className="mt-1 truncate text-sm font-bold text-white">
+                                {firstSpeaker.name}
+                                {extraSpeakersCount
+                                  ? ` +${extraSpeakersCount}`
+                                  : ""}
+                              </p>
+                              {firstSpeaker.topics?.length ? (
+                                <p className="mt-1 line-clamp-1 text-xs text-secondary">
+                                  {firstSpeaker.topics.join(", ")}
+                                </p>
                               ) : null}
                             </div>
                           ) : null}
-                          <p className="mt-3 text-sm text-slate-500">
-                            {fmtDate(ev.date)} · {timeShort(ev.time)}
-                            {location ? ` · ${location}` : ""}
-                          </p>
-                          <p className={`text-sm font-bold ${
-                                full ? "text-red-400" : "text-yellow-400"
-                              }`}>
+
+                          <div className="mt-4 space-y-2 text-sm">
+                            <p className="text-slate-500">
+                              {fmtDate(ev.date)} · {timeShort(ev.time)}
+                              {location ? ` · ${location}` : ""}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className={`font-bold ${full ? "text-red-400" : "text-yellow-400"}`}>
                                 {count}/{ev.maxParticipants} inscritos
-                              </p>
-                          <p className={`mt-1 text-sm font-bold ${full ? "text-red-400" : "text-emerald-400"}`}>
-                            {full ? "Vagas disponíveis: 0" : `Vagas disponíveis: ${availableSpots}`}
-                          </p>
+                              </span>
+                              <span className={`font-bold ${full ? "text-red-400" : "text-emerald-400"}`}>
+                                {full ? "Sem vagas" : `${availableSpots} vaga${availableSpots === 1 ? "" : "s"} disponíveis`}
+                              </span>
+                            </div>
+                          </div>
+
                           <div className="mt-6 flex flex-wrap gap-2">
 	                            {!isAdmin && (
 	                              hasRegistration ? (
@@ -481,7 +495,10 @@ export default function EventosPage() {
 		                                <button
 	                                  type="button"
 	                                  disabled={submitting || isRejected}
-	                                  onClick={() => setCancelEventId(ev.id)}
+	                                  onClick={(event) => {
+                                      event.stopPropagation();
+                                      setCancelEventId(ev.id);
+                                    }}
                                   className={`inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold transition disabled:opacity-50 ${
                                     isPending
                                       ? "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-red-500/20 hover:border-red-500 hover:text-red-200"
@@ -500,6 +517,7 @@ export default function EventosPage() {
 	                                </button>
 	                                <Link
 		                                  href={eventDetailHref}
+                                      onClick={(event) => event.stopPropagation()}
 	                                  className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl border border-slate-600 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800"
 	                                >
 		                                  Ver detalhes
@@ -510,12 +528,24 @@ export default function EventosPage() {
                                   <button
                                     type="button"
                                     disabled={full || !user || submitting}
-                                    onClick={() => openEnroll(ev)}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      const adultRestriction = getAdultEventRestrictionMessage(ev, user);
+                                      if (adultRestriction) {
+                                        setFormError(adultRestriction);
+                                        return;
+                                      }
+                                      openEnroll(ev);
+                                    }}
                                     className="inline-flex flex-1 min-w-[140px] items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     {full ? "Lotado" : user ? "Inscrever-se" : "Login para inscrever"}
                                   </button>
-                                  <Link href={`/eventos/${ev.id}`} className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800">
+                                  <Link
+                                    href={eventDetailHref}
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                                  >
                                     Ver detalhes
                                   </Link>
                                 </>

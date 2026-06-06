@@ -24,6 +24,7 @@ type EventForm = {
     max: string;
     category?: string;
     private?: boolean;
+    majority18?: boolean;
     imageUrl?: string | null;
     speakers: SpeakerForm[];
 };
@@ -77,6 +78,7 @@ export default function EditarEventoPage() {
         local: "",
         max: "",
         category: "",
+        majority18: false,
         speakers: [emptySpeakerForm],
     });
     const [initialForm, setInitialForm] = useState<EventForm | null>(null);
@@ -110,6 +112,7 @@ export default function EditarEventoPage() {
                     max: String(event.maxParticipants),
                     category: event.category ?? "",
                     private: Boolean(event.private),
+                    majority18: Boolean(event.majority18),
                     imageUrl: event.imageUrl ?? null,
                     speakers: event.speakers.length
                         ? event.speakers.map((speaker) => ({
@@ -196,6 +199,7 @@ export default function EditarEventoPage() {
                     { key: "max", label: "Máximo de participantes" },
                     { key: "category", label: "Categoria" },
                     { key: "private", label: "Evento privado" },
+                    { key: "majority18", label: "Evento +18" },
                 ];
                 for (const { key, label } of fields) {
                     const from = String(original[key] ?? "").trim();
@@ -221,7 +225,7 @@ export default function EditarEventoPage() {
             formData.append("time", timeForApi);
             formData.append("location", local);
             formData.append("maxParticipants", String(max));
-            formData.append("majority18", "false");
+            formData.append("majority18", String(Boolean(form.majority18)));
             formData.append("category", form.category || "");
             formData.append("requiresApproval", String(Boolean(form.private)));
             formData.append("private", String(Boolean(form.private)));
@@ -253,6 +257,7 @@ export default function EditarEventoPage() {
                     max: String(updatedEvent.maxParticipants),
                     category: updatedEvent.category ?? "",
                     private: Boolean(updatedEvent.private),
+                    majority18: Boolean(updatedEvent.majority18),
                     imageUrl: updatedEvent.imageUrl ?? null,
                     speakers: updatedEvent.speakers.length
                         ? updatedEvent.speakers.map((speaker) => ({
@@ -473,6 +478,19 @@ export default function EditarEventoPage() {
                                         className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
                                     />
                                     <label htmlFor="event-private" className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</label>
+                                </div>
+
+                                <div className="mb-4 flex items-center gap-3">
+                                    <input
+                                        id="event-majority18"
+                                        type="checkbox"
+                                        checked={Boolean(form.majority18)}
+                                        onChange={(e) => setForm((f) => ({ ...f, majority18: e.target.checked }))}
+                                        className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+                                    />
+                                    <label htmlFor="event-majority18" className="text-sm text-slate-300">
+                                        Evento +18 — bloquear inscrição de contas menores de idade
+                                    </label>
                                 </div>
                                 <div className="mb-4">
                                     <div className="mb-3 flex items-center justify-between gap-3">

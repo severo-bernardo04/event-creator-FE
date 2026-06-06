@@ -22,7 +22,7 @@ import EventsChart from "@/components/EventsChart";
 import { CATEGORIES } from "@/lib/categoryMocks";
 import { NavIconDashboard, NavIconCalendar, NavIconPeople, NavIconUser, NavIconBack } from "./components/NavIcons";
 import StatusParticipante from "@/components/StatusParticipante";
-import EventMaterialsManager from "@/components/EventMaterialsManager";
+import EventMaterialsManager from "./components/EventMaterialsManager";
 import type { EventMaterial, ParticipantStatus } from "@/types";
 import { getMaterialsByEventId } from "@/lib/eventMaterials";
 import {
@@ -55,6 +55,7 @@ type Evento = {
   participantes: Participante[];
   category?: string | null;
   private?: boolean;
+  majority18?: boolean;
   imageUrl?: string | null;
   speakers: SpeakerForm[];
 };
@@ -87,6 +88,7 @@ type EventHistorySnapshot = {
   max: string;
   category: string;
   private: boolean;
+  majority18: boolean;
   imageUrl: string;
 };
 
@@ -117,6 +119,7 @@ const eventHistoryFields: EventHistoryFieldDefinition<EventHistorySnapshot>[] = 
   { key: "max", label: "Máx. participantes" },
   { key: "category", label: "Categoria" },
   { key: "private", label: "Evento privado" },
+  { key: "majority18", label: "Evento +18" },
   { key: "imageUrl", label: "Imagem" },
 ];
 
@@ -186,6 +189,7 @@ function mapNormToEvento(ev: ApiEventNorm): Evento {
     }),
     category: ev.category ?? undefined,
     private: Boolean(ev.private),
+    majority18: Boolean(ev.majority18),
     imageUrl: ev.imageUrl ?? null,
     speakers: ev.speakers.map((speaker) => ({
       id: speaker.id,
@@ -461,6 +465,7 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
     max: "",
     category: "",
     private: false,
+    majority18: false,
     speakers: [emptySpeakerForm],
   });
   const [imageError, setImageError] = useState<string | null>(null);
@@ -809,6 +814,7 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
         max: String(ev.max),
         category: ev.category ?? "",
         private: Boolean(ev.private ?? false),
+        majority18: Boolean(ev.majority18 ?? false),
         speakers: ev.speakers.length ? ev.speakers : [emptySpeakerForm],
       });
     } else {
@@ -823,6 +829,7 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
         max: "",
         category: "",
         private: false,
+        majority18: false,
         speakers: [emptySpeakerForm],
       });
     }
@@ -909,6 +916,7 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
                   max: String(originalEvent.max),
                   category: originalEvent.category ?? "",
                   private: Boolean(originalEvent.private),
+                  majority18: Boolean(originalEvent.majority18),
                   imageUrl: originalEvent.imageUrl ?? "",
                 },
                 {
@@ -920,6 +928,7 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
                   max: String(max),
                   category: form.category || "",
                   private: Boolean(form.private),
+                  majority18: Boolean(form.majority18),
                   imageUrl: imageFile ? imageFile.name : originalEvent.imageUrl ?? "",
                 },
                 eventHistoryFields,
@@ -932,7 +941,7 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
           formData.append("time", timeForApi);
           formData.append("location", local);
           formData.append("maxParticipants", String(max));
-          formData.append("majority18", "false");
+          formData.append("majority18", String(Boolean(form.majority18)));
           formData.append("category", form.category || "");
           formData.append("requiresApproval", String(Boolean(form.private)));
           formData.append("speakers", JSON.stringify(speakers));
@@ -967,7 +976,7 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
           formData.append("time", timeForApi);
           formData.append("location", local);
           formData.append("maxParticipants", String(max));
-          formData.append("majority18", "false");
+          formData.append("majority18", String(Boolean(form.majority18)));
           formData.append("category", form.category || "");
           formData.append("requiresApproval", String(Boolean(form.private)));
           formData.append("speakers", JSON.stringify(speakers));
@@ -2391,6 +2400,19 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
                 className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
               />
               <label htmlFor="event-private" className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</label>
+            </div>
+
+            <div className="mb-4 flex items-center gap-3">
+              <input
+                id="event-majority18"
+                type="checkbox"
+                checked={Boolean(form.majority18)}
+                onChange={(e) => setForm((f) => ({ ...f, majority18: e.target.checked }))}
+                className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+              />
+              <label htmlFor="event-majority18" className="text-sm text-slate-300">
+                Evento +18 — bloquear inscrição de contas menores de idade
+              </label>
             </div>
 
             <div className="mb-4">

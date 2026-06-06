@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { getAdultEventRestrictionMessage } from "@/lib/ageRestriction";
 import { getErrorMessage } from "@/lib/errors";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 import {
@@ -30,6 +32,7 @@ function eventCoverStyle(imageUrl?: string | null) {
 }
 
 export function Home() {
+  const router = useRouter();
   const { isAdmin, user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -58,6 +61,15 @@ async function submitEnroll(eventId: number) {
   setSubmitting(true);
 
   try {
+    const eventToEnroll = events.find((eventItem) => eventItem.id === eventId);
+    const adultRestriction = eventToEnroll
+      ? getAdultEventRestrictionMessage(eventToEnroll, user)
+      : null;
+    if (adultRestriction) {
+      setFormError(adultRestriction);
+      return;
+    }
+
     const alreadyRegistered = await checkEventRegistration(eventId, user.email);
 
     if (alreadyRegistered) {
@@ -287,6 +299,12 @@ async function submitEnroll(eventId: number) {
               </div>
             </div>
 
+            {formError ? (
+              <div className="mt-8 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+                {formError}
+              </div>
+            ) : null}
+
             <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {loading
                 ? Array.from({ length: 6 }).map((_, idx) => (
@@ -315,7 +333,16 @@ async function submitEnroll(eventId: number) {
         return (
           <article
             key={ev.id}
-            className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:border-primary/40 hover:shadow-primary/10"
+            role="link"
+            tabIndex={0}
+            onClick={() => router.push(eventDetailHref)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                router.push(eventDetailHref);
+              }
+            }}
+            className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-xl transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/60"
           >
             <div
               className={`relative aspect-[16/10] w-full bg-cover bg-center ${
@@ -328,10 +355,15 @@ async function submitEnroll(eventId: number) {
               <span className="absolute left-4 top-4 rounded-md bg-black/60 px-2 py-1 text-xs font-bold uppercase tracking-wide text-secondary">
                 {ev.category ?? "Evento"}
               </span>
+              {ev.majority18 ? (
+                <span className="absolute right-4 top-4 rounded-md bg-red-500/90 px-2 py-1 text-xs font-black uppercase tracking-wide text-white">
+                  +18
+                </span>
+              ) : null}
             </div>
 
             <div className="flex flex-1 flex-col p-6">
-              <h3 className="text-lg font-bold text-white">
+              <h3 className="text-lg font-bold text-white transition group-hover:text-secondary">
                 {ev.title}
               </h3>
 
@@ -350,6 +382,7 @@ async function submitEnroll(eventId: number) {
               {hasRegistration ? (
             <Link
               href={eventDetailHref}
+              onClick={(event) => event.stopPropagation()}
               className={`mt-6 inline-flex w-full items-center justify-center rounded-xl border py-3 text-sm font-bold ${
                 isPending
                   ? "border-amber-400/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
@@ -367,7 +400,15 @@ async function submitEnroll(eventId: number) {
           ) : (
             <button
               type="button"
-              onClick={() => setOpenId(ev.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                const adultRestriction = getAdultEventRestrictionMessage(ev, user);
+                if (adultRestriction) {
+                  setFormError(adultRestriction);
+                  return;
+                }
+                setOpenId(ev.id);
+              }}
               className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary/15 py-3 text-sm font-bold text-primary ring-1 ring-primary/40 hover:bg-primary/25"
             >
               Quero participar

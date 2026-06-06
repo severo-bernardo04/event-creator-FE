@@ -14,6 +14,7 @@ type LoginResponse = {
   role: string;
   token: string;
   cpf?: string;
+  dataNascimento?: string | null;
 };
 
 type AuthContextValue = {
@@ -31,13 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      setUser(getAuthUser());
-      setMounted(true);
-    });
-  }, []);
-
   function login(data: LoginResponse) {
     const authUser: AuthUser = {
       userId: typeof data.userId === "number" ? data.userId : 0,
@@ -46,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role: data.role,
       token: data.token,
       cpf: data.cpf,
+      dataNascimento: data.dataNascimento ?? null,
     };
     setAuthUser(authUser);
     setUser(authUser);
@@ -74,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: string;
         role: string;
         cpf?: string;
+        dataNascimento?: string | null;
       }>("/users/me", { method: "GET" });
       const refreshed: AuthUser = {
         userId: typeof me.userId === "number" ? me.userId : local.userId,
@@ -82,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: me.role,
         token: local.token,
         cpf: me.cpf ?? local.cpf,
+        dataNascimento: me.dataNascimento ?? local.dataNascimento ?? null,
       };
       setAuthUser(refreshed);
       setUser(refreshed);
@@ -91,6 +88,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(getErrorMessage(err));
     }
   }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      const localUser = getAuthUser();
+      setUser(localUser);
+      setMounted(true);
+      if (localUser) {
+        void refreshUser().catch(() => {
+          // refreshUser já limpa a sessão quando a API rejeita o token.
+        });
+      }
+    });
+  }, []);
 
   const value = useMemo<AuthContextValue>(
       () => ({
