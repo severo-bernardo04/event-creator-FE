@@ -22,16 +22,61 @@ function pickMessage(payload: unknown, fallback: string) {
   return fallback;
 }
 
-function sanitizeMessage(msg: string) {
+function sanitizeMessage(msg: string, status?: number) {
   if (!msg) return msg;
 
+  const trimmed = msg.trim();
   const lower = msg.toLowerCase();
 
+  if (
+    trimmed.startsWith("[") ||
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("<!DOCTYPE") ||
+    trimmed.toLowerCase().startsWith("<html") ||
+    /<\/html>/i.test(trimmed)
+  ) {
+    return "Não foi possível concluir a ação agora. Tente novamente em alguns instantes.";
+  }
+
+  if (status === 401) {
+    return "Sua sessão expirou. Faça login novamente.";
+  }
+
+  if (status === 403) {
+    return "Você não tem permissão para realizar esta ação.";
+  }
+
+  if (status === 404) {
+    return "Não encontramos o recurso solicitado.";
+  }
+
+  if (status === 409) {
+    return "Não foi possível concluir a ação porque já existe um registro semelhante.";
+  }
+
+  if (status && status >= 500) {
+    return "Não foi possível concluir a ação agora. Tente novamente em alguns instantes.";
+  }
+
   if (lower === "internal server error") {
-    return "Não foi possível conectar à API. Verifique se o backend está rodando na porta configurada em NEXT_PUBLIC_API_URL.";
+    return "Não foi possível concluir a ação agora. Tente novamente em alguns instantes.";
   }
 
   const sensitiveKeywords = [
+    "cannot invoke",
+    "nullpointer",
+    "null pointer",
+    "authentication.getname",
+    "auth\" is null",
+    "org.springframework",
+    "java.",
+    "jakarta.",
+    "hibernate",
+    "servlet",
+    "bean",
+    "methodargument",
+    "illegalstate",
+    "illegalargument",
     "duplicate",
     "duplicate key",
     "unique constraint",
@@ -44,10 +89,11 @@ function sanitizeMessage(msg: string) {
     "exception",
     "pg_",
     "error code",
+    "at ",
   ];
 
   if (sensitiveKeywords.some((k) => lower.includes(k))) {
-    return "Ocorreu um erro no servidor. Contate o administrador.";
+    return "Não foi possível concluir a ação agora. Tente novamente em alguns instantes.";
   }
 
   return msg;
@@ -152,7 +198,7 @@ export async function apiFetch<T>(
         res.statusText || "Erro na requisição"
     );
 
-    const message = sanitizeMessage(rawMessage);
+    const message = sanitizeMessage(rawMessage, res.status);
 
     throw new ApiError(message, res.status, payload);
   }
