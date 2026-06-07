@@ -376,15 +376,15 @@ async function aprovarParticipante(participanteId: number, eventoId?: number) {
   try {
     setApprovalStatus(null);
     setFormError(null);
-    await apiFetch(`/events/${evento.id}/participants/${participanteId}/aprovar`, {
+    await apiFetch(`/events/${evento.id}/participants/${participanteId}/aprovar?notifyByEmail=true`, {
       method: "PATCH",
     });
 
     await recarregarEventos();
     setApprovalStatus(
   evento.private
-    ? `Inscrição aprovada no evento privado "${evento.titulo}". ${participante?.nome ?? participante?.email ?? "O participante"} foi aceito.`
-    : `Inscrição aprovada. ${participante?.nome ?? participante?.email ?? "O participante"} foi aceito.`,
+    ? `Inscrição aprovada no evento privado "${evento.titulo}". O aviso foi enviado por email para ${participante?.email ?? "o participante"}.`
+    : `Inscrição aprovada. O aviso foi enviado por email para ${participante?.email ?? "o participante"}.`,
 );
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
