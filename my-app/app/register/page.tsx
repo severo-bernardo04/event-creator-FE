@@ -139,7 +139,7 @@ function RegisterForm() {
                     method: "POST",
                     json: {
                       name: `${nome} ${sobrenome}`.trim(),
-                      email,
+                      email: email.trim().toLowerCase(),
                       password,
                       cpf,
                       dataNascimento,
@@ -153,11 +153,22 @@ function RegisterForm() {
                     : "/login";
                   router.push(loginUrl);
                 } catch (err: unknown) {
-                  setError(getErrorMessage(err));
-                } finally {
-                  setLoading(false);
-                }
-              }}
+            const message = getErrorMessage(err);
+            const lower = message.toLowerCase();
+
+              if (lower.includes("cpf")) {
+                setFieldErrors({ cpf: message });
+                setError(null);
+              } else if (lower.includes("email") || lower.includes("e-mail")) {
+                setFieldErrors({ email: message });
+                setError(null);
+              } else {
+                setError(message);
+              }
+            } finally {
+              setLoading(false);
+              }
+            }}
             >
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-200">
@@ -191,26 +202,39 @@ function RegisterForm() {
                 </span>
                 <input
                   type="email"
-                  placeholder="voce@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-white/12 bg-white/8 px-4 py-3.5 text-white placeholder:text-slate-400 focus:border-primary focus:bg-white/10 focus:shadow-[0_0_0_4px_rgba(31,111,255,0.14)]"
-                />
+                placeholder="voce@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-2xl border border-white/12 bg-white/8 px-4 py-3.5 text-white placeholder:text-slate-400 focus:border-primary focus:bg-white/10 focus:shadow-[0_0_0_4px_rgba(31,111,255,0.14)]"
+              />
+
+              {fieldErrors.email ? (
+                <p className="text-xs font-semibold text-red-300">
+                  {fieldErrors.email}
+                </p>
+              ) : null}
+
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-200">
-                  CPF <Required />
-                </span>
-                <input
-                  type="text"
-                  placeholder="000.000.000-00"
-                  value={cpf}
-                  onChange={(e) => setCpf(maskCpf(e.target.value))}
-                  className="w-full rounded-2xl border border-white/12 bg-white/8 px-4 py-3.5 text-white placeholder:text-slate-400 focus:border-primary focus:bg-white/10 focus:shadow-[0_0_0_4px_rgba(31,111,255,0.14)]"
-                />
-                {fieldErrors.cpf ? <p className="text-xs font-semibold text-red-300">{fieldErrors.cpf}</p> : null}
-              </label>
+              <span className="text-sm font-medium text-slate-200">
+                CPF <Required />
+              </span>
+
+              <input
+                type="text"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={(e) => setCpf(maskCpf(e.target.value))}
+                className="w-full rounded-2xl border border-white/12 bg-white/8 px-4 py-3.5 text-white placeholder:text-slate-400 focus:border-primary focus:bg-white/10 focus:shadow-[0_0_0_4px_rgba(31,111,255,0.14)]"
+              />
+
+              {fieldErrors.cpf ? (
+                <p className="text-xs font-semibold text-red-300">
+                  {fieldErrors.cpf}
+                </p>
+              ) : null}
+            </label>
 
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-200">
