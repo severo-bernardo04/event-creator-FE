@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Toast from "@/app/components/Toast";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -255,6 +256,12 @@ export default function EventosPage() {
 
   return (
       <div className="min-h-screen bg-slate-950 text-slate-100">
+    <Toast
+      open={successBanner}
+      title="Inscrição realizada"
+      message={successMessage}
+      onClose={() => setSuccessBanner(false)}
+    />
         <div className="border-b border-slate-800 bg-slate-900/40">
           <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-10 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:px-10">
             <div>
@@ -287,11 +294,6 @@ export default function EventosPage() {
         </div>
 
         <div className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 lg:px-10">
-          {successBanner ? (
-              <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100">
-                {successMessage}
-              </div>
-          ) : null}
 
           {formError ? (
               <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">

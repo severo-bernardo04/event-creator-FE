@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Toast from "@/app/components/Toast";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -369,6 +370,12 @@ export default function EventoDetalhesPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      <Toast
+      open={successBanner}
+      title="Inscrição realizada"
+      message={successMessage}
+      onClose={() => setSuccessBanner(false)}
+    />
       <div className="border-b border-slate-800 bg-slate-900/55">
         <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Link
@@ -454,11 +461,6 @@ export default function EventoDetalhesPage() {
                         <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300">
                           {formError}
                         </p>
-                      ) : null}
-                      {successBanner ? (
-                        <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-100">
-                          {successMessage}
-                        </div>
                       ) : null}
 
 	                      {hasRegistration && isApproved ? (

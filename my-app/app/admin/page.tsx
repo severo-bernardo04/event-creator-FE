@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import Toast from "@/app/components/Toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -381,8 +382,10 @@ async function aprovarParticipante(participanteId: number, eventoId?: number) {
 
     await recarregarEventos();
     setApprovalStatus(
-      `Inscrição aprovada. A confirmação foi enviada por email para ${participante?.email ?? "o participante"}.`,
-    );
+  evento.private
+    ? `Inscrição aprovada no evento privado "${evento.titulo}". ${participante?.nome ?? participante?.email ?? "O participante"} foi aceito.`
+    : `Inscrição aprovada. ${participante?.nome ?? participante?.email ?? "O participante"} foi aceito.`,
+);
   } catch (err: unknown) {
     setFormError(getErrorMessage(err));
   }
@@ -1276,6 +1279,12 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      <Toast
+      open={Boolean(approvalStatus)}
+      title="Ação concluída"
+      message={approvalStatus ?? ""}
+      onClose={() => setApprovalStatus(null)}
+    />
       <aside className="sticky top-0 z-20 flex w-full flex-col gap-3 border-b border-slate-800 bg-slate-900/95 px-4 py-4 backdrop-blur lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-[220px] lg:border-b-0 lg:border-r lg:py-6">
         <div className="flex items-center gap-2.5 px-2 text-[15px] font-extrabold text-white lg:mb-5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-black text-white">
@@ -2031,11 +2040,6 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
                     {renderParticipantSortControls()}
                   </div>
                 </div>
-                {approvalStatus ? (
-                  <div className="border-b border-slate-800 bg-green-500/10 px-6 py-3 text-base font-semibold text-green-300">
-                    {approvalStatus}
-                  </div>
-                ) : null}
                 {formError ? (
                   <div className="border-b border-slate-800 bg-red-500/10 px-6 py-3 text-base font-semibold text-red-300">
                     {formError}
