@@ -96,6 +96,30 @@ a:focus {
   background-size: 44px 44px;
 }
 
+.site-scrollbar {
+  scrollbar-color: rgba(100, 116, 139, 0.75) rgba(15, 23, 42, 0.55);
+  scrollbar-width: thin;
+}
+
+.site-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.site-scrollbar::-webkit-scrollbar-track {
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.site-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(15, 23, 42, 0.55);
+  border-radius: 9999px;
+  background: rgba(100, 116, 139, 0.75);
+}
+
+.site-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.9);
+}
+
 @keyframes floatOrb {
   0%,
   100% {

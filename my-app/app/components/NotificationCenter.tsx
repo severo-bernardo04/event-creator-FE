@@ -23,6 +23,11 @@ type NotificationItem = NotificationResponse & {
   unread: boolean;
 };
 
+type LocalNotificationChange = {
+  type?: string;
+  notification?: Partial<NotificationResponse>;
+};
+
 type NotificationContextValue = {
   items: NotificationItem[];
   unreadCount: number;
@@ -205,6 +210,56 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       source.removeEventListener("notification-deleted", deleted);
       source.close();
     };
+  }, [subscribedEventIds, user?.email]);
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    const email = user.email;
+
+    function isCompleteNotification(value: Partial<NotificationResponse> | undefined): value is NotificationResponse {
+      return (
+        Boolean(value) &&
+        typeof value?.id === "number" &&
+        typeof value?.titulo === "string" &&
+        typeof value?.conteudo === "string" &&
+        typeof value?.createdAt === "string"
+      );
+    }
+
+    function handleLocalChange(event: Event) {
+      const detail = (event as CustomEvent<LocalNotificationChange>).detail;
+      const notification = detail?.notification;
+
+      if (detail?.type === "notification-deleted" && typeof notification?.id === "number") {
+        setItems((current) => {
+          const next = current.filter((item) => item.id !== notification.id);
+          saveStoredNotifications(email, next);
+          return next;
+        });
+        return;
+      }
+
+      if (!isCompleteNotification(notification)) return;
+      if (!shouldShowNotification(notification, subscribedEventIds)) return;
+
+      setItems((current) => {
+        const withoutDuplicate = current.filter((item) => item.id !== notification.id);
+        const next = [
+          {
+            ...notification,
+            receivedAt: new Date().toISOString(),
+            unread: true,
+          },
+          ...withoutDuplicate,
+        ].slice(0, MAX_ITEMS);
+        saveStoredNotifications(email, next);
+        return next;
+      });
+    }
+
+    window.addEventListener("event-creator:notification-change", handleLocalChange);
+    return () => window.removeEventListener("event-creator:notification-change", handleLocalChange);
   }, [subscribedEventIds, user?.email]);
 
   useEffect(() => {

@@ -1738,6 +1738,12 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
                   Comunicados
                 </a>
                 <a
+                  href="#evento-palestrantes"
+                  className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
+                >
+                  Palestrantes
+                </a>
+                <a
                   href="#evento-materiais"
                   className="rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
                 >
@@ -1795,6 +1801,81 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
                 <p className="mt-2 whitespace-pre-line break-words text-base leading-7 text-slate-300">
                   {eventoAtual.desc || "Sem descrição cadastrada."}
                 </p>
+              </div>
+              <div id="evento-palestrantes" className="mb-6 scroll-mt-6 rounded-[14px] border border-slate-800 bg-slate-900/50 px-5 py-4">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Palestrantes</p>
+                    <h3 className="mt-1 text-lg font-extrabold text-white">
+                      {eventoAtual.speakers.filter((speaker) => speaker.name.trim()).length
+                        ? `${eventoAtual.speakers.filter((speaker) => speaker.name.trim()).length} cadastrado${
+                            eventoAtual.speakers.filter((speaker) => speaker.name.trim()).length > 1 ? "s" : ""
+                          }`
+                        : "Nenhum palestrante cadastrado"}
+                    </h3>
+                  </div>
+                  <Link
+                    href={`/admin/eventos/${eventoAtualId}/editar`}
+                    className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-bold text-slate-300 hover:bg-slate-800"
+                  >
+                    Editar palestrantes
+                  </Link>
+                </div>
+
+                {eventoAtual.speakers.some((speaker) => speaker.name.trim()) ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {eventoAtual.speakers
+                      .filter((speaker) => speaker.name.trim())
+                      .map((speaker, index) => (
+                        <article key={`${speaker.id ?? speaker.name}-${index}`} className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-primary">
+                                Palestrante {index + 1}
+                              </p>
+                              <h4 className="mt-1 break-words text-base font-black text-white">
+                                {speaker.name}
+                              </h4>
+                            </div>
+                          </div>
+
+                          {speaker.topics.trim() ? (
+                            <div className="mb-3">
+                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Temas</p>
+                              <p className="mt-1 whitespace-pre-line break-words text-sm leading-6 text-slate-300">
+                                {speaker.topics}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          {speaker.bio.trim() ? (
+                            <div className="mb-3">
+                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Mini biografia</p>
+                              <p className="mt-1 whitespace-pre-line break-words text-sm leading-6 text-slate-300">
+                                {speaker.bio}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          {speaker.agenda.trim() ? (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500">Agenda individual</p>
+                              <p className="mt-1 whitespace-pre-line break-words text-sm leading-6 text-slate-300">
+                                {speaker.agenda}
+                              </p>
+                            </div>
+                          ) : null}
+                        </article>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/35 p-5 text-center">
+                    <p className="font-semibold text-white">Sem palestrantes cadastrados</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Use a edição do evento para adicionar nomes, temas, biografia e agenda.
+                    </p>
+                  </div>
+                )}
               </div>
               <div id="evento-comunicados" className="mb-8 scroll-mt-6 rounded-[14px] border border-slate-800 bg-slate-900/50 px-6 py-5">
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -2244,195 +2325,208 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
       {/* MODAL EVENTO */}
       <div
         id="modal-evento"
-        className={`fixed inset-0 z-[100] items-center justify-center bg-black/65 ${
+        className={`fixed inset-0 z-[100] items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-md ${
           modalEventoOpen ? "flex" : "hidden"
         }`}
         role="presentation"
       >
-        <div className="mx-4 max-h-[90vh] w-full max-w-[520px] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900">
-          <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
-            <span className="text-base font-extrabold text-white">{modalEventoTitulo}</span>
+        <div className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-black/40">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Evento</p>
+              <h2 className="mt-1 text-xl font-black text-white">{modalEventoTitulo}</h2>
+            </div>
             <button
               type="button"
               onClick={closeModalEvento}
-              className="cursor-pointer border-0 bg-transparent text-lg leading-none text-slate-500 hover:text-white"
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-slate-700 bg-slate-950/60 text-lg leading-none text-slate-400 hover:bg-slate-800 hover:text-white"
               aria-label="Fechar"
             >
               ×
             </button>
           </div>
-          <div className="px-6 py-6">
+          <div className="site-scrollbar max-h-[calc(92vh-142px)] overflow-y-auto px-5 py-5 sm:px-6">
             <input type="hidden" value={form.id} readOnly aria-hidden />
-            <div className="mb-4">
-              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                Título *
-              </label>
-              <input
-                type="text"
-                value={form.titulo}
-                onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                placeholder="Nome do evento"
-                className={inputClass}
-              />
-            </div>
-            <div className="mb-4">
-              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                Descrição
-              </label>
-              <textarea
-                value={form.desc}
-                onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
-                placeholder="Descreva o evento"
-                rows={4}
-                className={`${inputClass} min-h-[80px] resize-y`}
-              />
-              <p className="mt-1 text-right text-xs text-slate-500">{form.desc.length}/500</p>
-            </div>
-            <div className="mb-4">
-              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                Imagem de capa (preview local)
-              </label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  setImageError(null);
-                  if (!file) return;
-                  const allowed = ["image/jpeg", "image/png", "image/webp"];
-                  if (!allowed.includes(file.type)) {
-                    setImageError("Formato inválido. Use JPEG, PNG ou WEBP.");
-                    setImageFile(null);
-                    setImagePreview(null);
-                    return;
-                  }
-                  if (file.size > 5 * 1024 * 1024) {
-                    setImageError("A imagem deve ter no máximo 5MB.");
-                    setImageFile(null);
-                    setImagePreview(null);
-                    return;
-                  }
-                  const preview = URL.createObjectURL(file);
-                  setImageFile(file);
-                  setImagePreview(preview);
-                }}
-                className={inputClass}
-              />
-              {imagePreview ? (
-                <img src={imagePreview} alt="Preview da capa" className="mt-3 h-36 w-full rounded-xl object-cover" />
-              ) : null}
-              {imageError ? <p className="mt-2 text-xs font-semibold text-red-300">{imageError}</p> : null}
-            </div>
-            <div className="mb-4 grid gap-3 sm:grid-cols-2">
-              <div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+              <div className="mb-4">
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                  Data *
-                </label>
-                <input
-                  type="date"
-                  value={form.data}
-                  onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                  Horário *
-                </label>
-                <input
-                  type="time"
-                  value={form.hora}
-                  onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            <div className="mb-4 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                  Local *
+                  Título *
                 </label>
                 <input
                   type="text"
-                  value={form.local}
-                  onChange={(e) => setForm((f) => ({ ...f, local: e.target.value }))}
-                  placeholder="Ex: Laboratório 2"
+                  value={form.titulo}
+                  onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+                  placeholder="Nome do evento"
                   className={inputClass}
                 />
               </div>
-              <div>
+              <div className="mb-4">
                 <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                  Máx. participantes *
+                  Descrição
+                </label>
+                <textarea
+                  value={form.desc}
+                  onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
+                  placeholder="Descreva o evento"
+                  rows={4}
+                  className={`${inputClass} min-h-[96px] resize-y`}
+                />
+                <p className="mt-1 text-right text-xs text-slate-500">{form.desc.length}/500</p>
+              </div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                  Imagem de capa (preview local)
                 </label>
                 <input
-                  type="number"
-                  value={form.max}
-                  onChange={(e) => setForm((f) => ({ ...f, max: e.target.value }))}
-                  placeholder="Ex: 40"
-                  min={1}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    setImageError(null);
+                    if (!file) return;
+                    const allowed = ["image/jpeg", "image/png", "image/webp"];
+                    if (!allowed.includes(file.type)) {
+                      setImageError("Formato inválido. Use JPEG, PNG ou WEBP.");
+                      setImageFile(null);
+                      setImagePreview(null);
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setImageError("A imagem deve ter no máximo 5MB.");
+                      setImageFile(null);
+                      setImagePreview(null);
+                      return;
+                    }
+                    const preview = URL.createObjectURL(file);
+                    setImageFile(file);
+                    setImagePreview(preview);
+                  }}
                   className={inputClass}
                 />
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Preview da capa" className="mt-3 h-40 w-full rounded-xl object-cover" />
+                ) : null}
+                {imageError ? <p className="mt-2 text-xs font-semibold text-red-300">{imageError}</p> : null}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                    Data *
+                  </label>
+                  <input
+                    type="date"
+                    value={form.data}
+                    onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                    Horário *
+                  </label>
+                  <input
+                    type="time"
+                    value={form.hora}
+                    onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                    Local *
+                  </label>
+                  <input
+                    type="text"
+                    value={form.local}
+                    onChange={(e) => setForm((f) => ({ ...f, local: e.target.value }))}
+                    placeholder="Ex: Laboratório 2"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                    Máx. participantes *
+                  </label>
+                  <input
+                    type="number"
+                    value={form.max}
+                    onChange={(e) => setForm((f) => ({ ...f, max: e.target.value }))}
+                    placeholder="Ex: 40"
+                    min={1}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                  Categoria *
+                </label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">Selecione</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <label className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                  <input
+                    id="event-private"
+                    type="checkbox"
+                    checked={Boolean(form.private)}
+                    onChange={(e) => setForm((f) => ({ ...f, private: e.target.checked }))}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</span>
+                </label>
+
+                <label className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                  <input
+                    id="event-majority18"
+                    type="checkbox"
+                    checked={Boolean(form.majority18)}
+                    onChange={(e) => setForm((f) => ({ ...f, majority18: e.target.checked }))}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-slate-300">
+                    Evento +18 — bloquear inscrição de contas menores de idade
+                  </span>
+                </label>
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                Categoria *
-              </label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                className={inputClass}
-              >
-                <option value="">Selecione</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mb-4 flex items-center gap-3">
-              <input
-                id="event-private"
-                type="checkbox"
-                checked={Boolean(form.private)}
-                onChange={(e) => setForm((f) => ({ ...f, private: e.target.checked }))}
-                className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
-              />
-              <label htmlFor="event-private" className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</label>
-            </div>
-
-            <div className="mb-4 flex items-center gap-3">
-              <input
-                id="event-majority18"
-                type="checkbox"
-                checked={Boolean(form.majority18)}
-                onChange={(e) => setForm((f) => ({ ...f, majority18: e.target.checked }))}
-                className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
-              />
-              <label htmlFor="event-majority18" className="text-sm text-slate-300">
-                Evento +18 — bloquear inscrição de contas menores de idade
-              </label>
-            </div>
-
-            <div className="mb-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                  Palestrantes
-                </label>
+            <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                    Palestrantes
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Cadastre nome, temas, bio e agenda de cada palestrante.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, speakers: [...f.speakers, { ...emptySpeakerForm }] }))}
-                  className="rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-xs font-bold text-secondary hover:bg-secondary/20"
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2 text-xs font-bold text-secondary hover:bg-secondary/20 sm:w-auto"
                 >
                   Adicionar
                 </button>
               </div>
               <div className="space-y-3">
                 {form.speakers.map((speaker, index) => (
-                  <div key={index} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                  <div key={index} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
-                      <span className="text-xs font-bold text-slate-400">Palestrante {index + 1}</span>
+                      <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-xs font-bold text-slate-300">
+                        Palestrante {index + 1}
+                      </span>
                       {form.speakers.length > 1 ? (
                         <button
                           type="button"
@@ -2448,64 +2542,84 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
                         </button>
                       ) : null}
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <input
-                        type="text"
-                        value={speaker.name}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            speakers: f.speakers.map((item, currentIndex) =>
-                              currentIndex === index ? { ...item, name: e.target.value } : item,
-                            ),
-                          }))
-                        }
-                        placeholder="Nome do palestrante"
-                        className={inputClass}
-                      />
-                      <input
-                        type="text"
-                        value={speaker.topics}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            speakers: f.speakers.map((item, currentIndex) =>
-                              currentIndex === index ? { ...item, topics: e.target.value } : item,
-                            ),
-                          }))
-                        }
-                        placeholder="Temas apresentados"
-                        className={inputClass}
-                      />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                          Nome
+                        </label>
+                        <input
+                          type="text"
+                          value={speaker.name}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              speakers: f.speakers.map((item, currentIndex) =>
+                                currentIndex === index ? { ...item, name: e.target.value } : item,
+                              ),
+                            }))
+                          }
+                          placeholder="Nome do palestrante"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                          Temas
+                        </label>
+                        <input
+                          type="text"
+                          value={speaker.topics}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              speakers: f.speakers.map((item, currentIndex) =>
+                                currentIndex === index ? { ...item, topics: e.target.value } : item,
+                              ),
+                            }))
+                          }
+                          placeholder="Temas apresentados"
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                          Mini biografia
+                        </label>
+                        <textarea
+                          value={speaker.bio}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              speakers: f.speakers.map((item, currentIndex) =>
+                                currentIndex === index ? { ...item, bio: e.target.value } : item,
+                              ),
+                            }))
+                          }
+                          placeholder="Mini biografia"
+                          rows={3}
+                          className={`${inputClass} resize-y`}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                          Agenda individual
+                        </label>
+                        <textarea
+                          value={speaker.agenda}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              speakers: f.speakers.map((item, currentIndex) =>
+                                currentIndex === index ? { ...item, agenda: e.target.value } : item,
+                              ),
+                            }))
+                          }
+                          placeholder="Agenda individual"
+                          rows={3}
+                          className={`${inputClass} resize-y`}
+                        />
+                      </div>
                     </div>
-                    <textarea
-                      value={speaker.bio}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          speakers: f.speakers.map((item, currentIndex) =>
-                            currentIndex === index ? { ...item, bio: e.target.value } : item,
-                          ),
-                        }))
-                      }
-                      placeholder="Mini biografia"
-                      rows={2}
-                      className={`${inputClass} mt-3 resize-y`}
-                    />
-                    <textarea
-                      value={speaker.agenda}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          speakers: f.speakers.map((item, currentIndex) =>
-                            currentIndex === index ? { ...item, agenda: e.target.value } : item,
-                          ),
-                        }))
-                      }
-                      placeholder="Agenda individual"
-                      rows={2}
-                      className={`${inputClass} mt-3 resize-y`}
-                    />
                   </div>
                 ))}
               </div>
@@ -2517,18 +2631,18 @@ async function rejeitarParticipante(participanteId: number, eventoId?: number) {
               </div>
             ) : null}
           </div>
-          <div className="flex justify-end gap-2 border-t border-slate-800 px-6 py-4">
+          <div className="flex flex-col-reverse gap-2 border-t border-slate-800 bg-slate-900 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
             <button
               type="button"
               onClick={closeModalEvento}
-              className="cursor-pointer rounded-[10px] border border-slate-600 bg-transparent px-4 py-2 text-[13.5px] text-slate-300 hover:bg-slate-800"
+              className="cursor-pointer rounded-[10px] border border-slate-600 bg-transparent px-4 py-2.5 text-[13.5px] font-semibold text-slate-300 hover:bg-slate-800"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={salvarEvento}
-              className="cursor-pointer rounded-[10px] border border-primary bg-primary px-4 py-2 text-[13.5px] text-white hover:border-blue-600 hover:bg-blue-600"
+              className="cursor-pointer rounded-[10px] border border-primary bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-white hover:border-blue-600 hover:bg-blue-600"
             >
               Salvar evento
             </button>

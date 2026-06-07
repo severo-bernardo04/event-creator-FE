@@ -26,10 +26,13 @@ export async function listEventNotifications(eventId: number) {
 }
 
 export async function createNotification(input: CreateNotificationInput) {
-  return apiFetch<EventNotification>("/avisos", {
+  const notification = await apiFetch<EventNotification>("/avisos", {
     method: "POST",
     json: input,
   });
+
+  dispatchNotificationChange("notification-created", notification);
+  return notification;
 }
 
 export async function createEventNotification(
@@ -51,7 +54,7 @@ export async function updateEventNotification(
   titulo: string,
   conteudo: string,
 ) {
-  return apiFetch<EventNotification>(`/avisos/${notificationId}`, {
+  const notification = await apiFetch<EventNotification>(`/avisos/${notificationId}`, {
     method: "PATCH",
     json: {
       titulo,
@@ -60,12 +63,28 @@ export async function updateEventNotification(
       eventId,
     },
   });
+
+  dispatchNotificationChange("notification-updated", notification);
+  return notification;
 }
 
 export async function deleteEventNotification(notificationId: number) {
   return apiFetch<void>(`/avisos/${notificationId}`, {
     method: "DELETE",
+  }).then((result) => {
+    dispatchNotificationChange("notification-deleted", { id: notificationId });
+    return result;
   });
+}
+
+function dispatchNotificationChange(type: string, notification: Partial<EventNotification>) {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent("event-creator:notification-change", {
+      detail: { type, notification },
+    }),
+  );
 }
 
 export async function notifyEventUpdated(

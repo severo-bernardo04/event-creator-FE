@@ -281,36 +281,36 @@ export default function EditarEventoPage() {
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
-            <div className="mx-auto w-full max-w-[820px] px-4 py-10 sm:px-6 lg:px-8">
-                <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <p className="text-sm font-bold uppercase tracking-widest text-secondary">
-                            Painel administrativo
-                        </p>
-                        <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                            Editar evento
-                        </h1>
-                        <p className="mt-2 text-sm text-slate-400">
-                            Atualize os dados do evento usando o mesmo padrão visual do painel.
-                        </p>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-md">
+                <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl shadow-black/40">
+                    <div className="shrink-0 flex items-start justify-between gap-4 border-b border-slate-800 px-5 py-4 sm:px-6">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">
+                                Painel administrativo
+                            </p>
+                            <h1 className="mt-1 text-xl font-black text-white">
+                                Editar evento
+                            </h1>
+                            <p className="mt-1 text-sm text-slate-400">
+                                Atualize os dados do evento usando o mesmo padrão visual do painel.
+                            </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                            <Link
+                                href={`/admin/eventos/${eventId}/historico`}
+                                className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-bold text-primary hover:bg-primary/20"
+                            >
+                                Histórico
+                            </Link>
+                            <Link
+                                href="/admin"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-950/60 text-lg leading-none text-slate-400 hover:bg-slate-800 hover:text-white"
+                                aria-label="Voltar ao admin"
+                            >
+                                ×
+                            </Link>
+                        </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={`/admin/eventos/${eventId}/historico`}
-                            className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/20"
-                        >
-                            Ver histórico
-                        </Link>
-                        <Link
-                            href="/admin"
-                            className="rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
-                        >
-                            Voltar ao admin
-                        </Link>
-                    </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50">
                     {loading ? (
                         <div className="px-6 py-7 text-sm text-slate-400">Carregando evento...</div>
                     ) : loadError ? (
@@ -321,195 +321,229 @@ export default function EditarEventoPage() {
                         </div>
                     ) : (
                         <>
-                            <div className="border-b border-slate-800 px-6 py-5">
-                                <span className="text-base font-extrabold text-white">Dados do evento</span>
-                            </div>
-                            <div className="px-6 py-6">
+                            <div className="site-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
                                 <input type="hidden" value={form.id} readOnly aria-hidden />
-                                <div className="mb-4">
-                                    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                        Título *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={form.titulo}
-                                        onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                                        placeholder="Nome do evento"
-                                        className={inputClass}
-                                    />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                        Descrição
-                                        <div className="mb-4">
-    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-        Imagem do evento
-    </label>
-
-    {imagePreview || form.imageUrl ? (
-        <img
-            src={imagePreview || form.imageUrl || ""}
-            alt="Imagem atual do evento"
-            className="mb-3 h-40 w-full rounded-xl object-cover"
-        />
-    ) : null}
-
-    <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        onChange={(e) => {
-            const file = e.target.files?.[0];
-            setImageError(null);
-
-            if (!file) return;
-
-            const allowed = ["image/jpeg", "image/png", "image/webp"];
-
-            if (!allowed.includes(file.type)) {
-                setImageError("Formato inválido. Use JPEG, PNG ou WEBP.");
-                setImageFile(null);
-                setImagePreview(null);
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                setImageError("A imagem deve ter no máximo 5MB.");
-                setImageFile(null);
-                setImagePreview(null);
-                return;
-            }
-
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
-        }}
-        className={inputClass}
-    />
-
-    {imageError ? (
-        <p className="mt-2 text-xs font-semibold text-red-300">
-            {imageError}
-        </p>
-    ) : null}
-</div>
-                                    </label>
-                                    <textarea
-                                        value={form.desc}
-                                        onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
-                                        placeholder="Descreva o evento"
-                                        rows={4}
-                                        className={`${inputClass} min-h-[80px] resize-y`}
-                                    />
-                                    <p className="mt-1 text-right text-xs text-slate-500">{form.desc.length}/500</p>
-                                </div>
-                                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <div>
-                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                            Data *
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={form.data}
-                                            onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
-                                            className={inputClass}
-                                        />
+                                <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                                    <div className="mb-4">
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                            Dados do evento
+                                        </p>
+                                        <p className="mt-1 text-sm text-slate-400">
+                                            Informações principais exibidas para os participantes.
+                                        </p>
                                     </div>
-                                    <div>
+                                    <div className="mb-4">
                                         <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                            Horário *
-                                        </label>
-                                        <input
-                                            type="time"
-                                            value={form.hora}
-                                            onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))}
-                                            className={inputClass}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <div>
-                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                            Local *
+                                            Título *
                                         </label>
                                         <input
                                             type="text"
-                                            value={form.local}
-                                            onChange={(e) => setForm((f) => ({ ...f, local: e.target.value }))}
-                                            placeholder="Ex: Laboratório 2"
+                                            value={form.titulo}
+                                            onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+                                            placeholder="Nome do evento"
                                             className={inputClass}
                                         />
                                     </div>
-                                    <div>
+                                    <div className="mb-4">
                                         <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                            Máx. participantes *
+                                            Descrição
                                         </label>
-                                        <input
-                                            type="number"
-                                            value={form.max}
-                                            onChange={(e) => setForm((f) => ({ ...f, max: e.target.value }))}
-                                            placeholder="Ex: 40"
-                                            min={1}
-                                            className={inputClass}
+                                        <textarea
+                                            value={form.desc}
+                                            onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
+                                            placeholder="Descreva o evento"
+                                            rows={4}
+                                            className={`${inputClass} min-h-[96px] resize-y`}
                                         />
+                                        <p className="mt-1 text-right text-xs text-slate-500">{form.desc.length}/500</p>
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                            Imagem do evento
+                                        </label>
+
+                                        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
+                                            {imagePreview || form.imageUrl ? (
+                                                <img
+                                                    src={imagePreview || form.imageUrl || ""}
+                                                    alt=""
+                                                    className="h-40 w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex h-40 w-full items-center justify-center px-4 text-center text-sm font-semibold text-slate-500">
+                                                    Nenhuma imagem cadastrada
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col gap-2 border-t border-slate-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                                <span className="min-w-0 truncate text-sm text-slate-400">
+                                                    {imageFile?.name ?? "Nenhum arquivo escolhido"}
+                                                </span>
+                                                <label
+                                                    htmlFor="event-image"
+                                                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white"
+                                                >
+                                                    Escolher imagem
+                                                </label>
+                                                <input
+                                                    id="event-image"
+                                                    type="file"
+                                                    accept="image/jpeg,image/png,image/webp"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        setImageError(null);
+
+                                                        if (!file) return;
+
+                                                        const allowed = ["image/jpeg", "image/png", "image/webp"];
+
+                                                        if (!allowed.includes(file.type)) {
+                                                            setImageError("Formato inválido. Use JPEG, PNG ou WEBP.");
+                                                            setImageFile(null);
+                                                            setImagePreview(null);
+                                                            return;
+                                                        }
+
+                                                        if (file.size > 5 * 1024 * 1024) {
+                                                            setImageError("A imagem deve ter no máximo 5MB.");
+                                                            setImageFile(null);
+                                                            setImagePreview(null);
+                                                            return;
+                                                        }
+
+                                                        setImageFile(file);
+                                                        setImagePreview(URL.createObjectURL(file));
+                                                    }}
+                                                    className="fixed left-[-9999px] top-0 h-px w-px opacity-0"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {imageError ? (
+                                            <p className="mt-2 text-xs font-semibold text-red-300">
+                                                {imageError}
+                                            </p>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                Data *
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={form.data}
+                                                onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                Horário *
+                                            </label>
+                                            <input
+                                                type="time"
+                                                value={form.hora}
+                                                onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))}
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                Local *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={form.local}
+                                                onChange={(e) => setForm((f) => ({ ...f, local: e.target.value }))}
+                                                placeholder="Ex: Laboratório 2"
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                Máx. participantes *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={form.max}
+                                                onChange={(e) => setForm((f) => ({ ...f, max: e.target.value }))}
+                                                placeholder="Ex: 40"
+                                                min={1}
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                            Categoria *
+                                        </label>
+                                        <select
+                                            value={form.category}
+                                            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                                            className={inputClass}
+                                        >
+                                            <option value="">Selecione</option>
+                                            {CATEGORIES.map((c) => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <label className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                                            <input
+                                                id="event-private"
+                                                type="checkbox"
+                                                checked={Boolean(form.private)}
+                                                onChange={(e) => setForm((f) => ({ ...f, private: e.target.checked }))}
+                                                className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+                                            />
+                                            <span className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</span>
+                                        </label>
+
+                                        <label className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                                            <input
+                                                id="event-majority18"
+                                                type="checkbox"
+                                                checked={Boolean(form.majority18)}
+                                                onChange={(e) => setForm((f) => ({ ...f, majority18: e.target.checked }))}
+                                                className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
+                                            />
+                                            <span className="text-sm text-slate-300">
+                                                Evento +18 — bloquear inscrição de contas menores de idade
+                                            </span>
+                                        </label>
                                     </div>
                                 </div>
-
-                                <div className="mb-4">
-                                    <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                        Categoria *
-                                    </label>
-                                    <select
-                                        value={form.category}
-                                        onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                                        className={inputClass}
-                                    >
-                                        <option value="">Selecione</option>
-                                        {CATEGORIES.map((c) => (
-                                            <option key={c} value={c}>{c}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="mb-4 flex items-center gap-3">
-                                    <input
-                                        id="event-private"
-                                        type="checkbox"
-                                        checked={Boolean(form.private)}
-                                        onChange={(e) => setForm((f) => ({ ...f, private: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
-                                    />
-                                    <label htmlFor="event-private" className="text-sm text-slate-300">Evento privado — participantes precisam de aprovação</label>
-                                </div>
-
-                                <div className="mb-4 flex items-center gap-3">
-                                    <input
-                                        id="event-majority18"
-                                        type="checkbox"
-                                        checked={Boolean(form.majority18)}
-                                        onChange={(e) => setForm((f) => ({ ...f, majority18: e.target.checked }))}
-                                        className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary"
-                                    />
-                                    <label htmlFor="event-majority18" className="text-sm text-slate-300">
-                                        Evento +18 — bloquear inscrição de contas menores de idade
-                                    </label>
-                                </div>
-                                <div className="mb-4">
-                                    <div className="mb-3 flex items-center justify-between gap-3">
-                                        <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                                            Palestrantes
-                                        </label>
+                                <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+                                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                Palestrantes
+                                            </p>
+                                            <p className="mt-1 text-sm text-slate-400">
+                                                Atualize nome, temas, bio e agenda de cada palestrante.
+                                            </p>
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={() => setForm((f) => ({ ...f, speakers: [...f.speakers, { ...emptySpeakerForm }] }))}
-                                            className="rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-xs font-bold text-secondary hover:bg-secondary/20"
+                                            className="inline-flex w-full items-center justify-center rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2 text-xs font-bold text-secondary hover:bg-secondary/20 sm:w-auto"
                                         >
                                             Adicionar
                                         </button>
                                     </div>
                                     <div className="space-y-3">
                                         {form.speakers.map((speaker, index) => (
-                                            <div key={index} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                                            <div key={index} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                                                 <div className="mb-3 flex items-center justify-between gap-3">
-                                                    <span className="text-xs font-bold text-slate-400">Palestrante {index + 1}</span>
+                                                    <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-xs font-bold text-slate-300">
+                                                        Palestrante {index + 1}
+                                                    </span>
                                                     {form.speakers.length > 1 ? (
                                                         <button
                                                             type="button"
@@ -525,64 +559,84 @@ export default function EditarEventoPage() {
                                                         </button>
                                                     ) : null}
                                                 </div>
-                                                <div className="grid gap-3 sm:grid-cols-2">
-                                                    <input
-                                                        type="text"
-                                                        value={speaker.name}
-                                                        onChange={(e) =>
-                                                            setForm((f) => ({
-                                                                ...f,
-                                                                speakers: f.speakers.map((item, currentIndex) =>
-                                                                    currentIndex === index ? { ...item, name: e.target.value } : item,
-                                                                ),
-                                                            }))
-                                                        }
-                                                        placeholder="Nome do palestrante"
-                                                        className={inputClass}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        value={speaker.topics}
-                                                        onChange={(e) =>
-                                                            setForm((f) => ({
-                                                                ...f,
-                                                                speakers: f.speakers.map((item, currentIndex) =>
-                                                                    currentIndex === index ? { ...item, topics: e.target.value } : item,
-                                                                ),
-                                                            }))
-                                                        }
-                                                        placeholder="Temas apresentados"
-                                                        className={inputClass}
-                                                    />
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <div>
+                                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                            Nome
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={speaker.name}
+                                                            onChange={(e) =>
+                                                                setForm((f) => ({
+                                                                    ...f,
+                                                                    speakers: f.speakers.map((item, currentIndex) =>
+                                                                        currentIndex === index ? { ...item, name: e.target.value } : item,
+                                                                    ),
+                                                                }))
+                                                            }
+                                                            placeholder="Nome do palestrante"
+                                                            className={inputClass}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                            Temas
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={speaker.topics}
+                                                            onChange={(e) =>
+                                                                setForm((f) => ({
+                                                                    ...f,
+                                                                    speakers: f.speakers.map((item, currentIndex) =>
+                                                                        currentIndex === index ? { ...item, topics: e.target.value } : item,
+                                                                    ),
+                                                                }))
+                                                            }
+                                                            placeholder="Temas apresentados"
+                                                            className={inputClass}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                            Mini biografia
+                                                        </label>
+                                                        <textarea
+                                                            value={speaker.bio}
+                                                            onChange={(e) =>
+                                                                setForm((f) => ({
+                                                                    ...f,
+                                                                    speakers: f.speakers.map((item, currentIndex) =>
+                                                                        currentIndex === index ? { ...item, bio: e.target.value } : item,
+                                                                    ),
+                                                                }))
+                                                            }
+                                                            placeholder="Mini biografia"
+                                                            rows={3}
+                                                            className={`${inputClass} resize-y`}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                                            Agenda individual
+                                                        </label>
+                                                        <textarea
+                                                            value={speaker.agenda}
+                                                            onChange={(e) =>
+                                                                setForm((f) => ({
+                                                                    ...f,
+                                                                    speakers: f.speakers.map((item, currentIndex) =>
+                                                                        currentIndex === index ? { ...item, agenda: e.target.value } : item,
+                                                                    ),
+                                                                }))
+                                                            }
+                                                            placeholder="Agenda individual"
+                                                            rows={3}
+                                                            className={`${inputClass} resize-y`}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <textarea
-                                                    value={speaker.bio}
-                                                    onChange={(e) =>
-                                                        setForm((f) => ({
-                                                            ...f,
-                                                            speakers: f.speakers.map((item, currentIndex) =>
-                                                                currentIndex === index ? { ...item, bio: e.target.value } : item,
-                                                            ),
-                                                        }))
-                                                    }
-                                                    placeholder="Mini biografia"
-                                                    rows={2}
-                                                    className={`${inputClass} mt-3 resize-y`}
-                                                />
-                                                <textarea
-                                                    value={speaker.agenda}
-                                                    onChange={(e) =>
-                                                        setForm((f) => ({
-                                                            ...f,
-                                                            speakers: f.speakers.map((item, currentIndex) =>
-                                                                currentIndex === index ? { ...item, agenda: e.target.value } : item,
-                                                            ),
-                                                        }))
-                                                    }
-                                                    placeholder="Agenda individual"
-                                                    rows={2}
-                                                    className={`${inputClass} mt-3 resize-y`}
-                                                />
                                             </div>
                                         ))}
                                     </div>
@@ -593,10 +647,10 @@ export default function EditarEventoPage() {
                                     </div>
                                 ) : null}
                             </div>
-                            <div className="flex justify-end gap-2 border-t border-slate-800 px-6 py-4">
+                            <div className="shrink-0 flex flex-col-reverse gap-2 border-t border-slate-800 bg-slate-900 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
                                 <Link
                                     href="/admin"
-                                    className="cursor-pointer rounded-[10px] border border-slate-600 bg-transparent px-4 py-2 text-[13.5px] text-slate-300 hover:bg-slate-800"
+                                    className="cursor-pointer rounded-[10px] border border-slate-600 bg-transparent px-4 py-2.5 text-center text-[13.5px] font-semibold text-slate-300 hover:bg-slate-800"
                                 >
                                     Cancelar
                                 </Link>
@@ -604,7 +658,7 @@ export default function EditarEventoPage() {
                                     type="button"
                                     onClick={() => void salvarEvento()}
                                     disabled={submitting}
-                                    className="cursor-pointer rounded-[10px] border border-primary bg-primary px-4 py-2 text-[13.5px] text-white hover:border-blue-600 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="cursor-pointer rounded-[10px] border border-primary bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-white hover:border-blue-600 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {submitting ? "Salvando..." : "Salvar evento"}
                                 </button>
