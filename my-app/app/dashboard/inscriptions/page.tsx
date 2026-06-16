@@ -1,3 +1,4 @@
+// Pagina do dashboard com controle de inscricoes.
 
 const Inscriptions = () => {
   return (

@@ -1,5 +1,6 @@
 "use client";
 
+// Pagina que mostra os eventos associados ao usuario.
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";

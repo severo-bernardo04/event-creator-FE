@@ -1,5 +1,6 @@
 "use client";
 
+// Tela de check-in para validar presenca em um evento.
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";

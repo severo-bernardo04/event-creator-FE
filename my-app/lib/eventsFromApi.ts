@@ -1,3 +1,4 @@
+// Converte dados recebidos da API para o formato usado no frontend.
 export type ApiParticipantNorm = {
   id: number;
   name: string;

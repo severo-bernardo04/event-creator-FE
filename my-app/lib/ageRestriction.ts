@@ -1,3 +1,4 @@
+// Calcula regras de idade minima para eventos restritos.
 import type { AuthUser } from "@/types";
 
 export function calculateAge(dateOfBirth?: string | null) {

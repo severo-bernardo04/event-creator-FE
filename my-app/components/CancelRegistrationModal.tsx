@@ -1,5 +1,6 @@
 "use client";
 
+// Modal usado para confirmar o cancelamento de uma inscricao.
 import { useState } from "react";
 import { AlertCircle, Loader } from "lucide-react";
 

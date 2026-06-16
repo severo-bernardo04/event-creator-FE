@@ -1,5 +1,6 @@
 "use client";
 
+// Icones de navegacao usados na area administrativa.
 import type { SVGProps } from "react";
 
 export function NavIconDashboard(props: SVGProps<SVGSVGElement>) {

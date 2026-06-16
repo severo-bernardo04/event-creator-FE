@@ -1,5 +1,6 @@
 "use client";
 
+// Tela administrativa para editar dados de um evento.
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

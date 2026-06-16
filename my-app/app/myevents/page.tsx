@@ -1,5 +1,6 @@
 "use client";
 
+// Pagina que lista os eventos do usuario logado.
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Inbox } from "lucide-react";

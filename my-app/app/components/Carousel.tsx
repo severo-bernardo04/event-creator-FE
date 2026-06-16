@@ -1,4 +1,5 @@
 "use client";
+// Carrossel visual usado para destacar conteudos na interface.
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";

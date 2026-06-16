@@ -1,3 +1,4 @@
+// Controla redirecionamentos e protecoes de rota antes da pagina carregar.
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

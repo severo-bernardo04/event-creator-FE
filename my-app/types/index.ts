@@ -1,15 +1,19 @@
+// Dados do usuário autenticado salvos no contexto da aplicação.
 export type AuthUser = {
   userId: number;
   name: string;
   email: string;
+  // Aceita ADMIN/USER e mantém string para não quebrar outros perfis vindos da API.
   role: "ADMIN" | "USER" | string;
   token: string;
-  cpf?: string;  // opcional para não quebrar quem já tem dados sem cpf
+  cpf?: string; // Opcional para não quebrar quem já tem dados sem CPF.
   dataNascimento?: string | null;
 };
 
+// Status possíveis de uma inscrição em evento privado.
 export type ParticipantStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+// Representa uma pessoa inscrita em um evento.
 export type Participant = {
   id: number;
   name: string;
@@ -20,6 +24,7 @@ export type Participant = {
   createdAt?: string;
 };
 
+// Modelo principal de evento usado nas telas da aplicação.
 export type Event = {
   id: number;
   title: string;
@@ -35,6 +40,7 @@ export type Event = {
   speakers?: Speaker[];
 };
 
+// Dados dos palestrantes vinculados a um evento.
 export type Speaker = {
   id?: number;
   name: string;
@@ -43,6 +49,7 @@ export type Speaker = {
   agenda?: string | null;
 };
 
+// Dados enviados para criar ou editar um evento na API.
 export type EventDTO = {
   title: string;
   description: string | null;
@@ -55,6 +62,7 @@ export type EventDTO = {
   speakers?: Speaker[];
 };
 
+// Dados enviados para inscrever um participante em um evento.
 export type ParticipantDTO = {
   name: string;
   email: string;
@@ -62,6 +70,7 @@ export type ParticipantDTO = {
   cpf: string;
 };
 
+// Material complementar anexado a um evento.
 export type EventMaterial = {
   id: number;
   eventId: number;
@@ -76,6 +85,7 @@ export type EventMaterial = {
   isApproved: boolean;
 };
 
+// Dados usados ao cadastrar um novo material no evento.
 export type EventMaterialDTO = {
   title: string;
   description: string;

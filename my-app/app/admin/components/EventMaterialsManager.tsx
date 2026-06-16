@@ -1,5 +1,6 @@
 "use client";
 
+// Gerenciador administrativo de materiais dos eventos.
 import { useState } from "react";
 import {
   CheckCircle2,
@@ -49,34 +50,42 @@ export default function EventMaterialsManager({
   });
   const [editFile, setEditFile] = useState<File | null>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
-      setError("Arquivo muito grande (máximo 50MB).");
-      return;
-    }
-
-    setSelectedFile(file);
-    setError(null);
-  };
-
-  const validateFileSize = (file: File) => {
+  const validateFile = (file: File, fileType: EventMaterialDTO["fileType"]) => {
     const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
       setError("Arquivo muito grande (máximo 50MB).");
       return false;
     }
 
+    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const isValid =
+      fileType === "PDF"
+        ? extension === "pdf" && (!file.type || file.type === "application/pdf")
+        : fileType === "IMAGE"
+          ? file.type.startsWith("image/")
+          : ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(extension);
+
+    if (!isValid) {
+      setError("O arquivo selecionado não corresponde ao tipo escolhido.");
+      return false;
+    }
+
     return true;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!validateFile(file, form.fileType)) return;
+
+    setSelectedFile(file);
+    setError(null);
   };
 
   const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!validateFileSize(file)) return;
+    if (!validateFile(file, editForm.fileType)) return;
 
     setEditFile(file);
     setError(null);

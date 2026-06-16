@@ -1,3 +1,4 @@
+// Auxilia na busca e comparacao de participantes por e-mail.
 import type { ApiEventNorm, ApiParticipantNorm } from "@/lib/eventsFromApi";
 
 type ParticipantStatusNorm = "PENDING" | "APPROVED" | "REJECTED";

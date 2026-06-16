@@ -1,5 +1,6 @@
 "use client";
 
+// Tela para solicitar codigo de recuperacao de senha.
 import { Mail, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

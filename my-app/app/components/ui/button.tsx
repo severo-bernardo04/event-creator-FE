@@ -1,3 +1,4 @@
+// Botao reutilizavel usado pelos componentes da pasta app.
 type ButtonProps = {
   children: React.ReactNode;
   onClick?: () => void;

@@ -1,3 +1,4 @@
+// Valida se o usuario pode cancelar uma inscricao em evento.
 import { apiFetch } from "@/lib/api";
 import { getAuthUser } from "@/lib/auth";
 import {

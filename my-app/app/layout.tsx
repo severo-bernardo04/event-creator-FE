@@ -1,3 +1,4 @@
+// Layout raiz que aplica fontes, estilos globais e provedores.
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";

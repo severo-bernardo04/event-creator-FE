@@ -1,5 +1,6 @@
 "use client";
 
+// Tela de perfil onde o usuario visualiza e edita seus dados.
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";

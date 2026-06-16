@@ -16,6 +16,26 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Rodando com Docker Compose
+
+Suba primeiro o backend. Com o compose do backend, a API fica publicada em
+`http://localhost:8080`.
+
+Depois suba o frontend:
+
+```bash
+docker compose up --build
+```
+
+Depois acesse [http://localhost:3000](http://localhost:3000).
+
+Por padrão, o frontend procura a API em `http://localhost:8080`. Se o backend
+estiver em outra URL:
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8081 docker compose up --build
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

@@ -1,3 +1,4 @@
+// Pagina de detalhes de um evento do usuario.
 import { redirect } from "next/navigation";
 
 export default async function MyEventDetailPage({

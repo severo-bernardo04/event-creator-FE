@@ -1,3 +1,4 @@
+// Tipos e funcoes relacionados ao historico de alteracoes dos eventos.
 export type EventHistoryFieldChange = {
     field: string;
     from: string;

@@ -1,5 +1,6 @@
 "use client";
 
+// Contexto global que guarda usuario logado e funcoes de autenticacao.
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { clearAuthUser, getAuthUser, isAdmin as isUserAdmin, setAuthUser } from "@/lib/auth";

@@ -1,5 +1,6 @@
 "use client";
 
+// Tela de cadastro de novos usuarios.
 import { CheckCircle, Shield, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

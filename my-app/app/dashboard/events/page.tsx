@@ -1,5 +1,6 @@
 "use client";
 
+// Pagina do dashboard para administrar eventos.
 import { useEffect, useState } from "react";
 import styles from "./Events.module.css";
 import { fetchAllEvents } from "@/lib/eventRequests";

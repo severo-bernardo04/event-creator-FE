@@ -1,3 +1,4 @@
+// Padroniza mensagens de erro exibidas para o usuario.
 export function getErrorMessage(err: unknown): string {
   const fallback = "Ocorreu um erro inesperado.";
   const serverFallback = "Não foi possível concluir a ação agora. Tente novamente em alguns instantes.";

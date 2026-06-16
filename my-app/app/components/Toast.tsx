@@ -1,5 +1,6 @@
 "use client";
 
+// Componente simples para mensagens temporarias na tela.
 import { useEffect } from "react";
 import { CheckCircle2, X } from "lucide-react";
 

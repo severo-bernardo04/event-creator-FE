@@ -1,3 +1,4 @@
+// Controla verificacao e cache local de inscricoes em eventos.
 import { ApiError, apiFetch } from "@/lib/api";
 import type { AuthUser } from "@/types";
 

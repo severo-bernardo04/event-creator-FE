@@ -1,5 +1,6 @@
 "use client";
 
+// Pagina publica que lista eventos disponiveis para inscricao.
 import Link from "next/link";
 import Toast from "@/app/components/Toast";
 import { useRouter } from "next/navigation";

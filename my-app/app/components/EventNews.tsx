@@ -1,5 +1,6 @@
 "use client";
 
+// Secao que exibe novidades ou destaques relacionados a eventos.
 import { useEffect, useMemo, useState } from "react";
 import { LoaderCircle, Megaphone, Newspaper } from "lucide-react";
 import { apiFetch } from "@/lib/api";

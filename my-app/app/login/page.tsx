@@ -1,5 +1,6 @@
 "use client";
 
+// Tela de login e validacao inicial das credenciais.
 import { Calendar, Megaphone, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

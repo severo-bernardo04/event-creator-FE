@@ -1,5 +1,6 @@
 "use client";
 
+// Central que monta e exibe notificacoes do usuario.
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";

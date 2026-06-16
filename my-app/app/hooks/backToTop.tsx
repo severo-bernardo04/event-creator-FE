@@ -1,3 +1,4 @@
+// Hook que leva a pagina de volta ao topo em mudancas de rota.
 import { useCallback } from 'react';
 
 export function useBackToTop() {

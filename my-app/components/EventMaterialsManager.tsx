@@ -1,5 +1,6 @@
 "use client";
 
+// Gerencia o cadastro e a listagem de materiais de eventos.
 import { useState } from "react";
 import { Upload, Trash2 } from "lucide-react";
 import { uploadMaterial, deleteMaterial } from "@/lib/eventMaterials";

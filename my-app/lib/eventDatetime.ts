@@ -1,3 +1,4 @@
+// Formata datas e horarios dos eventos para exibicao.
 /**
  * Verifica se um evento já começou
  */

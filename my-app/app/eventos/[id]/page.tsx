@@ -1,5 +1,6 @@
 "use client";
 
+// Pagina de detalhes de um evento especifico.
 import Link from "next/link";
 import Toast from "@/app/components/Toast";
 import { useParams, useRouter, useSearchParams } from "next/navigation";

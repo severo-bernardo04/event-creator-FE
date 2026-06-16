@@ -1,5 +1,6 @@
 "use client";
 
+// Tela administrativa que mostra o historico de alteracoes do evento.
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

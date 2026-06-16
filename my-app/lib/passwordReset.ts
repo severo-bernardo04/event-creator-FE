@@ -1,3 +1,4 @@
+// Chama a API para solicitar e concluir redefinicao de senha.
 import { apiFetch } from "@/lib/api";
 
 export async function requestPasswordResetCode(email: string) {

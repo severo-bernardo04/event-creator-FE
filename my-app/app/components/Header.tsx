@@ -1,5 +1,6 @@
 "use client";
 
+// Cabecalho principal com navegacao e dados do usuario.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";

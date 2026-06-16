@@ -1,3 +1,4 @@
+// Layout das rotas internas da aplicacao.
 import Header from "@/app/components/Header";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

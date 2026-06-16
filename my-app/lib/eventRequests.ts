@@ -1,3 +1,4 @@
+// Funcoes para buscar e atualizar solicitacoes relacionadas aos eventos.
 import { apiFetch } from "@/lib/api";
 import { normalizeEventList, type ApiEventNorm } from "@/lib/eventsFromApi";
 

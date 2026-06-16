@@ -1,5 +1,6 @@
 "use client";
 
+// Painel administrativo principal para eventos, usuarios e participantes.
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import Toast from "@/app/components/Toast";

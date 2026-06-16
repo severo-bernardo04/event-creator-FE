@@ -1,3 +1,4 @@
+// Define e resolve imagens exibidas nos cards e detalhes dos eventos.
 import { apiFetch } from "@/lib/api";
 
 export async function uploadEventImage(eventId: number, image: File) {

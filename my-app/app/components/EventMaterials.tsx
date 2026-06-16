@@ -1,5 +1,6 @@
 "use client";
 
+// Exibe materiais vinculados a um evento para o usuario.
 import { useEffect, useState } from "react";
 import { FileText, Image as ImageIcon, File, Link as LinkIcon, Download, LoaderCircle } from "lucide-react";
 import { getMaterialsByEventId } from "@/lib/eventMaterials";

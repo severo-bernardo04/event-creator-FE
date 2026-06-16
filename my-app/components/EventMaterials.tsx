@@ -1,5 +1,6 @@
 "use client";
 
+// Lista materiais disponiveis para consulta ou download.
 import { useEffect, useState } from "react";
 import { FileText, Image as ImageIcon, File, Link as LinkIcon, Download, LoaderCircle } from "lucide-react";
 import { getMaterialsByEventId } from "@/lib/eventMaterials";

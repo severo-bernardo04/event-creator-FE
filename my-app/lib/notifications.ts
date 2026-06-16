@@ -1,3 +1,4 @@
+// Funcoes auxiliares para criar e manipular notificacoes do sistema.
 import { apiFetch } from "@/lib/api";
 import type { EventHistoryFieldChange } from "@/lib/eventHistory";
 

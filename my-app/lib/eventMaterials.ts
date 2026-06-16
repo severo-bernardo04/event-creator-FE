@@ -1,3 +1,4 @@
+// Normaliza e manipula materiais anexados aos eventos.
 import { apiFetch } from "@/lib/api";
 import type { EventMaterial, EventMaterialDTO } from "@/types";
 
@@ -45,16 +46,16 @@ function normalizeMaterial(raw: unknown): EventMaterial | null {
     const record = asRecord(raw);
     if (!record) return null;
 
-    const fileType = pickString(record, ["fileType", "type", "mimeType"], "DOCUMENT").toUpperCase();
+    const fileType = pickString(record, ["fileType", "type", "tipo", "mimeType"], "DOCUMENT").toUpperCase();
     const normalizedFileType: EventMaterial["fileType"] =
         fileType === "PDF" || fileType === "IMAGE" || fileType === "DOCUMENT" || fileType === "LINK"
             ? fileType
             : "DOCUMENT";
 
-    const fileUrl = pickString(record, ["fileUrl", "url", "link", "file", "path"]);
-    const fileName = pickString(record, ["fileName", "name", "originalName"], normalizedFileType === "LINK" ? fileUrl : "");
+    const fileUrl = pickString(record, ["fileUrl", "arquivoUrl", "url", "link", "file", "arquivo", "path"]);
+    const fileName = pickString(record, ["fileName", "nomeArquivo", "name", "originalName"], normalizedFileType === "LINK" ? fileUrl : "");
 
-    const fileSize = pickNumber(record, ["fileSize", "size"], Number.NaN);
+    const fileSize = pickNumber(record, ["fileSize", "tamanhoArquivo", "size"], Number.NaN);
 
     return {
         id: pickNumber(record, ["id", "materialId"]),
@@ -69,6 +70,33 @@ function normalizeMaterial(raw: unknown): EventMaterial | null {
         uploadedAt: pickString(record, ["uploadedAt", "createdAt", "updatedAt"], new Date().toISOString()),
         isApproved: pickBoolean(record, ["isApproved", "approved", "aprovado", "status"], true),
     };
+}
+
+function buildMaterialFormData(material: EventMaterialDTO) {
+    const formData = new FormData();
+    const title = material.title.trim();
+    const description = material.description.trim();
+    const link = material.link?.trim();
+
+    formData.append("title", title);
+    formData.append("titulo", title);
+    formData.append("description", description);
+    formData.append("descricao", description);
+    formData.append("fileType", material.fileType);
+    formData.append("type", material.fileType);
+    formData.append("tipo", material.fileType);
+
+    if (material.file) {
+        formData.append("file", material.file, material.file.name);
+    }
+
+    if (link) {
+        formData.append("link", link);
+        formData.append("url", link);
+        formData.append("fileUrl", link);
+    }
+
+    return formData;
 }
 
 function normalizeMaterialList(raw: unknown): EventMaterial[] {
@@ -89,19 +117,7 @@ export async function getMaterialsByEventId(eventId: number): Promise<EventMater
 }
 
 export async function uploadMaterial(eventId: number, material: EventMaterialDTO): Promise<EventMaterial> {
-    const formData = new FormData();
-    formData.append("title", material.title);
-    formData.append("description", material.description);
-    formData.append("fileType", material.fileType);
-
-    if (material.file) {
-        formData.append("file", material.file);
-    }
-
-    if (material.link) {
-        formData.append("link", material.link);
-        formData.append("url", material.link);
-    }
+    const formData = buildMaterialFormData(material);
 
     const data = await apiFetch<unknown>(`/events/${eventId}/materials`, {
         method: "POST",
@@ -122,19 +138,7 @@ export async function uploadMaterial(eventId: number, material: EventMaterialDTO
 }
 
 export async function updateMaterial(eventId: number, materialId: number, material: EventMaterialDTO): Promise<EventMaterial> {
-    const formData = new FormData();
-    formData.append("title", material.title);
-    formData.append("description", material.description);
-    formData.append("fileType", material.fileType);
-
-    if (material.file) {
-        formData.append("file", material.file);
-    }
-
-    if (material.link) {
-        formData.append("link", material.link);
-        formData.append("url", material.link);
-    }
+    const formData = buildMaterialFormData(material);
 
     const data = await apiFetch<unknown>(`/events/${eventId}/materials/${materialId}`, {
         method: "PUT",

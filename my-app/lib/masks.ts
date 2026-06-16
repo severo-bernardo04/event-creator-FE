@@ -1,3 +1,4 @@
+// Mascaras de formatacao para campos como CPF e telefone.
 export function maskCpf(value: string) {
     return value.replace(/\D/g, "").slice(0,11)
         .replace(/(\d{3})(\d)/, "$1.$2")

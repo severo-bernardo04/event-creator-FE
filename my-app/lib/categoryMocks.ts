@@ -1,3 +1,4 @@
+// Dados e categorias usados como apoio visual nos eventos.
 export const CATEGORIES = [
     "Tecnologia",
     "Educação",

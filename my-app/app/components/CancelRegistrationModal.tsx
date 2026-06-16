@@ -1,5 +1,6 @@
 "use client";
 
+// Modal de confirmacao para cancelar inscricao dentro da pasta app.
 import { useState } from "react";
 import { AlertCircle, Loader } from "lucide-react";
 

@@ -1,5 +1,6 @@
 "use client";
 
+// Grafico que resume informacoes dos eventos para o painel.
 import React from "react";
 import {
   BarChart,

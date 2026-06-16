@@ -1,5 +1,6 @@
 "use client";
 
+// Tela onde o usuario redefine a senha usando codigo recebido.
 import { KeyRound, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

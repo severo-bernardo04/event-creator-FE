@@ -1,3 +1,4 @@
+// Componente visual para mostrar o status atual de um participante.
 import type { ParticipantStatus } from "@/types";
 
 export default function StatusParticipante({
