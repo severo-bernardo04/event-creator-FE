@@ -1,56 +1,257 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Event Creator Frontend
 
-## Getting Started
+Frontend do Event Creator desenvolvido com Next.js, React e TypeScript.
 
-First, run the development server:
+## Requisitos
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Para rodar com Docker:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Docker
+- Docker Compose
+- Backend rodando e exposto em `http://localhost:8080`
+
+Para rodar sem Docker:
+
+- Node.js 22 ou superior
+- npm
 
 ## Rodando com Docker Compose
 
-Suba primeiro o backend. Com o compose do backend, a API fica publicada em
-`http://localhost:8080`.
+O arquivo [docker-compose.yml](./docker-compose.yml) sobe o frontend em modo
+desenvolvimento na porta `3000`.
 
-Depois suba o frontend:
+Suba primeiro o backend. O compose do backend deve publicar a API em:
+
+```text
+http://localhost:8080
+```
+
+Depois, no diretório deste frontend:
 
 ```bash
+cd /home/pedro/WebstormProjects/event-creator-FEe/my-app
 docker compose up --build
 ```
 
-Depois acesse [http://localhost:3000](http://localhost:3000).
+Acesse:
 
-Por padrão, o frontend procura a API em `http://localhost:8080`. Se o backend
-estiver em outra URL:
+```text
+http://localhost:3000
+```
+
+## Configuração da API
+
+Por padrão, o frontend chama a API em:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8080
+```
+
+Esse valor está definido no `docker-compose.yml`:
+
+```yaml
+environment:
+  NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+```
+
+Se o backend estiver em outra porta, informe a variável ao subir o compose:
 
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8081 docker compose up --build
 ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Comandos úteis
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Subir o frontend:
 
-## Learn More
+```bash
+docker compose up
+```
 
-To learn more about Next.js, take a look at the following resources:
+Subir reconstruindo a imagem:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker compose up --build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Rodar em segundo plano:
 
-## Deploy on Vercel
+```bash
+docker compose up -d
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ver logs:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker compose logs -f frontend
+```
+
+Parar os containers:
+
+```bash
+docker compose down
+```
+
+Recriar o container quando mudar variável de ambiente:
+
+```bash
+docker compose up -d --force-recreate frontend
+```
+
+Limpar volumes do compose:
+
+```bash
+docker compose down -v
+```
+
+## Rodando sem Docker
+
+Instale as dependências:
+
+```bash
+npm install
+```
+
+Suba o servidor de desenvolvimento:
+
+```bash
+npm run dev
+```
+
+Acesse:
+
+```text
+http://localhost:3000
+```
+
+## Scripts disponíveis
+
+```bash
+npm run dev
+```
+
+Inicia o Next.js em modo desenvolvimento.
+
+```bash
+npm run build
+```
+
+Gera a build de produção.
+
+```bash
+npm run start
+```
+
+Inicia o app usando a build de produção.
+
+```bash
+npm run lint
+```
+
+Executa o ESLint.
+
+## Integração com o backend
+
+O frontend usa a variável `NEXT_PUBLIC_API_URL` para montar as chamadas HTTP.
+As chamadas estão centralizadas em:
+
+```text
+lib/api.ts
+```
+
+Exemplo:
+
+```ts
+apiFetch("/users/login", {
+  method: "POST",
+  json: { email, password },
+});
+```
+
+Com a configuração padrão, essa chamada vai para:
+
+```text
+http://localhost:8080/users/login
+```
+
+## Solução de problemas
+
+### Failed to fetch no login ou cadastro
+
+Verifique se o backend está rodando:
+
+```bash
+curl -i http://localhost:8080/users/login
+```
+
+Mesmo que a rota retorne erro por ser acessada com método errado, a API deve
+responder. Se a conexão falhar, o backend não está disponível na porta `8080`.
+
+Também confira a variável dentro do container:
+
+```bash
+docker exec event-creator-frontend printenv NEXT_PUBLIC_API_URL
+```
+
+O esperado é:
+
+```text
+http://localhost:8080
+```
+
+Se estiver diferente, recrie o container:
+
+```bash
+docker compose up -d --force-recreate frontend
+```
+
+Depois faça um hard refresh no navegador:
+
+```text
+Ctrl + Shift + R
+```
+
+### Porta 3000 ocupada
+
+Se já existir outro processo usando a porta `3000`, altere o mapeamento no
+`docker-compose.yml`:
+
+```yaml
+ports:
+  - "3001:3000"
+```
+
+Nesse caso, acesse:
+
+```text
+http://localhost:3001
+```
+
+### Backend em Docker
+
+Se o backend estiver usando Docker Compose, confirme que ele publica a porta:
+
+```yaml
+ports:
+  - "8080:8080"
+```
+
+O Postgres pode continuar em outra porta externa, por exemplo:
+
+```yaml
+ports:
+  - "5433:5432"
+```
+
+O frontend não acessa o Postgres diretamente. Ele acessa apenas a API.
+
+## Estrutura principal
+
+```text
+app/            Rotas e telas do Next.js
+components/     Componentes reutilizáveis
+context/        Contextos React
+lib/            Funções utilitárias e cliente da API
+types/          Tipos TypeScript compartilhados
+public/         Arquivos estáticos
+```
