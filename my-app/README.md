@@ -11,7 +11,7 @@ Para rodar com Docker:
 - Backend rodando e exposto em `http://localhost:8080`
 
 Para rodar sem Docker:
-
+_
 - Node.js 22 ou superior
 - npm
 
